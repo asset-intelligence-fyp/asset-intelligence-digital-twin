@@ -1,0 +1,47 @@
+{
+  "_note": "Scenario rules are synthetic testing assumptions. They are intended to exercise the PoC pipeline, not to represent verified HVAC fault signatures.",
+  "scenarios": [
+    {
+      "id": "HRU501A_AIRFLOW_LOW",
+      "asset_id": "HRU501A",
+      "name": "Low airflow while fan is ON",
+      "type": "cross_sensor",
+      "description": "Keeps fan ON and drives airflow below its configured normal range."
+    },
+    {
+      "id": "HRU501A_FAN_AIRFLOW_CONFLICT",
+      "asset_id": "HRU501A",
+      "name": "Fan OFF / airflow conflict",
+      "type": "cross_sensor",
+      "description": "Sets fan OFF while airflow remains above the normal operating range."
+    },
+    {
+      "id": "HRU504_DAMPER_STUCK",
+      "asset_id": "HRU504",
+      "name": "Damper stuck",
+      "type": "stuck",
+      "description": "Holds damper position nearly constant while pressure continues to vary."
+    },
+    {
+      "id": "HRU504_PRESSURE_HIGH",
+      "asset_id": "HRU504",
+      "name": "High static pressure",
+      "type": "high",
+      "description": "Drives static pressure above its configured normal range."
+    },
+    {
+      "id": "HRU507_AIRFLOW_LOW_ZONE_DRIFT",
+      "asset_id": "HRU507",
+      "name": "Low airflow + zone temperature drift",
+      "type": "cross_sensor",
+      "description": "Reduces airflow and gradually shifts zone temperature upward."
+    },
+    {
+      "id": "HRU507_ZONE_SENSOR_STUCK",
+      "asset_id": "HRU507",
+      "name": "Zone temperature sensor stuck",
+      "type": "stuck",
+      "description": "Holds zone temperature at a nearly fixed reading."
+    }
+  ]
+}

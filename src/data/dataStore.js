@@ -9,6 +9,7 @@ export const db = {
   Assets: [],
   Maintenance_Events: [],
   Sensors: [],
+  Sensor_Points: [],
   Sensor_Readings: [],
   Historical_Sensor_Readings: [],
   Anomaly_Results: [],
@@ -86,59 +87,150 @@ export const modelEvaluationDemo = {
 };
 
 export function getSpace(spaceId) {
-  return db.Spaces.find((row) => row.space_id === Number(spaceId)) || null;
+  return db.Spaces.find(
+    (row) => String(row.space_id) === String(spaceId)
+  ) || null;
 }
 
 export function getFloor(floorId) {
-  return db.Building_Floors.find((row) => row.floor_id === Number(floorId)) || null;
+  return db.Building_Floors.find(
+    (row) => String(row.floor_id) === String(floorId)
+  ) || null;
 }
 
 export function getAssetById(assetId) {
-  return db.Assets.find((row) => row.asset_id === Number(assetId)) || null;
+  return db.Assets.find(
+    (row) => String(row.asset_id) === String(assetId)
+  ) || null;
 }
 
 export function getAssetByName(name) {
-  return db.Assets.find((row) => row.asset_name === name) || null;
+  return db.Assets.find(
+    (row) => row.asset_name === name
+  ) || null;
 }
 
 export function getSensorsForAsset(assetId) {
-  return db.Sensors.filter((row) => row.asset_id === Number(assetId));
+  return db.Sensors.filter(
+    (row) => String(row.asset_id ?? row.equipment_code) === String(assetId)
+  );
 }
 
-export function getReading(sensorId) {
-  return db.Sensor_Readings.find((row) => row.sensor_id === Number(sensorId)) || null;
+export function getSensorById(sensorId) {
+  return db.Sensors.find(
+    (row) => String(row.sensor_id ?? row.sensor_code) === String(sensorId)
+  ) || null;
+}
+
+export function getSensorByBimId(globalId) {
+  if (!globalId) return null;
+  return db.Sensors.find(
+    (row) => String(row.ifc_global_id ?? row.global_id) === String(globalId)
+  ) || null;
+}
+
+export function getAssetByBimId(globalId) {
+  if (!globalId) return null;
+  return db.Assets.find(
+    (row) => String(row.ifc_global_id ?? row.global_id) === String(globalId)
+  ) || null;
+}
+
+export function getSensorPoints(sensorId) {
+  return db.Sensor_Points.filter(
+    (row) => String(row.sensor_id ?? row.sensor_code) === String(sensorId)
+  );
+}
+
+export function getReading(pointCode) {
+  return db.Sensor_Readings.find(
+    (row) => String(row.point_code ?? row.sensor_id) === String(pointCode)
+  ) || null;
+}
+
+export function getSensorCurrentValues(sensorId) {
+  return getSensorPoints(sensorId).map((point) => ({
+    ...point,
+    sensor_type: point.measurement_type ?? point.sensor_type,
+    reading: getReading(point.point_code ?? point.sensor_id)
+  }));
 }
 
 export function getAssetCurrentValues(assetId) {
-  return getSensorsForAsset(assetId).map((sensor) => ({
+  const sensors = getSensorsForAsset(assetId);
+
+  if (db.Sensor_Points.length) {
+    return sensors.flatMap((sensor) =>
+      getSensorCurrentValues(sensor.sensor_id ?? sensor.sensor_code).map((point) => ({
+        ...point,
+        sensor_id: point.point_code ?? point.sensor_id,
+        physical_sensor_id: sensor.sensor_id ?? sensor.sensor_code,
+        sensor_name: sensor.sensor_name,
+        sensor: sensor
+      }))
+    );
+  }
+
+  // Compatibility with the original one-row-per-measurement demo schema.
+  return sensors.map((sensor) => ({
     ...sensor,
-    reading: getReading(sensor.sensor_id)
+    reading: getReading(sensor.sensor_id ?? sensor.sensor_code)
   }));
 }
 
 export function getAnomaliesForAsset(assetId) {
-  const sensorIds = new Set(getSensorsForAsset(assetId).map((sensor) => sensor.sensor_id));
-  return db.Anomaly_Results.filter((row) => sensorIds.has(row.sensor_id));
+  const sensors = getSensorsForAsset(assetId);
+  const sensorIds = new Set(
+    sensors.map((sensor) => String(sensor.sensor_id ?? sensor.sensor_code))
+  );
+  const pointIds = new Set(
+    sensors.flatMap((sensor) =>
+      getSensorPoints(sensor.sensor_id ?? sensor.sensor_code)
+        .map((point) => String(point.point_code))
+    )
+  );
+
+  return db.Anomaly_Results.filter((row) => {
+    const sensorRef = row.sensor_id ?? row.sensor_code;
+    const pointRef = row.point_code;
+    return sensorIds.has(String(sensorRef)) || pointIds.has(String(pointRef ?? sensorRef));
+  });
 }
 
 export function getAssetContext(asset) {
   if (!asset) return null;
+
   const space = getSpace(asset.space_id);
   const floor = space ? getFloor(space.floor_id) : null;
   const readings = getAssetCurrentValues(asset.asset_id);
+
   const anomalies = getAnomaliesForAsset(asset.asset_id)
     .slice()
-    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
-  return { asset, space, floor, readings, anomalies };
+    .sort((a, b) =>
+      String(b.timestamp).localeCompare(String(a.timestamp))
+    );
+
+  return {
+    asset,
+    space,
+    floor,
+    readings,
+    anomalies
+  };
 }
 
 export function getLatestAnomalyRows() {
   return db.Anomaly_Results.map((anomaly) => {
-    const sensor = db.Sensors.find((s) => s.sensor_id === Number(anomaly.sensor_id));
-    const asset = sensor ? getAssetById(sensor.asset_id) : null;
+    const point = db.Sensor_Points.find(
+      (p) => String(p.point_code) === String(anomaly.point_code ?? anomaly.sensor_id)
+    );
+    const sensor = point
+      ? getSensorById(point.sensor_id ?? point.sensor_code)
+      : getSensorById(anomaly.sensor_id ?? anomaly.sensor_code);
+    const asset = sensor ? getAssetById(sensor.asset_id ?? sensor.equipment_code) : null;
     const space = asset ? getSpace(asset.space_id) : null;
     const floor = space ? getFloor(space.floor_id) : null;
-    return { ...anomaly, sensor, asset, space, floor };
+    return { ...anomaly, point, sensor, asset, space, floor };
   }).sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
 }
 
@@ -158,4 +250,81 @@ export function formatTime(timestamp) {
 export function formatShortTime(timestamp) {
   const date = parseTimestamp(timestamp);
   return date ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : (timestamp || "—");
+}
+
+export function applyLiveReading(
+  incoming
+) {
+
+  if (!incoming?.point_code) {
+    return;
+  }
+
+
+  const currentReading = {
+    point_code:
+      incoming.point_code,
+
+    latest_update:
+      incoming.latest_update ??
+      incoming.timestamp,
+
+    value:
+      incoming.value,
+
+    quality:
+      incoming.quality
+  };
+
+
+  const index =
+    db.Sensor_Readings.findIndex(
+      (row) =>
+        String(row.point_code) ===
+        String(incoming.point_code)
+    );
+
+
+  if (index >= 0) {
+
+    db.Sensor_Readings[index] =
+      currentReading;
+
+  } else {
+
+    db.Sensor_Readings.push(
+      currentReading
+    );
+  }
+
+
+  // Also keep a short browser-side history.
+  db.Historical_Sensor_Readings.push({
+    point_code:
+      incoming.point_code,
+
+    timestamp:
+      incoming.timestamp ??
+      incoming.latest_update,
+
+    value:
+      incoming.value,
+
+    quality:
+      incoming.quality
+  });
+
+
+  // Prevent unlimited browser memory growth.
+  if (
+    db.Historical_Sensor_Readings.length >
+    5000
+  ) {
+
+    db.Historical_Sensor_Readings.splice(
+      0,
+      db.Historical_Sensor_Readings.length -
+      5000
+    );
+  }
 }
