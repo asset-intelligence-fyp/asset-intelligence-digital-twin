@@ -1,10 +1,28 @@
+# Node
 node_modules/
-.env
-.DS_Store
 dist/
-build/
-*.log
-.vscode/
 
-# Large BIM models
-public/models/*.ifc
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Local Python environments
+.ifc-check/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Generated simulator data
+tools/hru_digital_twin_simulator_v2/historical/output/
+tools/hru_digital_twin_simulator_v2/historical/*.csv
