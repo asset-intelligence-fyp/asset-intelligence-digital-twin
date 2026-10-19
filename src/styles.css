@@ -802,3 +802,20 @@ h1, h2, h3, p { margin: 0; }
 .level5-layer-status { font-size: 10px; line-height: 1.4; color: #9bb4c1; }
 .level5-layer-status.warning { color: #ffc46c; }
 @media(max-width:900px){.level5-viewer-tools{width:175px;right:8px;}}
+
+
+.level5-viewer-tools .level5-recovery-btn {
+  display: block;
+  width: 100%;
+  border: 1px solid rgba(255, 165, 81, .42);
+  border-radius: 6px;
+  background: rgba(255, 136, 46, .10);
+  color: #ffd1a0;
+  font-size: 10px;
+  padding: 7px 8px;
+  text-align: center;
+  cursor: pointer;
+}
+.level5-viewer-tools .level5-recovery-btn:hover {
+  background: rgba(255, 136, 46, .20);
+}
