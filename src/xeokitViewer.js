@@ -74,6 +74,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let model = null;
   let storeys = [];
   let currentStoreyIndex = -1;
+  let level5StoreyIndex = -1;
   let selectedEntity = null;
   let sensorCatalog = [];
 
@@ -126,31 +127,36 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     return metaObject?.name || `Floor ${index + 1}`;
   };
 
+  // A Level 5-specific XKT is the primary source of truth.
+  // If extra storeys are present, isolate the named L5 storey when possible.
   const populateFloors = () => {
     storeys = storeyViews.storeysList || [];
-
+    level5StoreyIndex = storeys.findIndex((storey, index) =>
+      /(?:level|floor|storey|l)\\s*0?5\\b/i.test(getStoreyName(storey, index))
+    );
+    if (level5StoreyIndex < 0 && storeys.length === 1) level5StoreyIndex = 0;
     if (floorSelect) {
-      floorSelect.innerHTML = '<option value="-1">All Floors</option>';
-      storeys.forEach((storey, index) => {
-        const option = document.createElement("option");
-        option.value = String(index);
-        option.textContent = getStoreyName(storey, index);
-        floorSelect.appendChild(option);
-      });
+      floorSelect.innerHTML = '<option value="-1">Level 5</option>';
+      floorSelect.disabled = true;
     }
-
-    if (floorLabel) {
-      floorLabel.textContent = storeys.length ? "All Floors" : "Model Loaded";
+    if (floorLabel) floorLabel.textContent = "Level 5";
+    if (storeys.length > 1 && level5StoreyIndex < 0) {
+      console.warn("Multiple IFC storeys found, but Level 5 was not identifiable:", storeys.map(getStoreyName));
+      if (floorLabel) floorLabel.textContent = "Verify IFC floor";
     }
+    if (level5StoreyIndex >= 0 && model) goToStorey(level5StoreyIndex, false);
   };
 
   const showWholeBuilding = () => {
     if (!model) return;
+    if (level5StoreyIndex >= 0) {
+      goToStorey(level5StoreyIndex, false);
+      return;
+    }
     currentStoreyIndex = -1;
-    if (floorSelect) floorSelect.value = "-1";
-    if (floorLabel) floorLabel.textContent = "All Floors";
+    if (floorLabel) floorLabel.textContent = "Level 5";
     viewer.cameraControl.navMode = "orbit";
-    viewer.scene.setObjectsVisible(viewer.scene.objectIds, true);
+    viewer.scene.setObjectsVisible(model.objectIds || viewer.scene.objectIds, true);
     viewer.cameraFlight.flyTo({
       aabb: model.aabb,
       projection: "perspective",
@@ -195,7 +201,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     fit: showWholeBuilding,
     all: () => { clearSection(); showWholeBuilding(); },
     plan: () => {
-      if (currentStoreyIndex === -1 && storeys.length) goToStorey(0, true);
+      if (currentStoreyIndex === -1 && level5StoreyIndex >= 0) goToStorey(level5StoreyIndex, true);
       else if (currentStoreyIndex >= 0) goToStorey(currentStoreyIndex, true);
     },
     threeD: () => {
@@ -296,5 +302,5 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   });
 
   active = { viewer, model };
-  return { viewer, showWholeBuilding, goToStorey, selectSensor, configureSensors, setSection, clearSection };
+  return { viewer, model, showWholeBuilding, goToStorey, selectSensor, configureSensors, setSection, clearSection };
 }
