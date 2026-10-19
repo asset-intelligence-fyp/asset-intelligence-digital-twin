@@ -73,7 +73,7 @@ const MQTT_URL =
 
 const MQTT_TOPIC =
   process.env.MQTT_TOPIC ||
-  "dt/HRU507/+";
+  "dt/+/+";
 
 const mqttClient = mqtt.connect(MQTT_URL);
 
