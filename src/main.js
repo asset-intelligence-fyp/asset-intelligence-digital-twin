@@ -468,6 +468,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         </select>
         <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show architecture</label>
         <div class="level5-layer-status" data-architecture-status>Loading architectural floor…</div>
+        <button type="button" class="level5-recovery-btn" data-viewer-action="resetAllCuts">Restore visible model</button>
         <div class="level5-mode-help">The floor underlay is clipped automatically. Follow camera removes the facing walls as you rotate.</div>
       </div>
       <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
