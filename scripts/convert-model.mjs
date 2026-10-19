@@ -30,7 +30,7 @@ if (!fs.existsSync(source)) {
 // IFC-to-XKT converts the file as exported; it does not strip unwanted floors.
 // Report declared building storeys so a multi-floor export isn't mislabelled as Level 5.
 const ifcText = fs.readFileSync(source, "utf8");
-const storeyNames = [...ifcText.matchAll(/#\\d+\\s*=\\s*IFCBUILDINGSTOREY\\s*\\(\\s*'[^']*'\\s*,\\s*[^,]*\\s*,\\s*'([^']*)'/gi)].map(match => match[1]);
+const storeyNames = [...ifcText.matchAll(/#\d+\s*=\s*IFCBUILDINGSTOREY\s*\(\s*'[^']*'\s*,\s*[^,]*\s*,\s*'([^']*)'/gi)].map(match => match[1]);
 if (storeyNames.length) {
   console.log("Declared IFC storeys:", [...new Set(storeyNames)].join(", "));
   console.log("Confirm the exported geometry is Level 5 only; XKT conversion will not crop other floors.");
