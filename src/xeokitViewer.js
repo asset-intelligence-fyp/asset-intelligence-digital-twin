@@ -272,7 +272,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   model = xktLoader.load({
     id: "SnowdonTowers",
-    src: "/models/Snowdon_Level5_Model+HVAC_S.xkt",
+    src: "/models/Snowdon_Level5_Model+HVAC.xkt",
     edges: true,
     saoEnabled: true,
     dtxEnabled: true
