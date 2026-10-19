@@ -1,57 +1,51 @@
-# Level 5 architectural cutaway
+# Snowdon Towers Level 5 — architectural and HVAC viewer
 
-## Why the HVAC-only IFC has no walls
+## Architecture and telemetry
 
-The sensor IFC `Snowdon_Level5_Model+HVAC.ifc` / `.xkt` contains the HVAC geometry from its Revit export.
-The JavaScript viewer cannot reconstruct missing walls, slabs, or room boundaries from ducts.
+The BIM viewer loads two existing XKT models into one xeokit scene:
 
-To show the floor without modifying the original Revit walls, the BIM Viewer now loads **two scene models**:
+- HVAC and physical sensor objects: `/models/Snowdon_Level5_Model+HVAC.xkt`
+- Architectural walls, room partitions and slabs: `/models/Snowdon Towers Sample Architectural.xkt`
 
-1. The existing new `Snowdon_Level5_Model+HVAC.xkt` for HVAC and clickable physical-sensor IFC GUIDs.
-2. The repository's existing `Snowdon Towers Sample Architectural.xkt` for walls, slabs, doors, windows, and architectural partitions.
+The physical sensor GlobalIds are preserved for selecting the eight mapped Level 5 devices. Their live readings continue to arrive through PostgreSQL and the existing SSE endpoint; no MQTT or database changes are required by the new view controls.
 
-The architecture XKT is a **candidate** context asset. Its geometry and coordinate system have NOT been confirmed to match the new HVAC IFC. The viewer reports a warning if the axis-aligned bounds don't overlap; a successful overlap alone does not prove perfect alignment.
+## Default floor cut
 
-## How the Level 5 crop works
+When the HVAC model and architecture have loaded, the viewer automatically creates **one** lower clipping plane at the minimum HVAC world-Y position minus `3.5` model units. The plane faces down (`[0,-1,0]`) and cuts away geometry below that position. The automatic plane applies to the architecture; the HVAC model is **not clippable** in normal view, preserving sensor visibility.
 
-Xeokit uses **world Y as up** in the current viewer configuration.
+This is a **provisional floor elevation estimate**, not a verified Revit Level 5 datum. If the architectural and HVAC bounds do not overlap, the crop is safely skipped and a warning is shown. When the correct IFC storey elevation is known, adjust `FLOOR_DROP` in `src/xeokitViewer.js` or replace it with the measured elevation.
 
-The Level 5 crop is **off by default**, so geometry remains visible while alignment is checked. After enabling **Enable Level 5 crop**, two section planes remove the geometry above and below a band around the Level 5 HVAC model:
+The former upper/lower slice controls and **Enable Level 5 crop** checkbox have been removed because they could hide the entire scene.
 
-- lower plane: HVAC minimum Y - `Below HVAC` adjustment, defaults to 3.5 model metres
-- upper plane: HVAC maximum Y + `Above HVAC` adjustment, defaults to 1.5 model metres
+## View options
 
-Enable the crop checkbox and adjust these two sliders until the Level 5 floor slab, interior partitions, and appropriate wall height become visible. Turn the checkbox off (or click Reset / Show all geometry) if the scene disappears. The correct boundaries depend on model geometry; they are not verified floor elevations.
+- **Walls + floor (normal)**: the default view, without a camera-facing section.
+- **Follow camera section**: enables a side section plane facing the current camera yaw. As the operator orbits, the plane orientation is recalculated from the camera's view-matrix event. The side plane stays vertical so camera pitch does not inadvertently remove the floor.
+- **3D View / Plan view / Home**: existing camera navigation controls.
+- **Show architecture**: hides or restores the architectural model without affecting physical sensors.
 
-The separate **Extra section cut** slider creates a third clipping plane on demand. The HVAC model remains protected from automatic architectural slicing, but responds to an explicitly requested section cut.
+The camera-following section can visually cut sensors in the foreground; return to Walls + floor to restore an unclipped sensor view.
 
-`Show walls and floor` enables or disables the architectural context layer. The HVAC scene and sensor IFC IDs are unaffected. The architectural context uses prefixed entity IDs to prevent collisions.
+## Larger BIM workspace
 
-## Start and check
+The BIM Viewer page uses a narrower right inspector for additional model width. The **Expand** button requests browser fullscreen on the viewer **and sensor inspector together**. Use the button again, or press **Esc**, to leave fullscreen. This is user-initiated and does not require a separate fullscreen library.
 
-From the project root on your local machine:
+## Local verification
 
 ```bash
-git fetch origin
 git switch feature/level5-architecture-slice
-npm ci
+git pull --ff-only origin feature/level5-architecture-slice
 npm run dev
 ```
 
-Ensure `public/models/Snowdon_Level5_Model+HVAC.xkt` exists locally. If missing, run `npm run convert:model` before opening the viewer. The XKT is currently **not** in GitHub: it is generated on the developer's computer.
+Go to `http://localhost:5173/bim-viewer`, hard refresh, and check:
 
-Open http://localhost:5173/bim-viewer and verify:
+1. Architecture and HVAC are visible without clicking any recovery button.
+2. No `Enable Level 5 crop` checkbox or east-west/north-south axis dropdown remains.
+3. Switching to **Follow camera section** adjusts the cut direction as the view is rotated.
+4. Returning to **Walls + floor** restores the walls; sensor object selection works.
+5. **Expand** fills the screen while retaining the sensor inspector.
 
-1. Both the HVAC ducts and architectural context are visible at startup with the crop OFF.
-2. The architectural status says `Walls and slabs shown`, with no model-alignment warning.
-3. Lower and upper sliders control the visible floor band; the extra cut still works.
-4. All eight mapped IFC sensor objects remain selectable and show live database readings.
+If walls or ducts disappear, check the browser console for `Skipped under-floor cut` warnings and inspect the model coordinate systems. The viewer cannot reconstruct IFC geometry absent from the exported XKT.
 
-## If walls/slabs still do not appear
-
-- If architecture reports `No architectural geometry in XKT`, verify the XKT contains classified `IfcWall`/`IfcWallStandardCase`/`IfcSlab` elements.
-- If the status reports **not aligned**, the architectural sample XKT likely uses different coordinates or geometry. Obtain a **matching full-building architectural IFC** from the same Snowdon Towers Revit model, with the same project/shared coordinate reference as the HVAC IFC. Convert that IFC to XKT and update the architectural URL in `src/xeokitViewer.js`.
-- If some walls or floor are missing, those objects may not have been exported or may not be modeled; no frontend code can recover missing mesh geometry.
-- Revit's **Room Separation Lines** are not necessarily exported as renderable XKT geometry. Actual partition walls will show; room labels/2D separators may require additional IFC space/room data and an overlay.
-
-**Do not delete or modify shared/stacked walls in the RVT file.** A single full architectural model can be loaded as a separate scene layer and sliced non-destructively in the web viewer.
+The code modifications were inspected for JavaScript syntax but have not been run in a live browser by the authoring environment.
