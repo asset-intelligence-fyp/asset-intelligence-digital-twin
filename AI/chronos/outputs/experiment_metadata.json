@@ -1,0 +1,26 @@
+{
+  "model_id": "amazon/chronos-2",
+  "device": "cpu",
+  "zero_shot": true,
+  "multivariate_joint_targets": [
+    "temperature_c",
+    "humidity_rh",
+    "co2_ppm"
+  ],
+  "future_sensor_values_provided_to_model": false,
+  "model_context_selected_from_validation_only": 60,
+  "candidate_contexts": [
+    {
+      "context_minutes": 60,
+      "normalized_validation_mae": 0.0186907860957619
+    },
+    {
+      "context_minutes": 180,
+      "normalized_validation_mae": 0.020871517147435664
+    }
+  ],
+  "selected_test_origins": 64,
+  "selected_transition_origins": 53,
+  "elapsed_seconds_including_validation": 9.01,
+  "scientific_caveat": "HYBRID_OBSERVED_PROXY_AND_SIMULATED dataset, not a real-building validation"
+}

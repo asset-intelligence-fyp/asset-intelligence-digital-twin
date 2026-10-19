@@ -1,0 +1,107 @@
+{
+  "source_csv_name": "HRU507_S-L5-008_1min_aligned.csv",
+  "source_csv_sha256": "653472ef4c6e2a697a7ac3218fadbec0c8750918a908798804313d7c563ba54c",
+  "n_samples": 525540,
+  "timestamp_start": "2018-01-01 01:00:00",
+  "timestamp_end": "2018-12-31 23:59:00",
+  "frequency": "1 minute; validated without filling",
+  "asset_id": "HRU507",
+  "sensor_id": "S-L5-008",
+  "splits": {
+    "train": {
+      "start_index": 0,
+      "end_index_exclusive": 367878,
+      "first_timestamp": "2018-01-01 01:00:00",
+      "last_timestamp": "2018-09-13 12:17:00"
+    },
+    "validation": {
+      "start_index": 367878,
+      "end_index_exclusive": 446709,
+      "first_timestamp": "2018-09-13 12:18:00",
+      "last_timestamp": "2018-11-07 06:08:00"
+    },
+    "test": {
+      "start_index": 446709,
+      "end_index_exclusive": 525540,
+      "first_timestamp": "2018-11-07 06:09:00",
+      "last_timestamp": "2018-12-31 23:59:00"
+    }
+  },
+  "provenance": {
+    "temperature_provenance": {
+      "source_ZONE_TEMP_1_assumed_F": 525540
+    },
+    "humidity_provenance": {
+      "synthetic_physical_mass_balance": 525540
+    },
+    "co2_provenance": {
+      "synthetic_physical_mass_balance": 525540
+    },
+    "dataset_type": {
+      "HYBRID_OBSERVED_PROXY_AND_SIMULATED": 525540
+    }
+  },
+  "source_notes": [
+    "Temperature is a proxy sourced from ZONE_TEMP_1 under an assumed Fahrenheit conversion.",
+    "Humidity and CO2 are synthetic physical-mass-balance readings.",
+    "Hybrid/simulated forecasting is NOT physical-building accuracy validation.",
+    "The experiment excludes occupied_mode, scenario_occupants, and all provenance columns from model inputs."
+  ],
+  "target_summary": {
+    "temperature_c": {
+      "count": 525540.0,
+      "mean": 22.7014,
+      "std": 3.329,
+      "min": 17.8356,
+      "25%": 20.7396,
+      "50%": 21.9012,
+      "75%": 23.633,
+      "max": 43.6059
+    },
+    "humidity_rh": {
+      "count": 525540.0,
+      "mean": 45.9437,
+      "std": 7.6673,
+      "min": 13.463,
+      "25%": 41.704,
+      "50%": 47.535,
+      "75%": 51.982,
+      "max": 59.079
+    },
+    "co2_ppm": {
+      "count": 525540.0,
+      "mean": 599.72,
+      "std": 174.5435,
+      "min": 420.0,
+      "25%": 433.95,
+      "50%": 532.27,
+      "75%": 766.08,
+      "max": 897.65
+    }
+  },
+  "python_version": "3.11.9",
+  "operating_system": "Windows-10-10.0.26200-SP0",
+  "settings": {
+    "csv": "data\\HRU507_S-L5-008_1min_aligned.csv",
+    "output": "outputs",
+    "mode": "chronos",
+    "context_candidates": [
+      60,
+      180
+    ],
+    "validation_origins": 32,
+    "test_origins": 64,
+    "event_origins": 18,
+    "batch_size": 6,
+    "device": "auto",
+    "model_id": "amazon/chronos-2",
+    "event_quantile": 0.98,
+    "seed": 42
+  },
+  "model_was_finetuned": false,
+  "event_thresholds_15m_train_only": {
+    "temperature_c": 1.5520040000000033,
+    "humidity_rh": 3.9617600000000115,
+    "co2_ppm": 50.069999999999936
+  }
+}

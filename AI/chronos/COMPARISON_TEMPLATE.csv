@@ -1,0 +1,1 @@
+model,context_minutes,horizon_minutes,sensor,dataset_sha256,train_start,train_end,validation_start,validation_end,test_start,test_end,n_test_origins,test_origin_sampling,mae,rmse,persistence_mae,persistence_rmse,device,inference_seconds,notes
