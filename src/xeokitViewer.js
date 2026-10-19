@@ -77,6 +77,10 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let architecturalModel = null;
   let architecturalIds = [];
   let showArchitecture = true;
+  // Automatic Level 5 cropping applies to architecture, not HVAC. Users can
+  // explicitly cut both models with the extra-section control.
+  let clipHVACOnDemand = false;
+  let showArchitecturalBand = true;
   let lowerPadding = 3.5;
   let upperPadding = 1.5;
 
@@ -85,7 +89,15 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   // The offsets can be adjusted in the UI to match actual floor heights.
   function updateLevel5Band() {
     if (!model?.aabb) return;
+    // The HVAC layer must never disappear due to an architectural floor crop.
+    model.clippable = clipHVACOnDemand;
     const box = model.aabb;
+    if (![...box].every(Number.isFinite) || box[4] < box[1]) {
+      console.warn("Invalid HVAC bounding box: architectural slicing deferred", box);
+      return;
+    }
+    if (lowerPlane) lowerPlane.active = showArchitecturalBand;
+    if (upperPlane) upperPlane.active = showArchitecturalBand;
     const x = (box[0] + box[3]) / 2;
     const z = (box[2] + box[5]) / 2;
     const floorY = box[1] - lowerPadding;
@@ -227,10 +239,28 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   function clearSection() {
     sectionPlane?.destroy();
     sectionPlane = null;
+    clipHVACOnDemand = false;
+    if (model) model.clippable = false;
+  }
+
+  function resetAllCuts() {
+    clearSection();
+    if (lowerPlane) lowerPlane.active = false;
+    if (upperPlane) upperPlane.active = false;
+    showArchitecturalBand = false;
+    if (model) {
+      model.clippable = false;
+      model.visible = true;
+    }
+    if (architecturalModel) architecturalModel.visible = showArchitecture;
+    updateArchitectureStatus("Clipping disabled — full models shown");
+    showWholeBuilding();
   }
 
   function setSection(axis = "y", fraction = 0.5) {
     if (!model?.aabb) return;
+    clipHVACOnDemand = true;
+    model.clippable = true;
     const box = model.aabb;
     const index = axis === "x" ? 0 : axis === "z" ? 2 : 1;
     const position = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
@@ -274,6 +304,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   const actionHandlers = {
     home: () => { clearSection(); showWholeBuilding(); },
+    resetAllCuts,
     section: () => setSection(
       stage.querySelector("[data-section-axis]")?.value || "y",
       Number(stage.querySelector("[data-section-range]")?.value || 50) / 100
@@ -317,6 +348,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       else upperPadding = metres;
       const label = stage.querySelector(property === "below" ? "[data-slice-below-value]" : "[data-slice-above-value]");
       if (label) label.textContent = metres.toFixed(1) + " m";
+      showArchitecturalBand = true;
       updateLevel5Band();
       validateAlignment();
     });
@@ -354,6 +386,9 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   model.on("loaded", () => {
     loading?.remove();
+    model.clippable = false;
+    model.visible = true;
+    console.info("HVAC model loaded", {aabb: Array.from(model.aabb), objects: model.objectIds?.length});
     if (floorLabel) floorLabel.textContent = "Level 5";
     updateLevel5Band();
     showWholeBuilding();
@@ -372,5 +407,5 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   });
 
   active = { viewer, model };
-  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, setSection, clearSection, toggleArchitecture, updateLevel5Band };
+  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, setSection, clearSection, resetAllCuts, toggleArchitecture, updateLevel5Band };
 }
