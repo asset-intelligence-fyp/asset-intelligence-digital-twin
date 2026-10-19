@@ -446,6 +446,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       <div class="viewer-toolbar" aria-label="BIM viewer tools">
         <button class="viewer-tool" title="Section cut" data-viewer-action="section">◪</button>
         <button class="viewer-tool" title="Clear section" data-viewer-action="clearSection">✕</button>
+        <button class="viewer-tool" title="Remove ALL clipping (recovery / diagnosis)" data-viewer-action="resetAllCuts">▣</button>
         <button class="viewer-tool" title="Reset / Home" data-viewer-action="home">⌂</button>
         <button class="viewer-tool" title="Plan view" data-viewer-action="plan">⌗</button>
         <button class="viewer-tool" title="3D floor view" data-viewer-action="threeD">◉</button>
@@ -456,6 +457,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       <div class="level5-viewer-tools">
         <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show walls and floor</label>
         <div class="level5-layer-status" data-architecture-status>Architecture loading…</div>
+        <button class="level5-recovery-btn" type="button" data-viewer-action="resetAllCuts">Show all geometry (diagnose)</button>
         <div class="level5-tool-divider"></div>
         <div class="level5-tool-heading">Level 5 visible height</div>
         <label>Below HVAC <output data-slice-below-value>3.5 m</output>
