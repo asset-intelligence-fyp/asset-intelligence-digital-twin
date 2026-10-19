@@ -84,13 +84,22 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let lowerPadding = 3.5;
   let upperPadding = 1.5;
 
+  function setHVACClippable(enabled) {
+    if (!model) return;
+    model.clippable = enabled;
+    for (const id of model.objectIds || []) {
+      const entity = viewer.scene.objects[id];
+      if (entity) entity.clippable = enabled;
+    }
+  }
+
   // IFC and xeokit normally use +Y as the vertical scene direction.
   // Clip the architectural building to the floor band around Level 5 HVAC.
   // The offsets can be adjusted in the UI to match actual floor heights.
   function updateLevel5Band() {
     if (!model?.aabb) return;
     // The HVAC layer must never disappear due to an architectural floor crop.
-    model.clippable = clipHVACOnDemand;
+    setHVACClippable(clipHVACOnDemand);
     const box = model.aabb;
     if (![...box].every(Number.isFinite) || box[4] < box[1]) {
       console.warn("Invalid HVAC bounding box: architectural slicing deferred", box);
@@ -240,7 +249,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     sectionPlane?.destroy();
     sectionPlane = null;
     clipHVACOnDemand = false;
-    if (model) model.clippable = false;
+    setHVACClippable(false);
   }
 
   function resetAllCuts() {
@@ -249,7 +258,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (upperPlane) upperPlane.active = false;
     showArchitecturalBand = false;
     if (model) {
-      model.clippable = false;
+      setHVACClippable(false);
       model.visible = true;
     }
     if (architecturalModel) architecturalModel.visible = showArchitecture;
@@ -260,7 +269,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   function setSection(axis = "y", fraction = 0.5) {
     if (!model?.aabb) return;
     clipHVACOnDemand = true;
-    model.clippable = true;
+    setHVACClippable(true);
     const box = model.aabb;
     const index = axis === "x" ? 0 : axis === "z" ? 2 : 1;
     const position = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
@@ -386,7 +395,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   model.on("loaded", () => {
     loading?.remove();
-    model.clippable = false;
+    setHVACClippable(false);
     model.visible = true;
     console.info("HVAC model loaded", {aabb: Array.from(model.aabb), objects: model.objectIds?.length});
     if (floorLabel) floorLabel.textContent = "Level 5";
