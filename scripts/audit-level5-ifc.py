@@ -69,7 +69,10 @@ def main():
     print("\nPhysical BIM sensor GUIDs:")
     missing = []
     for sensor_code, guid in SENSOR_GUIDS.items():
-        element = model.by_guid(guid)
+        try:
+            element = model.by_guid(guid)
+        except (RuntimeError, KeyError):
+            element = None
         found = element is not None
         print(f"  {sensor_code}: {'FOUND' if found else 'MISSING'} {guid}")
         if not found:
