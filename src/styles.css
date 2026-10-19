@@ -819,3 +819,80 @@ h1, h2, h3, p { margin: 0; }
 .level5-viewer-tools .level5-recovery-btn:hover {
   background: rgba(255, 136, 46, .20);
 }
+
+
+/* ── Level 5 BIM: model-first layout + fullscreen workspace ── */
+.bim-viewer-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 8px 9px 4px;
+  overflow: hidden;
+}
+.bim-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.bim-workspace > .panel { min-height: 0; min-width: 0; }
+.bim-workspace .viewer-stage { min-height: 0; }
+.bim-workspace .viewer-tools-row { flex-wrap: wrap; justify-content: flex-end; }
+.bim-workspace .viewer-panel .panel-header { padding-left: 12px; padding-right: 10px; }
+.bim-workspace .asset-inspector .info-section { margin-top: 9px; }
+.viewer-expand-btn {
+  height: 29px;
+  min-height: 29px;
+  border-color: rgba(255, 122, 0, .4) !important;
+  color: #ffd4aa;
+}
+.bim-workspace:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  padding: 10px;
+  background: var(--bg);
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 10px;
+}
+.bim-workspace:fullscreen .viewer-panel,
+.bim-workspace:fullscreen .asset-inspector { min-height: 0; height: 100%; }
+.bim-workspace:fullscreen .viewer-canvas { height: 100%; width: 100%; }
+.bim-workspace:fullscreen .viewer-stage { flex: 1; min-height: 0; }
+.bim-workspace:fullscreen .level5-sensor-nav { max-height: calc(100% - 105px); }
+.level5-viewer-tools {
+  width: 204px;
+  top: 49px;
+  right: 10px;
+  padding: 10px;
+  gap: 9px;
+}
+.level5-viewer-tools .level5-mode-label {
+  color: #d5e3eb;
+  font-size: 11px;
+  font-weight: 650;
+}
+.level5-viewer-tools select[data-bim-view-mode] {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  font-size: 11px;
+  background: #1c2933;
+  color: #f1f5f8;
+  border: 1px solid #405562;
+  border-radius: 7px;
+}
+.level5-mode-help { color: #91a8b6; font-size: 10px; line-height: 1.45; }
+@media (max-width: 1100px) {
+  .bim-workspace { grid-template-columns: minmax(0, 1fr) 260px; }
+  .bim-workspace:fullscreen { grid-template-columns: minmax(0, 1fr) 295px; }
+}
+@media (max-width: 740px) {
+  .bim-workspace { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+  .bim-workspace .viewer-panel { min-height: 530px; }
+  .bim-workspace .asset-inspector { min-height: 340px; }
+  .bim-workspace:fullscreen { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+}
