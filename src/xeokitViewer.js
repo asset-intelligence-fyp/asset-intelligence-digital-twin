@@ -132,7 +132,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   const populateFloors = () => {
     storeys = storeyViews.storeysList || [];
     level5StoreyIndex = storeys.findIndex((storey, index) =>
-      /(?:level|floor|storey|l)\\s*0?5\\b/i.test(getStoreyName(storey, index))
+      /(?:level|floor|storey|l)\s*0?5\b/i.test(getStoreyName(storey, index))
     );
     if (level5StoreyIndex < 0 && storeys.length === 1) level5StoreyIndex = 0;
     if (floorSelect) {
