@@ -80,7 +80,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   // Automatic Level 5 cropping applies to architecture, not HVAC. Users can
   // explicitly cut both models with the extra-section control.
   let clipHVACOnDemand = false;
-  let showArchitecturalBand = true;
+  // Start with clipping OFF, so the BIM is visible even if the exports are misaligned.
+  let showArchitecturalBand = false;
   let lowerPadding = 3.5;
   let upperPadding = 1.5;
 
@@ -98,8 +99,13 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   // The offsets can be adjusted in the UI to match actual floor heights.
   function updateLevel5Band() {
     if (!model?.aabb) return;
-    // The HVAC layer must never disappear due to an architectural floor crop.
+    // Protect the HVAC from background architectural slice planes.
     setHVACClippable(clipHVACOnDemand);
+    if (!showArchitecturalBand) {
+      if (lowerPlane) lowerPlane.active = false;
+      if (upperPlane) upperPlane.active = false;
+      return;
+    }
     const box = model.aabb;
     if (![...box].every(Number.isFinite) || box[4] < box[1]) {
       console.warn("Invalid HVAC bounding box: architectural slicing deferred", box);
@@ -113,14 +119,14 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     const ceilingY = box[4] + upperPadding;
     if (!lowerPlane) {
       lowerPlane = sectionPlanes.createSectionPlane({
-        id: "level5LowerBound", pos: [x, floorY, z], dir: [0, -1, 0], active: true
+        id: "level5LowerBound", pos: [x, floorY, z], dir: [0, -1, 0], active: showArchitecturalBand
       });
     } else {
       lowerPlane.pos = [x, floorY, z];
     }
     if (!upperPlane) {
       upperPlane = sectionPlanes.createSectionPlane({
-        id: "level5UpperBound", pos: [x, ceilingY, z], dir: [0, 1, 0], active: true
+        id: "level5UpperBound", pos: [x, ceilingY, z], dir: [0, 1, 0], active: showArchitecturalBand
       });
     } else {
       upperPlane.pos = [x, ceilingY, z];
@@ -137,6 +143,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   function toggleArchitecture(enabled) {
     showArchitecture = Boolean(enabled);
+    if (architecturalModel) architecturalModel.visible = showArchitecture;
     if (architecturalIds.length) {
       viewer.scene.setObjectsVisible(architecturalIds, showArchitecture);
     }
@@ -144,7 +151,9 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (toggle) toggle.checked = showArchitecture;
     updateArchitectureStatus(
       !architecturalModel ? "Architecture unavailable or loading" :
-      showArchitecture ? "Architecture loaded (check crop)" : "HVAC-only view"
+      showArchitecture
+        ? showArchitecturalBand ? "Level 5 crop active" : "Architecture visible — crop OFF"
+        : "HVAC-only view"
     );
   }
 
@@ -159,7 +168,10 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       console.warn("Architectural and HVAC XKT geometry do not overlap. Verify shared Revit coordinates and exports.", {hvac, arch});
       updateArchitectureStatus("Models not aligned; check coordinates", true);
     } else {
-      updateArchitectureStatus(showArchitecture ? "Architecture loaded (check crop)" : "HVAC-only view");
+      updateArchitectureStatus(
+        !showArchitecture ? "HVAC-only view" :
+        showArchitecturalBand ? "Level 5 crop active" : "Architecture visible — crop OFF"
+      );
     }
   }
 
@@ -257,17 +269,25 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (lowerPlane) lowerPlane.active = false;
     if (upperPlane) upperPlane.active = false;
     showArchitecturalBand = false;
+    const cropToggle = stage.querySelector("[data-level5-crop-toggle]");
+    if (cropToggle) cropToggle.checked = false;
+    showArchitecture = true;
+    const architectureToggle = stage.querySelector("[data-architecture-toggle]");
+    if (architectureToggle) architectureToggle.checked = true;
+    if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, true);
     if (model) {
       setHVACClippable(false);
       model.visible = true;
     }
-    if (architecturalModel) architecturalModel.visible = showArchitecture;
-    updateArchitectureStatus("Clipping disabled — full models shown");
+    if (architecturalModel) architecturalModel.visible = true;
+    updateArchitectureStatus("Full geometry shown — clipping OFF");
     showWholeBuilding();
   }
 
   function setSection(axis = "y", fraction = 0.5) {
     if (!model?.aabb) return;
+    // Clear any previous cut before enabling the newly requested cut.
+    clearSection();
     clipHVACOnDemand = true;
     setHVACClippable(true);
     const box = model.aabb;
@@ -278,7 +298,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     position[index] = min + Math.max(0, Math.min(1, Number(fraction))) * (max - min);
     const direction = [0, 0, 0];
     direction[index] = 1; // Discard one side of the section cut.
-    clearSection();
     sectionPlane = sectionPlanes.createSectionPlane({
       id: "level5InteractiveCut", pos: position, dir: direction, active: true
     });
@@ -347,6 +366,25 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   stage.querySelector("[data-architecture-toggle]")?.addEventListener("change", event => {
     toggleArchitecture(event.target.checked);
   });
+
+  stage.querySelector("[data-level5-crop-toggle]")?.addEventListener("change", event => {
+    showArchitecturalBand = Boolean(event.target.checked);
+    clearSection();
+    if (showArchitecturalBand && architecturalModel && model) {
+      const h = model.aabb, a = architecturalModel.aabb;
+      const horizontal = h[0] <= a[3] && a[0] <= h[3] && h[2] <= a[5] && a[2] <= h[5];
+      const vertical = h[1] - lowerPadding <= a[4] && a[1] <= h[4] + upperPadding;
+      if (!horizontal || !vertical) {
+        console.warn("Cannot apply crop: architectural model and HVAC floor band do not overlap", {HVAC: Array.from(h), architecture: Array.from(a)});
+        showArchitecturalBand = false;
+        event.target.checked = false;
+        updateArchitectureStatus("Crop blocked — verify model alignment", true);
+      }
+    }
+    updateLevel5Band();
+    if (showArchitecturalBand) validateAlignment();
+    else updateArchitectureStatus("Architecture visible — crop OFF");
+  });
   for (const [selector, property] of [
     ["[data-slice-below]", "below"], ["[data-slice-above]", "above"]
   ]) {
@@ -357,7 +395,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       else upperPadding = metres;
       const label = stage.querySelector(property === "below" ? "[data-slice-below-value]" : "[data-slice-above-value]");
       if (label) label.textContent = metres.toFixed(1) + " m";
-      showArchitecturalBand = true;
+      // Moving sliders only modifies the slice when the crop is enabled.
       updateLevel5Band();
       validateAlignment();
     });
@@ -399,6 +437,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     model.visible = true;
     console.info("HVAC model loaded", {aabb: Array.from(model.aabb), objects: model.objectIds?.length});
     if (floorLabel) floorLabel.textContent = "Level 5";
+    // Keep all section planes inactive at startup.
     updateLevel5Band();
     showWholeBuilding();
     loadArchitecturalContext();
