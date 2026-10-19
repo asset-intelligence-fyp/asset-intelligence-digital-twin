@@ -24,7 +24,7 @@ The former upper/lower slice controls and **Enable Level 5 crop** checkbox have 
 - **3D View / Plan view / Home**: existing camera navigation controls.
 - **Show architecture**: hides or restores the architectural model without affecting physical sensors.
 
-The camera-following section can visually cut sensors in the foreground; return to Walls + floor to restore an unclipped sensor view.
+The camera-following section clips **only the architectural layer**. HVAC and sensor objects are explicitly non-clippable and remain visible in both modes. Use **Restore visible model** if architectural geometry disappears; this disables both clipping planes and restores both model layers.
 
 ## Larger BIM workspace
 
@@ -49,3 +49,12 @@ Go to `http://localhost:5173/bim-viewer`, hard refresh, and check:
 If walls or ducts disappear, check the browser console for `Skipped under-floor cut` warnings and inspect the model coordinate systems. The viewer cannot reconstruct IFC geometry absent from the exported XKT.
 
 The code modifications were inspected for JavaScript syntax but have not been run in a live browser by the authoring environment.
+
+## 2026-10-20 visibility safeguard
+
+- The user observed a blank scene when **Follow camera section** was selected and **Show architecture** was off. The previous implementation made HVAC clippable in camera mode, allowing all geometry to be hidden.
+- HVAC entities are now kept visible and non-clippable regardless of view mode.
+- The camera-aligned clipping plane is centred on the **architectural** model bounds, rather than HVAC bounds.
+- A potentially unsafe below-floor datum causes automatic slicing to be skipped, with the full geometry retained.
+- **Restore visible model** disables both floor and camera planes, re-enables the architectural layer, and restores the camera.
+- JavaScript syntax checks and simulated model-state tests passed; actual browser rendering must still be verified locally.
