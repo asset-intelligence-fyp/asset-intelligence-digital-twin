@@ -457,9 +457,10 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       <div class="level5-viewer-tools">
         <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show walls and floor</label>
         <div class="level5-layer-status" data-architecture-status>Architecture loading…</div>
-        <button class="level5-recovery-btn" type="button" data-viewer-action="resetAllCuts">Show all geometry (diagnose)</button>
+        <button class="level5-recovery-btn" type="button" data-viewer-action="resetAllCuts">Reset / Show all geometry</button>
         <div class="level5-tool-divider"></div>
-        <div class="level5-tool-heading">Level 5 visible height</div>
+        <label class="architecture-checkbox"><input type="checkbox" data-level5-crop-toggle /> Enable Level 5 crop</label>
+        <div class="level5-tool-heading">Crop height (when enabled)</div>
         <label>Below HVAC <output data-slice-below-value>3.5 m</output>
           <input data-slice-below type="range" min="0" max="8" step="0.5" value="3.5" aria-label="Show architecture below HVAC" />
         </label>
