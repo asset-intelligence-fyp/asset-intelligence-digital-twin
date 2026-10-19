@@ -22,6 +22,14 @@ import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js
 
 const app = document.getElementById("app");
 
+document.addEventListener("fullscreenchange", () => {
+  const expanded = Boolean(document.fullscreenElement?.matches?.("[data-bim-workspace]"));
+  const button = document.querySelector("[data-viewer-fullscreen]");
+  if (button) button.textContent = expanded ? "⤢ Exit full screen" : "⛶ Expand";
+  // Xeokit canvas resizes with its CSS container; force a viewport update.
+  window.dispatchEvent(new Event("resize"));
+});
+
 let liveEventSource = null;
 
 const state = {
@@ -435,8 +443,8 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       </div>
       <div class="viewer-tools-row">
         <span class="viewer-level-tag">Level 5 only</span>
-        <button class="btn" data-viewer-action="threeD">3D View</button>
-        ${detailed ? `<select class="select"><option>All Assets</option><option>HVAC</option></select><select class="select"><option>All Statuses</option><option>Anomaly</option><option>Normal</option></select>` : ""}
+        <button class="btn" data-viewer-action="threeD" title="Return to 3D orbit">3D View</button>
+        ${detailed ? `<button class="btn viewer-expand-btn" data-viewer-fullscreen type="button" title="Expand BIM viewer and sensor details">⛶ Expand</button>` : ""}
       </div>
     </div>
     <div class="viewer-stage" id="${stageId}">
@@ -444,9 +452,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       <canvas class="nav-cube-canvas" data-navcube-canvas></canvas>
       <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; Level 5</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "None")}</strong></span></div>
       <div class="viewer-toolbar" aria-label="BIM viewer tools">
-        <button class="viewer-tool" title="Section cut" data-viewer-action="section">◪</button>
-        <button class="viewer-tool" title="Clear section" data-viewer-action="clearSection">✕</button>
-        <button class="viewer-tool" title="Remove ALL clipping (recovery / diagnosis)" data-viewer-action="resetAllCuts">▣</button>
+        <button class="viewer-tool" title="Normal walls and floor view" data-viewer-action="clearSection">▣</button>
         <button class="viewer-tool" title="Reset / Home" data-viewer-action="home">⌂</button>
         <button class="viewer-tool" title="Plan view" data-viewer-action="plan">⌗</button>
         <button class="viewer-tool" title="3D floor view" data-viewer-action="threeD">◉</button>
@@ -455,27 +461,14 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <button class="viewer-tool active" title="BIM selection active">◇</button>
       </div>
       <div class="level5-viewer-tools">
-        <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show walls and floor</label>
-        <div class="level5-layer-status" data-architecture-status>Architecture loading…</div>
-        <button class="level5-recovery-btn" type="button" data-viewer-action="resetAllCuts">Reset / Show all geometry</button>
-        <div class="level5-tool-divider"></div>
-        <label class="architecture-checkbox"><input type="checkbox" data-level5-crop-toggle /> Enable Level 5 crop</label>
-        <div class="level5-tool-heading">Crop height (when enabled)</div>
-        <label>Below HVAC <output data-slice-below-value>3.5 m</output>
-          <input data-slice-below type="range" min="0" max="8" step="0.5" value="3.5" aria-label="Show architecture below HVAC" />
-        </label>
-        <label>Above HVAC <output data-slice-above-value>1.5 m</output>
-          <input data-slice-above type="range" min="0" max="8" step="0.5" value="1.5" aria-label="Show architecture above HVAC" />
-        </label>
-        <div class="level5-tool-divider"></div>
-        <label>Extra section cut
-          <select data-section-axis aria-label="Section axis">
-            <option value="y">Horizontal (up/down)</option>
-            <option value="x">East–west</option>
-            <option value="z">North–south</option>
-          </select>
-          <input data-section-range type="range" min="0" max="100" value="50" aria-label="Section depth" />
-        </label>
+        <label class="level5-mode-label" for="bimViewMode_${stageId}">View mode</label>
+        <select id="bimViewMode_${stageId}" data-bim-view-mode aria-label="BIM section view mode">
+          <option value="walls">Walls + floor (normal)</option>
+          <option value="camera">Follow camera section</option>
+        </select>
+        <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show architecture</label>
+        <div class="level5-layer-status" data-architecture-status>Loading architectural floor…</div>
+        <div class="level5-mode-help">The floor underlay is clipped automatically. Follow camera removes the facing walls as you rotate.</div>
       </div>
       <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
       <div class="viewer-loading" data-viewer-loading>
@@ -524,6 +517,17 @@ function initViewer(stageId) {
   const stage = document.getElementById(stageId);
   const panel = stage?.closest(".viewer-panel");
   if (!panel) return controller;
+  const fullButton = panel.querySelector("[data-viewer-fullscreen]");
+  fullButton?.addEventListener("click", async () => {
+    const workspace = panel.closest("[data-bim-workspace]");
+    if (!workspace) return;
+    try {
+      if (document.fullscreenElement === workspace) await document.exitFullscreen();
+      else await workspace.requestFullscreen();
+    } catch (error) {
+      console.error("Could not expand BIM viewer:", error);
+    }
+  });
   const navigation = document.createElement("aside");
   navigation.className = "level5-sensor-nav";
   navigation.setAttribute("aria-label", "Level 5 physical sensors");
@@ -688,8 +692,8 @@ function renderDashboard() {
 
 function renderBimViewer() {
   destroyActiveViewer();
-  const html = `<div class="page" style="height:100%;display:flex;flex-direction:column;overflow:hidden;padding:14px 16px">
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;min-height:0;flex:1">${viewerPanelHtml({stageId:"mainViewer", detailed:true})}${assetInspectorHtml({detailed:true})}</div>
+  const html = `<div class="page bim-viewer-page">
+    <div class="bim-workspace" data-bim-workspace>${viewerPanelHtml({stageId:"mainViewer", detailed:true})}${assetInspectorHtml({detailed:true})}</div>
     <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM VIEWER</span><span>Click a BIM element to select and inspect it</span></div>
   </div>`;
   shell(html, { activePath: "/bim-viewer", breadcrumb: "BIM Viewer", noScroll: true });
