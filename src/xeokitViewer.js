@@ -2,7 +2,8 @@ import {
   Viewer,
   XKTLoaderPlugin,
   StoreyViewsPlugin,
-  NavCubePlugin
+  NavCubePlugin,
+  SectionPlanesPlugin
 } from "@xeokit/xeokit-sdk";
 
 let active = null;
@@ -59,6 +60,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   const xktLoader = new XKTLoaderPlugin(viewer);
   const storeyViews = new StoreyViewsPlugin(viewer);
+  const sectionPlanes = new SectionPlanesPlugin(viewer);
+  let sectionPlane = null;
 
   new NavCubePlugin(viewer, {
     canvasId: navCanvas.id,
@@ -72,6 +75,51 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let storeys = [];
   let currentStoreyIndex = -1;
   let selectedEntity = null;
+  let sensorCatalog = [];
+
+  function selectSensor(guid) {
+    const entity = viewer.scene.objects[guid];
+    if (!entity) return false;
+    if (selectedEntity && selectedEntity !== entity) selectedEntity.selected = false;
+    selectedEntity = entity;
+    entity.visible = true;
+    entity.selected = true;
+    const sensor = sensorCatalog.find(item => item.guid === guid);
+    if (selectedLabel) selectedLabel.textContent = sensor?.label || guid;
+    viewer.cameraControl.navMode = "orbit";
+    viewer.cameraFlight.flyTo({ aabb: entity.aabb, projection: "perspective", duration: 0.7, fitFOV: 45 });
+    onSelection({ entityId: guid, name: sensor?.label || guid, type: "Sensor", metaObject: viewer.metaScene.metaObjects[guid] });
+    return true;
+  }
+
+  function configureSensors(items) {
+    sensorCatalog = items || [];
+    let matched = 0;
+    sensorCatalog.forEach(item => {
+      const entity = viewer.scene.objects[item.guid];
+      if (!entity) return;
+      entity.highlighted = true;
+      matched++;
+    });
+    return { matched, total: sensorCatalog.length };
+  }
+
+  function clearSection() {
+    sectionPlane?.destroy();
+    sectionPlane = null;
+  }
+
+  function setSection(axis = "z", fraction = 0.5) {
+    if (!model?.aabb) return;
+    const box = model.aabb;
+    const index = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+    const position = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
+    position[index] = box[index] + Math.max(0, Math.min(1, Number(fraction))) * (box[index + 3] - box[index]);
+    const direction = [0, 0, 0];
+    direction[index] = -1;
+    clearSection();
+    sectionPlane = sectionPlanes.createSectionPlane({id: "level5Section", pos: position, dir: direction, active: true});
+  }
 
   const getStoreyName = (storey, index) => {
     const metaObject = viewer.metaScene.metaObjects[storey.storeyId];
@@ -141,9 +189,11 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   };
 
   const actionHandlers = {
-    home: showWholeBuilding,
+    home: () => { clearSection(); showWholeBuilding(); },
+    section: () => setSection(),
+    clearSection,
     fit: showWholeBuilding,
-    all: showWholeBuilding,
+    all: () => { clearSection(); showWholeBuilding(); },
     plan: () => {
       if (currentStoreyIndex === -1 && storeys.length) goToStorey(0, true);
       else if (currentStoreyIndex >= 0) goToStorey(currentStoreyIndex, true);
@@ -178,6 +228,13 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     const action = button.dataset.viewerAction;
     button.addEventListener("click", () => actionHandlers[action]?.());
   });
+
+  stage.querySelector("[data-section-range]")?.addEventListener("input", event =>
+    setSection(stage.querySelector("[data-section-axis]")?.value || "z", Number(event.target.value) / 100)
+  );
+  stage.querySelector("[data-section-axis]")?.addEventListener("change", event =>
+    setSection(event.target.value, Number(stage.querySelector("[data-section-range]")?.value || 50) / 100)
+  );
 
   floorSelect?.addEventListener("change", () => {
     const index = Number(floorSelect.value);
@@ -239,5 +296,5 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   });
 
   active = { viewer, model };
-  return { viewer, showWholeBuilding, goToStorey };
+  return { viewer, showWholeBuilding, goToStorey, selectSensor, configureSensors, setSection, clearSection };
 }
