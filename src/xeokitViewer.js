@@ -176,6 +176,11 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
         if (!architecturalIds.length && architecturalModel.objectIds) {
           architecturalIds = Array.from(architecturalModel.objectIds);
         }
+        if (!architecturalIds.length) {
+          console.warn("Architectural XKT loaded, but no supported walls/slabs were found. Check IFC type metadata.");
+          updateArchitectureStatus("No architectural geometry in XKT", true);
+          return;
+        }
         toggleArchitecture(showArchitecture);
         validateAlignment();
         console.info("Loaded architectural context:", architecturalIds.length, "objects");
