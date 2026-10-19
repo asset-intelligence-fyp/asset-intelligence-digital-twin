@@ -144,7 +144,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (toggle) toggle.checked = showArchitecture;
     updateArchitectureStatus(
       !architecturalModel ? "Architecture unavailable or loading" :
-      showArchitecture ? "Walls and slabs shown" : "HVAC-only view"
+      showArchitecture ? "Architecture loaded (check crop)" : "HVAC-only view"
     );
   }
 
@@ -159,7 +159,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       console.warn("Architectural and HVAC XKT geometry do not overlap. Verify shared Revit coordinates and exports.", {hvac, arch});
       updateArchitectureStatus("Models not aligned; check coordinates", true);
     } else {
-      updateArchitectureStatus(showArchitecture ? "Walls and slabs shown" : "HVAC-only view");
+      updateArchitectureStatus(showArchitecture ? "Architecture loaded (check crop)" : "HVAC-only view");
     }
   }
 
@@ -206,7 +206,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
         }
         toggleArchitecture(showArchitecture);
         validateAlignment();
-        console.info("Loaded architectural context:", architecturalIds.length, "objects");
+        console.info("Loaded architectural context:", { objects: architecturalIds.length, aabb: Array.from(architecturalModel.aabb) });
       });
       architecturalModel.on("error", error => {
         console.error("Architectural XKT could not load:", error);
