@@ -137,6 +137,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (!overlapX || !overlapZ || !overlapY) {
       console.warn("Architectural and HVAC XKT geometry do not overlap. Verify shared Revit coordinates and exports.", {hvac, arch});
       updateArchitectureStatus("Models not aligned; check coordinates", true);
+    } else {
+      updateArchitectureStatus(showArchitecture ? "Walls and slabs shown" : "HVAC-only view");
     }
   }
 
