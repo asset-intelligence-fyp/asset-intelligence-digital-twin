@@ -82,12 +82,17 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   // not an authoritative floor elevation. Do not cut the HVAC with this plane.
   const FLOOR_DROP = 3.5;
 
-  function setHVACClippable(enabled) {
+  // Keep sensor and HVAC geometry visible independently of architectural cuts.
+  // Only the architectural model participates in automatic/camera clipping.
+  function preserveHVACVisibility() {
     if (!model) return;
-    model.clippable = Boolean(enabled);
+    model.clippable = false;
+    model.visible = true;
     for (const id of model.objectIds || []) {
       const entity = viewer.scene.objects[id];
-      if (entity) entity.clippable = Boolean(enabled);
+      if (!entity) continue;
+      entity.clippable = false;
+      entity.visible = true;
     }
   }
 
@@ -105,6 +110,9 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, showArchitecture);
     const checkbox = stage.querySelector("[data-architecture-toggle]");
     if (checkbox) checkbox.checked = showArchitecture;
+    preserveHVACVisibility();
+    if (cameraPlane) cameraPlane.active = viewMode === "camera" && showArchitecture;
+    if (showArchitecture && viewMode === "camera") updateCameraSection();
     updateArchitectureStatus(showArchitecture ? "Architecture visible" : "HVAC-only view");
   }
 
@@ -115,11 +123,17 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     const y = h[1] - FLOOR_DROP;
     const xyOverlap = h[0] <= a[3] && a[0] <= h[3] &&
                       h[2] <= a[5] && a[2] <= h[5];
-    // Never enable a plane that can remove every architectural object.
-    if (!xyOverlap || y >= a[4]) {
+    const height = a[4] - a[1];
+    // Reject incorrect floor elevations that would cut most/all architecture.
+    // If unsafe, display the complete architecture instead of a blank model.
+    const safeFloor = height > 0 && y >= a[1] && y <= a[1] + height * 0.70;
+    if (!xyOverlap || !safeFloor) {
       if (floorPlane) floorPlane.active = false;
-      console.warn("Skipped under-floor cut: model bounds do not overlap", {hvac:Array.from(h), architecture:Array.from(a)});
-      updateArchitectureStatus("Floor cut skipped — model alignment needs checking", true);
+      preserveHVACVisibility();
+      console.warn("Skipped unsafe under-floor cut; verify Level 5 datum", {
+        proposedY: y, hvac: Array.from(h), architecture: Array.from(a)
+      });
+      updateArchitectureStatus("Architecture loaded — floor cut skipped (unverified elevation)", true);
       return;
     }
     const pos = [(h[0]+h[3])/2, y, (h[2]+h[5])/2];
@@ -131,19 +145,25 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       floorPlane.pos = pos;
       floorPlane.active = true;
     }
-    setHVACClippable(viewMode === "camera");
+    preserveHVACVisibility();
     updateArchitectureStatus("Floor underlay cut active");
   }
 
   function updateCameraSection() {
-    if (viewMode !== "camera" || !model?.aabb) return;
+    // Camera sections affect architecture ONLY. Never cut sensor/HVAC geometry.
+    if (viewMode !== "camera" || !architecturalModel?.aabb || !showArchitecture) {
+      if (cameraPlane) cameraPlane.active = false;
+      return;
+    }
+    const a = architecturalModel.aabb;
+    if (![...a].every(Number.isFinite)) return;
     const eye = viewer.scene.camera.eye, look = viewer.scene.camera.look;
-    const dx = eye[0]-look[0], dz = eye[2]-look[2];
+    const dx = eye[0] - look[0], dz = eye[2] - look[2];
     const d = Math.hypot(dx,dz);
     if (d < 1e-5) return;
-    const h = model.aabb;
-    const pos = [(h[0]+h[3])/2,(h[1]+h[4])/2,(h[2]+h[5])/2];
-    const dir = [dx/d,0,dz/d];  // cut towards camera, updates with yaw
+    // Position inside the ARCHITECTURAL bounds, not the separate HVAC bounds.
+    const pos = [(a[0]+a[3])/2, (a[1]+a[4])/2, (a[2]+a[5])/2];
+    const dir = [dx/d,0,dz/d];
     if (!cameraPlane) {
       cameraPlane = sectionPlanes.createSectionPlane({
         id:"cameraAlignedSection", pos, dir, active:true
@@ -159,8 +179,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     viewMode = value === "camera" ? "camera" : "walls";
     const select = stage.querySelector("[data-bim-view-mode]");
     if (select) select.value = viewMode;
-    if (cameraPlane) cameraPlane.active = viewMode === "camera";
-    setHVACClippable(viewMode === "camera");
+    if (cameraPlane) cameraPlane.active = viewMode === "camera" && showArchitecture;
+    preserveHVACVisibility();
     if (viewMode === "camera") updateCameraSection();
     else updateArchitectureStatus(showArchitecture ? "Walls and floor view" : "HVAC-only view");
   }
@@ -212,6 +232,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
         }
         toggleArchitecture(showArchitecture);
         updateFloorUnderlay();
+        preserveHVACVisibility();
+        if (viewMode === "camera") updateCameraSection();
         console.info("Loaded architectural context:", { objects: architecturalIds.length, aabb: Array.from(architecturalModel.aabb) });
       });
       architecturalModel.on("error", error => {
@@ -256,9 +278,15 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   function resetAllCuts() {
-    // Restore normal mode while keeping the under-floor cut.
+    // Emergency recovery must actually disable ALL clipping and show BOTH models.
     setViewMode("walls");
-    if (architecturalModel) updateFloorUnderlay();
+    if (floorPlane) floorPlane.active = false;
+    if (cameraPlane) cameraPlane.active = false;
+    toggleArchitecture(true);
+    if (architecturalModel) architecturalModel.visible = true;
+    if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, true);
+    preserveHVACVisibility();
+    updateArchitectureStatus("All geometry restored — clipping disabled");
     showWholeBuilding();
   }
 
@@ -344,8 +372,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   model.on("loaded", () => {
     loading?.remove();
-    setHVACClippable(false);
-    model.visible = true;
+    preserveHVACVisibility();
     console.info("HVAC model loaded", {aabb: Array.from(model.aabb), objects: model.objectIds?.length});
     if (floorLabel) floorLabel.textContent = "Level 5";
     // Under-floor cut is applied once architecture finishes loading.
