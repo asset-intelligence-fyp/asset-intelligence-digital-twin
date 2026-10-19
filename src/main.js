@@ -454,8 +454,25 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <button class="viewer-tool active" title="BIM selection active">◇</button>
       </div>
       <div class="level5-viewer-tools">
-        <label>Section axis <select data-section-axis aria-label="Section axis"><option value="z">Horizontal</option><option value="x">East–west</option><option value="y">North–south</option></select></label>
-        <label>Section depth <input data-section-range type="range" min="0" max="100" value="50" aria-label="Section depth" /></label>
+        <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show walls and floor</label>
+        <div class="level5-layer-status" data-architecture-status>Architecture loading…</div>
+        <div class="level5-tool-divider"></div>
+        <div class="level5-tool-heading">Level 5 visible height</div>
+        <label>Below HVAC <output data-slice-below-value>3.5 m</output>
+          <input data-slice-below type="range" min="0" max="8" step="0.5" value="3.5" aria-label="Show architecture below HVAC" />
+        </label>
+        <label>Above HVAC <output data-slice-above-value>1.5 m</output>
+          <input data-slice-above type="range" min="0" max="8" step="0.5" value="1.5" aria-label="Show architecture above HVAC" />
+        </label>
+        <div class="level5-tool-divider"></div>
+        <label>Extra section cut
+          <select data-section-axis aria-label="Section axis">
+            <option value="y">Horizontal (up/down)</option>
+            <option value="x">East–west</option>
+            <option value="z">North–south</option>
+          </select>
+          <input data-section-range type="range" min="0" max="100" value="50" aria-label="Section depth" />
+        </label>
       </div>
       <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
       <div class="viewer-loading" data-viewer-loading>
