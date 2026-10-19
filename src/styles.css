@@ -776,3 +776,29 @@ h1, h2, h3, p { margin: 0; }
 .level5-sensor-nav-list button[hidden]{display:none}
 .level5-unlocated{padding:8px 5px;font-size:9px;color:var(--muted)}
 @media(max-width:900px){.level5-sensor-nav{width:165px;left:49px}.level5-viewer-tools{width:140px}.viewer-overlay-top{display:none}}
+
+
+/* Architectural Level 5 cutaway controls */
+.level5-viewer-tools { width: 220px; top: 50px; right: 12px; gap: 9px; }
+.level5-viewer-tools .architecture-checkbox {
+  display: flex; align-items: center; gap: 9px;
+  color: #e5eef4; font-size: 11px; font-weight: 600;
+}
+.level5-viewer-tools .architecture-checkbox input {
+  width: 15px; height: 15px; margin: 0; cursor: pointer; accent-color: #ff7a00;
+}
+.level5-viewer-tools .level5-tool-heading {
+  font-size: 10px; color: #d7e6ec; font-weight: 650;
+}
+.level5-viewer-tools .level5-tool-divider {
+  height: 1px; width: 100%; background: rgba(185,204,216,.14);
+}
+.level5-viewer-tools label output {
+  float: right; font-size: 10px; color: #e5eef4;
+}
+.level5-viewer-tools input[type="range"] {
+  cursor: ew-resize; accent-color: #ff7a00;
+}
+.level5-layer-status { font-size: 10px; line-height: 1.4; color: #9bb4c1; }
+.level5-layer-status.warning { color: #ffc46c; }
+@media(max-width:900px){.level5-viewer-tools{width:175px;right:8px;}}
