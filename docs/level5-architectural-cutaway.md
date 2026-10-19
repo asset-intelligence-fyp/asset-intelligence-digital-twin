@@ -16,14 +16,14 @@ The architecture XKT is a **candidate** context asset. Its geometry and coordina
 
 Xeokit uses **world Y as up** in the current viewer configuration.
 
-Two always-active section planes remove the geometry above and below a band around the Level 5 HVAC model:
+The Level 5 crop is **off by default**, so geometry remains visible while alignment is checked. After enabling **Enable Level 5 crop**, two section planes remove the geometry above and below a band around the Level 5 HVAC model:
 
 - lower plane: HVAC minimum Y - `Below HVAC` adjustment, defaults to 3.5 model metres
 - upper plane: HVAC maximum Y + `Above HVAC` adjustment, defaults to 1.5 model metres
 
-Adjust these two sliders until the Level 5 floor slab, interior partitions, and appropriate wall height become visible. The correct boundaries depend on model geometry; they are not verified floor elevations.
+Enable the crop checkbox and adjust these two sliders until the Level 5 floor slab, interior partitions, and appropriate wall height become visible. Turn the checkbox off (or click Reset / Show all geometry) if the scene disappears. The correct boundaries depend on model geometry; they are not verified floor elevations.
 
-The separate **Extra section cut** slider creates a third clipping plane, to expose a cross-section without removing the permanent Level 5 band.
+The separate **Extra section cut** slider creates a third clipping plane on demand. The HVAC model remains protected from automatic architectural slicing, but responds to an explicitly requested section cut.
 
 `Show walls and floor` enables or disables the architectural context layer. The HVAC scene and sensor IFC IDs are unaffected. The architectural context uses prefixed entity IDs to prevent collisions.
 
@@ -42,7 +42,7 @@ Ensure `public/models/Snowdon_Level5_Model+HVAC.xkt` exists locally. If missing,
 
 Open http://localhost:5173/bim-viewer and verify:
 
-1. Both the HVAC ducts and the building floor/partitions are visible after loading.
+1. Both the HVAC ducts and architectural context are visible at startup with the crop OFF.
 2. The architectural status says `Walls and slabs shown`, with no model-alignment warning.
 3. Lower and upper sliders control the visible floor band; the extra cut still works.
 4. All eight mapped IFC sensor objects remain selectable and show live database readings.
