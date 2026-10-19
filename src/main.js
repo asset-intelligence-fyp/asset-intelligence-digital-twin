@@ -434,7 +434,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <div class="section-meta" style="margin-top:4px">Level 5 pilot &nbsp;•&nbsp; Simulated telemetry &nbsp; <span class="demo-label">SIMULATION</span></div>
       </div>
       <div class="viewer-tools-row">
-        <select class="select" data-floor-select aria-label="Select floor"><option value="-1">All Floors</option></select>
+        <span class="viewer-level-tag">Level 5 only</span>
         <button class="btn" data-viewer-action="threeD">3D View</button>
         ${detailed ? `<select class="select"><option>All Assets</option><option>HVAC</option></select><select class="select"><option>All Statuses</option><option>Anomaly</option><option>Normal</option></select>` : ""}
       </div>
@@ -442,7 +442,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
     <div class="viewer-stage" id="${stageId}">
       <canvas class="viewer-canvas" data-xeokit-canvas></canvas>
       <canvas class="nav-cube-canvas" data-navcube-canvas></canvas>
-      <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; 3D View</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "BIM-AHU-L2-001")}</strong></span></div>
+      <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; Level 5</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "None")}</strong></span></div>
       <div class="viewer-toolbar" aria-label="BIM viewer tools">
         <button class="viewer-tool" title="Section cut" data-viewer-action="section">◪</button>
         <button class="viewer-tool" title="Clear section" data-viewer-action="clearSection">✕</button>
@@ -450,19 +450,14 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <button class="viewer-tool" title="Plan view" data-viewer-action="plan">⌗</button>
         <button class="viewer-tool" title="3D floor view" data-viewer-action="threeD">◉</button>
         <button class="viewer-tool" title="Fit model" data-viewer-action="fit">⌕</button>
-        <button class="viewer-tool" title="Show all floors" data-viewer-action="all">▦</button>
+        
         <button class="viewer-tool active" title="BIM selection active">◇</button>
       </div>
       <div class="level5-viewer-tools">
         <label>Section axis <select data-section-axis aria-label="Section axis"><option value="z">Horizontal</option><option value="x">East–west</option><option value="y">North–south</option></select></label>
         <label>Section depth <input data-section-range type="range" min="0" max="100" value="50" aria-label="Section depth" /></label>
       </div>
-      <div class="viewer-floor-control">
-        <button class="btn" data-viewer-action="up">↑</button>
-        <span class="viewer-floor-label" data-floor-label>All Floors</span>
-        <button class="btn" data-viewer-action="down">↓</button>
-        <button class="btn" data-viewer-action="all">Show All</button>
-      </div>
+      <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
       <div class="viewer-loading" data-viewer-loading>
         <div class="viewer-loading-card">
           <div class="viewer-loading-icon"></div>
