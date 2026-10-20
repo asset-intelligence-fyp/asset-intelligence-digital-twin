@@ -72,7 +72,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   const xktLoader = new XKTLoaderPlugin(viewer);
   const sectionPlanes = new SectionPlanesPlugin(viewer);
   let floorPlane = null;
-  let cameraPlane = null;
 
   new NavCubePlugin(viewer, {
     canvasId: navCanvas.id,
@@ -88,7 +87,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let architecturalModel = null;
   let architecturalIds = [];
   let showArchitecture = true;
-  let viewMode = "walls";
   let floorCut = null;
   let floorCutInspected = false;
   let hvacClipConfigured = false;
@@ -177,8 +175,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     const checkbox = stage.querySelector("[data-architecture-toggle]");
     if (checkbox) checkbox.checked = showArchitecture;
     preserveHVACVisibility();
-    if (cameraPlane) cameraPlane.active = viewMode === "camera" && showArchitecture;
-    if (showArchitecture && viewMode === "camera") updateCameraSection();
     updateArchitectureStatus(showArchitecture ? "Architecture visible" : "HVAC-only view");
   }
 
@@ -198,7 +194,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (!floorCut) {
       if (floorPlane) floorPlane.active = false;
       preserveHVACVisibility();
-      updateArchitectureStatus("Level 5 slab not found — select a floor and use Cut below selected floor", true);
+      updateArchitectureStatus("Level 5 reference slab not found — showing the complete model", true);
       return;
     }
     const h = model.aabb;
@@ -207,7 +203,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       floorPlane = sectionPlanes.createSectionPlane({
         id: "underLevel5",
         pos,
-        dir: [0,1,0],
+        dir: [0,-1,0],
         active: true
       });
     } else {
@@ -218,66 +214,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     preserveHVACVisibility();
     updateArchitectureStatus("Showing upper building above selected Level 5 slab");
   }
-
-  function cutBelowSelectedFloor() {
-    if (!selectedEntity) {
-      updateArchitectureStatus("Select the Level 5 floor slab in the viewer first", true);
-      return false;
-    }
-    const meta = viewer.metaScene.metaObjects[selectedEntity.id];
-    if (!/^IfcSlab$/i.test(String(meta?.type || ""))) {
-      updateArchitectureStatus("Selected BIM object is not an IfcSlab", true);
-      return false;
-    }
-    level5SlabGuid = selectedEntity.id.split(/[.#]/).pop();
-    floorCutInspected = false;
-    floorCut = null;
-    if (architecturalModel && model) {
-      toggleArchitecture(true);
-      updateFloorUnderlay();
-    }
-    return true;
-  }
-
-  function updateCameraSection() {
-    // Camera sections affect architecture ONLY. Never cut sensor/HVAC geometry.
-    if (viewMode !== "camera" || !architecturalModel?.aabb || !showArchitecture) {
-      if (cameraPlane) cameraPlane.active = false;
-      return;
-    }
-    const a = architecturalModel.aabb;
-    if (![...a].every(Number.isFinite)) return;
-    const eye = viewer.scene.camera.eye, look = viewer.scene.camera.look;
-    const dx = eye[0] - look[0], dz = eye[2] - look[2];
-    const d = Math.hypot(dx,dz);
-    if (d < 1e-5) return;
-    // Position inside the ARCHITECTURAL bounds, not the separate HVAC bounds.
-    const pos = [(a[0]+a[3])/2, (a[1]+a[4])/2, (a[2]+a[5])/2];
-    const dir = [dx/d,0,dz/d];
-    if (!cameraPlane) {
-      cameraPlane = sectionPlanes.createSectionPlane({
-        id:"cameraAlignedSection", pos, dir, active:true
-      });
-    } else {
-      cameraPlane.pos = pos;
-      cameraPlane.dir = dir;
-      cameraPlane.active = true;
-    }
-  }
-
-  function setViewMode(value) {
-    viewMode = value === "camera" ? "camera" : "walls";
-    const select = stage.querySelector("[data-bim-view-mode]");
-    if (select) select.value = viewMode;
-    if (cameraPlane) cameraPlane.active = viewMode === "camera" && showArchitecture;
-    preserveHVACVisibility();
-    if (viewMode === "camera") updateCameraSection();
-    else updateArchitectureStatus(showArchitecture ? "Walls and floor view" : "HVAC-only view");
-  }
-
-  // xeokit fires this event during interactive orbiting and camera flights.
-  viewer.scene.camera.on("viewMatrix", updateCameraSection);
-
 
   function loadArchitecturalContext() {
     updateArchitectureStatus("Loading walls and floor…");
@@ -323,7 +259,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
         toggleArchitecture(showArchitecture);
         updateFloorUnderlay();
         preserveHVACVisibility();
-        if (viewMode === "camera") updateCameraSection();
         console.info("Loaded architectural context:", { objects: architecturalIds.length, aabb: Array.from(architecturalModel.aabb) });
       });
       architecturalModel.on("error", error => {
@@ -363,20 +298,11 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     return { matched, total: sensorCatalog.length };
   }
 
-  function clearSection() {
-    setViewMode("walls");
-  }
-
   function resetAllCuts() {
     // Emergency recovery must actually disable ALL clipping and show BOTH models.
-    setViewMode("walls");
-    if (floorPlane) floorPlane.active = false;
-    if (cameraPlane) cameraPlane.active = false;
     toggleArchitecture(true);
-    // toggleArchitecture can reactivate the automatic floor cut. Recovery must
-    // finish with clipping OFF, so both models are guaranteed to be visible.
+    // Recovery intentionally shows all geometry without any floor cut.
     if (floorPlane) floorPlane.active = false;
-    if (cameraPlane) cameraPlane.active = false;
     if (architecturalModel) architecturalModel.visible = true;
     if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, true);
     preserveHVACVisibility(true);
@@ -413,10 +339,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   const actionHandlers = {
-    home: () => { setViewMode("walls"); showWholeBuilding(); },
+    home: showWholeBuilding,
     resetAllCuts,
-    clearSection,
-    cutBelowSelectedFloor,
     fit: showWholeBuilding,
     all: showWholeBuilding,
     plan: planView,
@@ -432,7 +356,6 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   stage.querySelectorAll("[data-viewer-action]").forEach(button => {
     button.addEventListener("click", () => actionHandlers[button.dataset.viewerAction]?.());
   });
-  stage.querySelector("[data-bim-view-mode]")?.addEventListener("change", event => setViewMode(event.target.value));
   stage.querySelector("[data-architecture-toggle]")?.addEventListener("change", event => toggleArchitecture(event.target.checked));
 
 
@@ -510,5 +433,5 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   active = { viewer, model, loadingTimer };
-  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, setViewMode, clearSection, resetAllCuts, toggleArchitecture, cutBelowSelectedFloor };
+  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, resetAllCuts, toggleArchitecture };
 }
