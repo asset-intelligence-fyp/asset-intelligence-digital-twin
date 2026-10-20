@@ -78,9 +78,11 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let showArchitecture = true;
   let viewMode = "walls";
 
-  // This provisional floor estimate is below the lowest Level 5 HVAC geometry,
-  // not an authoritative floor elevation. Do not cut the HVAC with this plane.
-  const FLOOR_DROP = 3.5;
+  // Provisional Level 5 floor-cut datum, based on the bottom of the HVAC model.
+  // This is in xeokit scene units; verify against the actual Revit floor elevation.
+  // A small offset removes the excess walls below L5 while retaining the HVAC.
+  // Increase this offset if the Level 5 slab is clipped.
+  const FLOOR_DROP = 0.25;
 
   // Keep sensor and HVAC geometry visible independently of architectural cuts.
   // Only the architectural model participates in automatic/camera clipping.
@@ -108,6 +110,11 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     showArchitecture = Boolean(enabled);
     if (architecturalModel) architecturalModel.visible = showArchitecture;
     if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, showArchitecture);
+    // Recalculate when the operator restores the architectural layer.
+    // Leave the recovery action free to disable both planes explicitly.
+    if (showArchitecture && architecturalModel && model && !floorPlane?.active) {
+      updateFloorUnderlay();
+    }
     const checkbox = stage.querySelector("[data-architecture-toggle]");
     if (checkbox) checkbox.checked = showArchitecture;
     preserveHVACVisibility();
@@ -124,14 +131,28 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     const xyOverlap = h[0] <= a[3] && a[0] <= h[3] &&
                       h[2] <= a[5] && a[2] <= h[5];
     const height = a[4] - a[1];
-    // Reject incorrect floor elevations that would cut most/all architecture.
-    // If unsafe, display the complete architecture instead of a blank model.
-    const safeFloor = height > 0 && y >= a[1] && y <= a[1] + height * 0.70;
-    if (!xyOverlap || !safeFloor) {
+    // Level 5 may legitimately be near the TOP of a full-building model.
+    // The old 70%-of-building-height check rejected such valid elevations,
+    // leaving all the lower wall geometry visible. Instead, require the plane
+    // to lie strictly inside the architectural height range.
+    const epsilon = Math.max(1e-4, height * 1e-5);
+    const withinArchitecturalHeight = height > 0 &&
+      y > a[1] + epsilon && y < a[4] - epsilon;
+    // Where per-object AABBs exist, check that at least one object extends
+    // above the cut, so an invalid datum cannot empty the entire scene.
+    const bounds = architecturalIds
+      .map(id => viewer.scene.objects[id]?.aabb)
+      .filter(box => box && box.length === 6 && [...box].every(Number.isFinite));
+    const keepsGeometry = bounds.length === 0 ||
+      bounds.some(box => box[4] > y + epsilon);
+    if (!xyOverlap || !withinArchitecturalHeight || !keepsGeometry) {
       if (floorPlane) floorPlane.active = false;
       preserveHVACVisibility();
       console.warn("Skipped unsafe under-floor cut; verify Level 5 datum", {
-        proposedY: y, hvac: Array.from(h), architecture: Array.from(a)
+        proposedY: y,
+        hvac: Array.from(h),
+        architecture: Array.from(a),
+        checkedArchitectureObjects: bounds.length
       });
       updateArchitectureStatus("Architecture loaded — floor cut skipped (unverified elevation)", true);
       return;
