@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {findLevel5FloorCut} from "../src/data/level5FloorCut.js";
+import {findLevel5FloorCut, findFloorCutFromIdentifiedSlab} from "../src/data/level5FloorCut.js";
 
 const architecture = [0, 0, 0, 60, 60, 60];
 const hvac = [10, 42, 10, 35, 46, 35];
@@ -30,4 +30,29 @@ test("rejects disjoint model coordinates", () => {
 
 test("rejects a slab at architectural minimum instead of cutting everything", () => {
   assert.equal(findLevel5FloorCut([10,2,10,35,4,35],architecture,[geometry[0]]),null);
+});
+
+
+test("cuts just under the selected Level 5 floor, not the ground floor", () => {
+  const identified = {
+    id:"19jRsGRmHCtQuanP7b0FIs",
+    type:"IfcSlab",
+    aabb:[5,40,5,40,40.4,40]
+  };
+  const cut = findFloorCutFromIdentifiedSlab(architecture, identified);
+  assert.ok(cut);
+  assert.equal(cut.slabId, identified.id);
+  assert.ok(cut.y < identified.aabb[1]);
+  assert.ok(cut.y > 39.8);
+  assert.equal(cut.source, "operator-identified-IfcSlab");
+});
+
+test("does not clip without a valid slab reference", () => {
+  assert.equal(findFloorCutFromIdentifiedSlab(architecture, null), null);
+  assert.equal(findFloorCutFromIdentifiedSlab(architecture, {
+    id:"not-floor", type:"IfcWall", aabb:[5,40,5,40,40.4,40]
+  }), null);
+  assert.equal(findFloorCutFromIdentifiedSlab(architecture, {
+    id:"wrong-coordinates", type:"IfcSlab", aabb:[5,70,5,40,70.4,40]
+  }), null);
 });
