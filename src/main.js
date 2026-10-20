@@ -452,7 +452,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       <canvas class="nav-cube-canvas" data-navcube-canvas></canvas>
       <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; Level 5</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "None")}</strong></span></div>
       <div class="viewer-toolbar" aria-label="BIM viewer tools">
-        <button class="viewer-tool" title="Normal walls and floor view" data-viewer-action="clearSection">▣</button>
+        <button class="viewer-tool" title="Restore all BIM geometry" data-viewer-action="resetAllCuts">▣</button>
         <button class="viewer-tool" title="Reset / Home" data-viewer-action="home">⌂</button>
         <button class="viewer-tool" title="Plan view" data-viewer-action="plan">⌗</button>
         <button class="viewer-tool" title="3D floor view" data-viewer-action="threeD">◉</button>
@@ -461,16 +461,17 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <button class="viewer-tool active" title="BIM selection active">◇</button>
       </div>
       <div class="level5-viewer-tools">
-        <label class="level5-mode-label" for="bimViewMode_${stageId}">View mode</label>
-        <select id="bimViewMode_${stageId}" data-bim-view-mode aria-label="BIM section view mode">
-          <option value="walls">Walls + floor (normal)</option>
-          <option value="camera">Follow camera section</option>
-        </select>
-        <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show architecture</label>
-        <div class="level5-layer-status" data-architecture-status>Loading architectural floor…</div>
-        <button type="button" class="level5-recovery-btn" data-viewer-action="cutBelowSelectedFloor" title="Select an IfcSlab in the 3D viewer first">Cut below selected floor</button>
-        <button type="button" class="level5-recovery-btn" data-viewer-action="resetAllCuts">Restore visible model</button>
-        <div class="level5-mode-help">The floor underlay is clipped automatically. Follow camera removes the facing walls as you rotate.</div>
+        <details class="level5-viewer-details">
+          <summary class="level5-panel-summary" aria-label="Expand or collapse view options">
+            <span>View options</span><span class="level5-collapse-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="level5-viewer-content">
+            <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show architecture</label>
+            <div class="level5-layer-status" data-architecture-status>Loading architectural floor…</div>
+            <button type="button" class="level5-recovery-btn" data-viewer-action="resetAllCuts">Restore visible model</button>
+            <div class="level5-mode-help">The Level 5 floor cut is applied automatically when the reference slab is available.</div>
+          </div>
+        </details>
       </div>
       <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
       <div class="viewer-loading" data-viewer-loading>
@@ -533,12 +534,18 @@ function initViewer(stageId) {
   const navigation = document.createElement("aside");
   navigation.className = "level5-sensor-nav";
   navigation.setAttribute("aria-label", "Level 5 physical sensors");
-  navigation.innerHTML = '<div class="level5-sensor-nav-title">Level 5 sensors <span data-mapping-count>Checking model…</span></div>' +
-    '<input data-sensor-filter type="search" aria-label="Find a sensor" placeholder="Search ID or asset…" />' +
-    '<div class="level5-sensor-nav-list">' +
-    LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
-      '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
-    '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>';
+  navigation.innerHTML = '<details class="level5-sensor-details">' +
+    '<summary class="level5-panel-summary" aria-label="Expand or collapse Level 5 sensors">' +
+      '<span>Level 5 sensors</span><span class="level5-sensor-summary-right">' +
+        '<span data-mapping-count>Checking model…</span><span class="level5-collapse-chevron" aria-hidden="true">⌄</span>' +
+      '</span></summary>' +
+    '<div class="level5-sensor-body">' +
+      '<input data-sensor-filter type="search" aria-label="Find a sensor" placeholder="Search ID or asset…" />' +
+      '<div class="level5-sensor-nav-list">' +
+      LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
+        '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
+      '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>' +
+    '</div></details>';
   stage.appendChild(navigation);
   navigation.querySelector("[data-sensor-filter]")?.addEventListener("input", event => {
     const value = event.target.value.trim().toLowerCase();
