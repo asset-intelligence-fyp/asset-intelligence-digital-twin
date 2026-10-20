@@ -2,7 +2,8 @@ import {
   Viewer,
   XKTLoaderPlugin,
   StoreyViewsPlugin,
-  NavCubePlugin
+  NavCubePlugin,
+  SectionPlanesPlugin
 } from "@xeokit/xeokit-sdk";
 
 let active = null;
@@ -59,6 +60,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   const xktLoader = new XKTLoaderPlugin(viewer);
   const storeyViews = new StoreyViewsPlugin(viewer);
+  const sectionPlanes = new SectionPlanesPlugin(viewer);
+  let sectionPlane = null;
 
   new NavCubePlugin(viewer, {
     canvasId: navCanvas.id,
@@ -71,38 +74,89 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let model = null;
   let storeys = [];
   let currentStoreyIndex = -1;
+  let level5StoreyIndex = -1;
   let selectedEntity = null;
+  let sensorCatalog = [];
+
+  function selectSensor(guid) {
+    const entity = viewer.scene.objects[guid];
+    if (!entity) return false;
+    if (selectedEntity && selectedEntity !== entity) selectedEntity.selected = false;
+    selectedEntity = entity;
+    entity.visible = true;
+    entity.selected = true;
+    const sensor = sensorCatalog.find(item => item.guid === guid);
+    if (selectedLabel) selectedLabel.textContent = sensor?.label || guid;
+    viewer.cameraControl.navMode = "orbit";
+    viewer.cameraFlight.flyTo({ aabb: entity.aabb, projection: "perspective", duration: 0.7, fitFOV: 45 });
+    onSelection({ entityId: guid, name: sensor?.label || guid, type: "Sensor", metaObject: viewer.metaScene.metaObjects[guid] });
+    return true;
+  }
+
+  function configureSensors(items) {
+    sensorCatalog = items || [];
+    let matched = 0;
+    sensorCatalog.forEach(item => {
+      const entity = viewer.scene.objects[item.guid];
+      if (!entity) return;
+      entity.highlighted = true;
+      matched++;
+    });
+    return { matched, total: sensorCatalog.length };
+  }
+
+  function clearSection() {
+    sectionPlane?.destroy();
+    sectionPlane = null;
+  }
+
+  function setSection(axis = "z", fraction = 0.5) {
+    if (!model?.aabb) return;
+    const box = model.aabb;
+    const index = axis === "x" ? 0 : axis === "y" ? 1 : 2;
+    const position = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
+    position[index] = box[index] + Math.max(0, Math.min(1, Number(fraction))) * (box[index + 3] - box[index]);
+    const direction = [0, 0, 0];
+    direction[index] = -1;
+    clearSection();
+    sectionPlane = sectionPlanes.createSectionPlane({id: "level5Section", pos: position, dir: direction, active: true});
+  }
 
   const getStoreyName = (storey, index) => {
     const metaObject = viewer.metaScene.metaObjects[storey.storeyId];
     return metaObject?.name || `Floor ${index + 1}`;
   };
 
+  // A Level 5-specific XKT is the primary source of truth.
+  // If extra storeys are present, isolate the named L5 storey when possible.
   const populateFloors = () => {
     storeys = storeyViews.storeysList || [];
-
+    level5StoreyIndex = storeys.findIndex((storey, index) =>
+      /(?:level|floor|storey|l)\s*0?5\b/i.test(getStoreyName(storey, index))
+    );
+    if (level5StoreyIndex < 0 && storeys.length === 1) level5StoreyIndex = 0;
     if (floorSelect) {
-      floorSelect.innerHTML = '<option value="-1">All Floors</option>';
-      storeys.forEach((storey, index) => {
-        const option = document.createElement("option");
-        option.value = String(index);
-        option.textContent = getStoreyName(storey, index);
-        floorSelect.appendChild(option);
-      });
+      floorSelect.innerHTML = '<option value="-1">Level 5</option>';
+      floorSelect.disabled = true;
     }
-
-    if (floorLabel) {
-      floorLabel.textContent = storeys.length ? "All Floors" : "Model Loaded";
+    if (floorLabel) floorLabel.textContent = "Level 5";
+    if (storeys.length > 1 && level5StoreyIndex < 0) {
+      console.warn("Multiple IFC storeys found, but Level 5 was not identifiable:", storeys.map(getStoreyName));
+      if (floorLabel) floorLabel.textContent = "Verify IFC floor";
     }
+    if (level5StoreyIndex >= 0 && model) goToStorey(level5StoreyIndex, false);
   };
 
   const showWholeBuilding = () => {
     if (!model) return;
+    if (level5StoreyIndex >= 0) {
+      goToStorey(level5StoreyIndex, false);
+      return;
+    }
     currentStoreyIndex = -1;
-    if (floorSelect) floorSelect.value = "-1";
-    if (floorLabel) floorLabel.textContent = "All Floors";
+    if (floorLabel) floorLabel.textContent = "Level 5";
     viewer.cameraControl.navMode = "orbit";
-    viewer.scene.setObjectsVisible(viewer.scene.objectIds, true);
+    viewer.scene.setObjectsVisible(model.objectIds || viewer.scene.objectIds, true);
     viewer.cameraFlight.flyTo({
       aabb: model.aabb,
       projection: "perspective",
@@ -141,11 +195,13 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   };
 
   const actionHandlers = {
-    home: showWholeBuilding,
+    home: () => { clearSection(); showWholeBuilding(); },
+    section: () => setSection(),
+    clearSection,
     fit: showWholeBuilding,
-    all: showWholeBuilding,
+    all: () => { clearSection(); showWholeBuilding(); },
     plan: () => {
-      if (currentStoreyIndex === -1 && storeys.length) goToStorey(0, true);
+      if (currentStoreyIndex === -1 && level5StoreyIndex >= 0) goToStorey(level5StoreyIndex, true);
       else if (currentStoreyIndex >= 0) goToStorey(currentStoreyIndex, true);
     },
     threeD: () => {
@@ -179,6 +235,13 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     button.addEventListener("click", () => actionHandlers[action]?.());
   });
 
+  stage.querySelector("[data-section-range]")?.addEventListener("input", event =>
+    setSection(stage.querySelector("[data-section-axis]")?.value || "z", Number(event.target.value) / 100)
+  );
+  stage.querySelector("[data-section-axis]")?.addEventListener("change", event =>
+    setSection(event.target.value, Number(stage.querySelector("[data-section-range]")?.value || 50) / 100)
+  );
+
   floorSelect?.addEventListener("change", () => {
     const index = Number(floorSelect.value);
     if (index === -1) showWholeBuilding();
@@ -209,7 +272,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
 
   model = xktLoader.load({
     id: "SnowdonTowers",
-    src: "/models/Snowdon_Level5_Model+HVAC_S.xkt",
+    src: "/models/Snowdon_Level5_Model+HVAC.xkt",
     edges: true,
     saoEnabled: true,
     dtxEnabled: true
@@ -239,5 +302,5 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   });
 
   active = { viewer, model };
-  return { viewer, showWholeBuilding, goToStorey };
+  return { viewer, model, showWholeBuilding, goToStorey, selectSensor, configureSensors, setSection, clearSection };
 }

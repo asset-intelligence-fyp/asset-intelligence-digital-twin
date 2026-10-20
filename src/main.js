@@ -18,6 +18,7 @@ import {
   applyLiveReading
 } from "./data/dataStore.js";
 import { initXeokitViewer, destroyActiveViewer } from "./xeokitViewer.js";
+import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js";
 
 const app = document.getElementById("app");
 
@@ -430,32 +431,33 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
     <div class="panel-header">
       <div>
         <div class="section-title">◫ Digital Twin BIM Viewer</div>
-        <div class="section-meta" style="margin-top:4px">18 floors &nbsp;•&nbsp; Live asset state &nbsp; <span class="demo-label">SIMULATION</span></div>
+        <div class="section-meta" style="margin-top:4px">Level 5 pilot &nbsp;•&nbsp; Simulated telemetry &nbsp; <span class="demo-label">SIMULATION</span></div>
       </div>
       <div class="viewer-tools-row">
-        <select class="select" data-floor-select aria-label="Select floor"><option value="-1">All Floors</option></select>
-        <button class="btn" data-viewer-mode="3d">3D View</button>
+        <span class="viewer-level-tag">Level 5 only</span>
+        <button class="btn" data-viewer-action="threeD">3D View</button>
         ${detailed ? `<select class="select"><option>All Assets</option><option>HVAC</option></select><select class="select"><option>All Statuses</option><option>Anomaly</option><option>Normal</option></select>` : ""}
       </div>
     </div>
     <div class="viewer-stage" id="${stageId}">
       <canvas class="viewer-canvas" data-xeokit-canvas></canvas>
       <canvas class="nav-cube-canvas" data-navcube-canvas></canvas>
-      <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; 3D View</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "BIM-AHU-L2-001")}</strong></span></div>
+      <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; Level 5</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "None")}</strong></span></div>
       <div class="viewer-toolbar" aria-label="BIM viewer tools">
+        <button class="viewer-tool" title="Section cut" data-viewer-action="section">◪</button>
+        <button class="viewer-tool" title="Clear section" data-viewer-action="clearSection">✕</button>
         <button class="viewer-tool" title="Reset / Home" data-viewer-action="home">⌂</button>
         <button class="viewer-tool" title="Plan view" data-viewer-action="plan">⌗</button>
         <button class="viewer-tool" title="3D floor view" data-viewer-action="threeD">◉</button>
         <button class="viewer-tool" title="Fit model" data-viewer-action="fit">⌕</button>
-        <button class="viewer-tool" title="Show all floors" data-viewer-action="all">▦</button>
+        
         <button class="viewer-tool active" title="BIM selection active">◇</button>
       </div>
-      <div class="viewer-floor-control">
-        <button class="btn" data-viewer-action="up">↑</button>
-        <span class="viewer-floor-label" data-floor-label>All Floors</span>
-        <button class="btn" data-viewer-action="down">↓</button>
-        <button class="btn" data-viewer-action="all">Show All</button>
+      <div class="level5-viewer-tools">
+        <label>Section axis <select data-section-axis aria-label="Section axis"><option value="z">Horizontal</option><option value="x">East–west</option><option value="y">North–south</option></select></label>
+        <label>Section depth <input data-section-range type="range" min="0" max="100" value="50" aria-label="Section depth" /></label>
       </div>
+      <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
       <div class="viewer-loading" data-viewer-loading>
         <div class="viewer-loading-card">
           <div class="viewer-loading-icon"></div>
@@ -472,38 +474,70 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <span class="legend-item"><span class="legend-dot" style="background:#ff5154"></span>Critical</span>
         <span class="legend-item"><span class="legend-dot" style="background:#55b7ff"></span>Selected</span>
       </div>
-      <span>Affected elements only</span>
+      <span>8 mapped devices · 11 channels</span>
     </div>
   </section>`;
 }
 
 function initViewer(stageId) {
-  return initXeokitViewer({
+  const controller = initXeokitViewer({
     stageId,
     onSelection: (selection) => {
       state.selectedBimElement = selection;
-
       const sensor = getSensorByBimId(selection.entityId);
       const mappedAsset = getAssetByBimId(selection.entityId);
-
-      if (sensor) {
-        state.selectedAssetId = sensor.asset_id ?? sensor.equipment_code;
-      } else if (mappedAsset) {
-        state.selectedAssetId = mappedAsset.asset_id;
-      }
-
+      if (sensor) state.selectedAssetId = sensor.asset_id ?? sensor.equipment_code;
+      else if (mappedAsset) state.selectedAssetId = mappedAsset.asset_id;
       const label = document.querySelector("[data-selected-element]");
       if (label) label.textContent = selection.entityId;
-
-      // Refresh only the inspector. Re-rendering the whole page would destroy
-      // and recreate the xeokit viewer after every BIM click.
       const inspector = document.querySelector(".asset-inspector");
       if (inspector) {
         inspector.outerHTML = assetInspectorHtml({ detailed: pathName() === "/bim-viewer" });
         bindAssetInspector();
       }
+      document.querySelectorAll("[data-sensor-guid]").forEach(button => {
+        button.classList.toggle("active", button.dataset.sensorGuid === selection.entityId);
+      });
     }
   });
+  if (!controller) return null;
+  const stage = document.getElementById(stageId);
+  const panel = stage?.closest(".viewer-panel");
+  if (!panel) return controller;
+  const navigation = document.createElement("aside");
+  navigation.className = "level5-sensor-nav";
+  navigation.setAttribute("aria-label", "Level 5 physical sensors");
+  navigation.innerHTML = '<div class="level5-sensor-nav-title">Level 5 sensors <span data-mapping-count>Checking model…</span></div>' +
+    '<input data-sensor-filter type="search" aria-label="Find a sensor" placeholder="Search ID or asset…" />' +
+    '<div class="level5-sensor-nav-list">' +
+    LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
+      '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
+    '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>';
+  stage.appendChild(navigation);
+  navigation.querySelector("[data-sensor-filter]")?.addEventListener("input", event => {
+    const value = event.target.value.trim().toLowerCase();
+    navigation.querySelectorAll("[data-sensor-guid]").forEach(button => {
+      button.hidden = !button.textContent.toLowerCase().includes(value);
+    });
+  });
+  navigation.querySelectorAll("[data-sensor-guid]").forEach(button => button.addEventListener("click", () => {
+    const guid = button.dataset.sensorGuid;
+    if (!controller.selectSensor(guid)) {
+      button.title = "BIM GUID not found in loaded XKT. Check IFC conversion and model metadata.";
+      button.classList.add("unmapped");
+    }
+  }));
+  controller.model?.on?.("loaded", () => {
+    const {matched,total} = controller.configureSensors(LEVEL5_SENSORS);
+    const count = navigation.querySelector("[data-mapping-count]");
+    if (count) count.textContent = matched + "/" + total + " found";
+    navigation.querySelectorAll("[data-sensor-guid]").forEach(button => {
+      const found = Boolean(controller.viewer.scene.objects[button.dataset.sensorGuid]);
+      button.classList.toggle("unmapped", !found);
+      if (!found) button.title = "GUID is not present in this XKT model";
+    });
+  });
+  return controller;
 }
 
 function trendSvg(sensorId = 1001) {

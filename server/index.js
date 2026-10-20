@@ -73,7 +73,7 @@ const MQTT_URL =
 
 const MQTT_TOPIC =
   process.env.MQTT_TOPIC ||
-  "dt/HRU507/+";
+  "dt/+/+";
 
 const mqttClient = mqtt.connect(MQTT_URL);
 
@@ -345,8 +345,11 @@ mqttClient.on(
       // -----------------------------------------------------
 
       if (
-        String(mapped.sensor_code) !==
-        String(sensor_id)
+        !new Set([
+          String(mapped.sensor_code),
+          String(point_code),
+          ...(mapped.sensor_code === "S-L5-008" ? ["ENV-507"] : [])
+        ]).has(String(sensor_id))
       ) {
 
         console.warn(

@@ -747,3 +747,32 @@ h1, h2, h3, p { margin: 0; }
 [data-live-value] {
   color: #79e5ab;
 }
+
+/* Level 5 BIM interaction: compact, model-first controls */
+.level5-viewer-tools {
+  position:absolute; top:50px; right:10px; z-index:8;
+  display:flex; flex-direction:column; gap:9px; padding:11px;
+  background:rgba(13,20,26,.92); border:1px solid var(--border);
+  border-radius:9px; width:186px; backdrop-filter:blur(12px);
+}
+.level5-viewer-tools label {display:flex; flex-direction:column;gap:5px;color:var(--text-soft);font-size:10px}
+.level5-viewer-tools select {background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:5px}
+.level5-viewer-tools input {width:100%;accent-color:var(--orange)}
+.level5-sensor-nav {
+  position:absolute;left:54px;top:52px;z-index:8;width:210px;
+  max-height:calc(100% - 124px);overflow:auto;
+  background:rgba(13,20,26,.94);border:1px solid var(--border);
+  border-radius:10px;padding:10px;backdrop-filter:blur(12px);
+}
+.level5-sensor-nav-title{font-size:11px;font-weight:750;margin:0 0 9px}
+.level5-sensor-nav-title span{float:right;font-weight:400;color:var(--muted);font-size:9px}
+.level5-sensor-nav input {width:100%;height:30px;margin-bottom:7px;background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:0 9px;color:var(--text);font-size:11px}
+.level5-sensor-nav-list {display:grid;gap:4px}
+.level5-sensor-nav-list button {text-align:left;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);cursor:pointer;padding:7px 9px}
+.level5-sensor-nav-list button:hover,.level5-sensor-nav-list button.active {background:var(--orange-soft);border-color:rgba(255,122,0,.35)}
+.level5-sensor-nav-list button strong {display:block;font-size:11px}
+.level5-sensor-nav-list button span {display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.level5-sensor-nav-list button.unmapped {opacity:.55;border-style:dashed}
+.level5-sensor-nav-list button[hidden]{display:none}
+.level5-unlocated{padding:8px 5px;font-size:9px;color:var(--muted)}
+@media(max-width:900px){.level5-sensor-nav{width:165px;left:49px}.level5-viewer-tools{width:140px}.viewer-overlay-top{display:none}}
