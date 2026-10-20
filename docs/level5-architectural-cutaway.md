@@ -14,7 +14,7 @@ The Level 5 sensor registry (`src/data/level5Sensors.js`) maps eight physical se
 A single automatic lower section plane uses the identified finish-floor slab
 `19jRsGRmHCtQuanP7b0FIs` (`IfcSlab`). Its Y position is just below the slab's lower face, when the object is present with a valid AABB.
 
-The plane always uses `dir: [0,-1,0]`. The xeokit SectionPlane discards the half-space in its direction, so this removes elements **below** the slab. Previously, plane creation and updates used opposite directions; those now match.
+The plane uses `dir: [0, 1, 0]` in both creation and update paths. This is the direction confirmed by the project viewer's visual inspection to retain the desired upper Level 5 geometry and remove the excess below-floor elements. The previous `dir: [0,-1,0]` produced the opposite result in this viewer.
 
 Architectural objects in the primary and secondary XKT files can be clipped; mapped sensor objects and HVAC equipment remain protected. If the slab cannot be found or validated, the viewer leaves the model uncut and displays a warning instead of guessing another elevation.
 
