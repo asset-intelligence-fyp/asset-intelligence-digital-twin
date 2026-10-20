@@ -52,6 +52,12 @@ export function findLevel5FloorCut(hvac, architecture, objects) {
   const slab = candidates[0];
   if (!slab) return null;
 
+  // A bottom-most foundation/ground slab is not an L5 supporting slab.
+  // When an entire building is loaded, L5 should lie above the building's
+  // lowest architectural portion. Skip uncertain near-ground selections.
+  const relativeHeight = (slab.top - architecture[1]) / height;
+  if (relativeHeight < 0.15) return null;
+
   // Preserve the slab itself; trim just below its lower surface. This avoids
   // accidentally showing only the lowest building slabs or clipping L5 slab.
   const thickness = slab.aabb[4] - slab.aabb[1];
