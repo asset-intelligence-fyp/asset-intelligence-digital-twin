@@ -896,3 +896,87 @@ h1, h2, h3, p { margin: 0; }
   .bim-workspace .asset-inspector { min-height: 340px; }
   .bim-workspace:fullscreen { grid-template-columns: minmax(0, 1fr); overflow: auto; }
 }
+
+
+/* Compact overlays: native <details> panels leave the 3D model unobstructed. */
+.level5-sensor-nav,
+.level5-viewer-tools {
+  overflow: visible;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  backdrop-filter: none;
+}
+.level5-sensor-nav {
+  width: min(235px, calc(100% - 90px));
+  max-height: calc(100% - 92px);
+}
+.level5-viewer-tools {
+  width: min(220px, calc(100% - 90px));
+}
+.level5-sensor-nav:has(> details:not([open])) { width: 166px; }
+.level5-viewer-tools:has(> details:not([open])) { width: 142px; }
+
+.level5-sensor-details,
+.level5-viewer-details {
+  margin: 0;
+  background: rgba(13, 20, 26, .94);
+  border: 1px solid #354650;
+  border-radius: 9px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(12px);
+}
+.level5-panel-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 10px;
+  color: #e8eff3;
+  font-size: 11px;
+  font-weight: 700;
+  user-select: none;
+}
+.level5-panel-summary::-webkit-details-marker { display: none; }
+.level5-panel-summary::marker { content: ""; }
+.level5-panel-summary:hover { background: rgba(255, 255, 255, .04); }
+.level5-panel-summary:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+.level5-sensor-summary-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.level5-collapse-chevron {
+  display: inline-block;
+  font-size: 13px;
+  transition: transform .16s ease;
+}
+details[open] > .level5-panel-summary .level5-collapse-chevron { transform: rotate(180deg); }
+details[open] > .level5-panel-summary { border-bottom: 1px solid rgba(185, 204, 216, .14); }
+.level5-sensor-body {
+  padding: 10px;
+  max-height: min(600px, calc(100vh - 220px));
+  overflow-y: auto;
+}
+.level5-viewer-content {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+}
+.level5-viewer-content .architecture-checkbox { justify-content: flex-start; }
+.level5-viewer-content .level5-mode-help { font-size: 10px; }
+@media (max-width: 900px) {
+  .level5-sensor-nav:has(> details:not([open])) { width: 152px; }
+  .level5-viewer-tools:has(> details:not([open])) { width: 134px; }
+  .level5-sensor-nav { left: 49px; }
+  .level5-viewer-tools { right: 8px; }
+}
