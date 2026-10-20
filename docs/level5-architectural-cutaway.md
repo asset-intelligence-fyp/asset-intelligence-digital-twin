@@ -9,17 +9,21 @@ The BIM viewer loads two existing XKT models into one xeokit scene:
 
 The physical sensor GlobalIds are preserved for selecting the eight mapped Level 5 devices. Their live readings continue to arrive through PostgreSQL and the existing SSE endpoint; no MQTT or database changes are required by the new view controls.
 
-## Default floor cut (slab-based)
+## Default floor cut: user-identified Level 5 slab
 
-After the HVAC and architectural XKT files have finished loading, the viewer examines **architectural `IfcSlab` objects** whose horizontal bounding boxes overlap the HVAC model. It selects the closest supporting slab below the HVAC elevation and positions a horizontal section plane **just below the slab's lower surface**.
+The reference is the `IfcSlab` selected by the user in the BIM viewer screenshot:
 
-The cut uses `dir: [0,-1,0]`: xeokit discards geometry in the negative Y direction, leaving walls and room partitions **above** the selected Level 5 floor. HVAC and sensor objects remain non-clippable.
+- **IFC GlobalId:** `19jRsGRmHCtQuanP7b0FIs`
+- **Object name:** `Floor:Finish Floor - Polished Concrete (Grey):2113320`
+- **Type:** `IfcSlab`
 
-**Safety fallback:** The viewer will not cut automatically when it cannot identify a suitable slab or the IFC models appear spatially inconsistent. It shows `Floor not identified — architecture visible without cut` instead. This avoids exposing only the building's ground slab again.
+The viewer resolves that actual object in the scene (primary XKT or globally-prefixed architectural XKT), reads its bounding box and places the lower section plane slightly below its **bottom face**. The plane is `dir: [0,-1,0]`, discarding geometry below Level 5. Neither the bottom-of-HVAC heuristic nor the nearest-slab heuristic is used for the default cut.
 
-This is still a geometry-derived Level 5 estimate. For an engineering-accurate result, use the verified Revit/IFC Level 5 slab elevation, with coordinated architectural and HVAC exports.
+**Crucial:** The primary `Snowdon_Level5_Model+HVAC.xkt` also contains some architectural walls and slabs. The viewer therefore marks architectural IFC element types as clippable **inside the primary model as well as in the secondary architectural model**. Physical sensor GUIDs and HVAC ducts/equipment remain non-clippable. This avoids the previous situation where the primary XKT's entire building structure survived every architectural section plane.
 
-The old `FLOOR_DROP`, 70%-building-height rule and manual crop controls are no longer used.
+If the specified slab cannot be found or validated, the viewer does not attempt an unverified lower cut and instead reports a warning. Select the correct `IfcSlab` object and click **Cut below selected floor** to set a new reference interactively; this does not require changing Revit or reconverting IFC.
+
+The existing **Restore visible model** action disables the floor and camera planes and restores both scene layers.
 
 ## View options
 
@@ -78,3 +82,12 @@ The code modifications were inspected for JavaScript syntax but have not been ru
 - Error events display a file-path-specific message instead of leaving a permanent spinner.
 - Repeated per-object HVAC visibility updates were replaced by one-time/batched clippability configuration where available.
 - Unit cases validate selecting the nearby Level 5 slab and safely rejecting unclassified, misaligned, or ground-floor-only geometry.
+
+## 2026-10-20 reference-floor implementation
+
+- Exact visual floor reference: `19jRsGRmHCtQuanP7b0FIs` (finish floor, polished concrete grey)
+- Lower section placement: `slab.aabb[1] - small_margin`, not `HVAC.aabb[1] - floor_drop`
+- Both the primary and secondary models' architectural elements are eligible for clipping; sensor objects and ducts are protected
+- The user may manually recalibrate with **Cut below selected floor**
+- Syntax, explicit-floor unit cases and a simulated 2-model lifecycle test passed, including cut activation, sensor protection, camera mode, recovery and loading-overlay removal
+- The actual 3D cut still requires inspection in the developer's browser; no live xeokit rendering was performed by the authoring environment
