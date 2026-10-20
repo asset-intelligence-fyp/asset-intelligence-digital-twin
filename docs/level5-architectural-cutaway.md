@@ -11,9 +11,9 @@ The physical sensor GlobalIds are preserved for selecting the eight mapped Level
 
 ## Default floor cut
 
-When the HVAC model and architecture have loaded, the viewer automatically creates **one** lower clipping plane at the minimum HVAC world-Y position minus `3.5` model units. The plane faces down (`[0,-1,0]`) and cuts away geometry below that position. The automatic plane applies to the architecture; the HVAC model is **not clippable** in normal view, preserving sensor visibility.
+When the HVAC model and architecture have loaded, the viewer automatically creates **one** lower clipping plane at the minimum HVAC world-Y position minus `0.25` scene units. The plane faces down (`[0,-1,0]`) and cuts away geometry below that position. The automatic plane applies to the architecture; the HVAC model is **not clippable** in normal view, preserving sensor visibility.
 
-This is a **provisional floor elevation estimate**, not a verified Revit Level 5 datum. If the architectural and HVAC bounds do not overlap, the crop is safely skipped and a warning is shown. When the correct IFC storey elevation is known, adjust `FLOOR_DROP` in `src/xeokitViewer.js` or replace it with the measured elevation.
+This is a **provisional floor elevation estimate**, not a verified Revit Level 5 datum. If the architectural and HVAC bounds do not overlap, or the cut is not strictly inside the architectural height range, the crop is skipped and a warning is shown. The previous rule that rejected cuts above 70% of the building's height has been removed because Level 5 can legitimately lie near the top of the model. If the Level 5 slab is clipped, increase `FLOOR_DROP` in `src/xeokitViewer.js` to lower the cutting plane. The correct value should ultimately come from the Revit/IFC Level 5 floor elevation rather than the HVAC bounding box.
 
 The former upper/lower slice controls and **Enable Level 5 crop** checkbox have been removed because they could hide the entire scene.
 
@@ -58,3 +58,11 @@ The code modifications were inspected for JavaScript syntax but have not been ru
 - A potentially unsafe below-floor datum causes automatic slicing to be skipped, with the full geometry retained.
 - **Restore visible model** disables both floor and camera planes, re-enables the architectural layer, and restores the camera.
 - JavaScript syntax checks and simulated model-state tests passed; actual browser rendering must still be verified locally.
+
+## 2026-10-20 lower-wall trimming update
+
+- Moved the architectural lower cut from `HVAC minY - 3.5` to `HVAC minY - 0.25` scene units, trimming more of the lower-storey wall geometry.
+- Removed the 70%-building-height cutoff, which could erroneously disable trimming on higher floors.
+- Retained checks that the cut lies within the architecture's vertical extent and leaves some geometry above it.
+- Re-applies the floor undercut when the architectural layer is re-enabled, while keeping **Restore visible model** fully unclipped.
+- JavaScript syntax and a simulated viewer test passed, including startup, camera section, architecture toggle and recovery. Browser rendering against the actual XKT still needs checking.
