@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "sensors": [
+    {
+      "index": 0,
+      "name": "SAT-501A",
+      "units": "degC (inferred)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU501A",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 1,
+      "name": "AF-501A",
+      "units": "native airflow unit (unverified)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU501A",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 2,
+      "name": "FS-501A",
+      "units": "binary 0/1",
+      "unit_evidence": "Binary values verified",
+      "asset": "HRU501A",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 3,
+      "name": "SAT-504",
+      "units": "degC (inferred)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU504",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 4,
+      "name": "AF-504",
+      "units": "native airflow unit (unverified)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU504",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 5,
+      "name": "DP-504",
+      "units": "native pressure unit (unverified)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU504",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 6,
+      "name": "SAT-507",
+      "units": "degC (inferred)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU507",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 7,
+      "name": "AF-507",
+      "units": "native airflow unit (unverified)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "HRU507",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 8,
+      "name": "S-L5-008-TEMP",
+      "units": "degC (inferred)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "Level5 environmental",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 9,
+      "name": "S-L5-008-HUM",
+      "units": "%RH (inferred)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "Level5 environmental",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    },
+    {
+      "index": 10,
+      "name": "S-L5-008-CO2",
+      "units": "ppm (inferred)",
+      "unit_evidence": "No unit dictionary supplied; inferred labels are assumptions; unverified units kept native",
+      "asset": "Level5 environmental",
+      "input_dtype": "float32",
+      "role": "joint_forecasting_target"
+    }
+  ],
+  "excluded_columns": [
+    "occupancy_507",
+    "source_mode",
+    "scenario",
+    "is_anomaly"
+  ],
+  "provenance": "source_mode is a CSV claim, not independent provenance verification. No Level 5 generation script, calibration or unit dictionary supplied. Do not transfer old three-sensor provenance to these different CSVs."
+}

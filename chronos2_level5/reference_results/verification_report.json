@@ -1,0 +1,74 @@
+{
+  "status": "passed",
+  "run_status": "completed",
+  "splits": {
+    "validation": {
+      "origins": 32,
+      "forecast_rows": 5280,
+      "metric_rows": 165,
+      "all_11_sensors_verified": true
+    },
+    "test": {
+      "origins": 64,
+      "forecast_rows": 10560,
+      "metric_rows": 165,
+      "all_11_sensors_verified": true
+    }
+  },
+  "plots": {
+    "baseline_test_all_sensors.png": [
+      2210,
+      1820
+    ],
+    "baseline_test_normalized_comparison.png": [
+      1260,
+      700
+    ],
+    "baseline_test_per_horizon.png": [
+      2210,
+      1690
+    ],
+    "baseline_validation_all_sensors.png": [
+      2210,
+      1820
+    ],
+    "baseline_validation_normalized_comparison.png": [
+      1260,
+      700
+    ],
+    "baseline_validation_per_horizon.png": [
+      2210,
+      1690
+    ],
+    "chronos2_test_all_sensors.png": [
+      2210,
+      1820
+    ],
+    "chronos2_test_normalized_comparison.png": [
+      1260,
+      700
+    ],
+    "chronos2_test_per_horizon.png": [
+      2210,
+      1690
+    ],
+    "chronos2_validation_all_sensors.png": [
+      2210,
+      1820
+    ],
+    "chronos2_validation_normalized_comparison.png": [
+      1260,
+      700
+    ],
+    "chronos2_validation_per_horizon.png": [
+      2210,
+      1690
+    ]
+  },
+  "legacy_preservation": {
+    "checked_files": 21,
+    "all_hashes_unchanged": true
+  },
+  "model_revision": "29ec3766d36d6f73f0696f85560a422f50e8498c",
+  "weights_sha256": "ddcda3c7508bf2528087723e98a20707cc04b7f370ae275a9fd88078ddba4f42"
+}
