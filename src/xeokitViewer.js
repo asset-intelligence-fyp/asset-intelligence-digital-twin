@@ -4,6 +4,7 @@ import {
   NavCubePlugin,
   SectionPlanesPlugin
 } from "@xeokit/xeokit-sdk";
+import {findLevel5FloorCut} from "./data/level5FloorCut.js";
 
 let active = null;
 
@@ -77,25 +78,27 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let architecturalIds = [];
   let showArchitecture = true;
   let viewMode = "walls";
+  let floorCut = null;
+  let floorCutInspected = false;
+  let hvacClipConfigured = false;
 
-  // Provisional Level 5 floor-cut datum, based on the bottom of the HVAC model.
-  // This is in xeokit scene units; verify against the actual Revit floor elevation.
-  // A small offset removes the excess walls below L5 while retaining the HVAC.
-  // Increase this offset if the Level 5 slab is clipped.
-  const FLOOR_DROP = 0.25;
-
-  // Keep sensor and HVAC geometry visible independently of architectural cuts.
-  // Only the architectural model participates in automatic/camera clipping.
-  function preserveHVACVisibility() {
+  // Avoid changing the visibility/clippability of every HVAC object repeatedly.
+  // Doing so for a large XKT can block the browser's main thread.
+  function preserveHVACVisibility(force = false) {
     if (!model) return;
-    model.clippable = false;
-    model.visible = true;
-    for (const id of model.objectIds || []) {
-      const entity = viewer.scene.objects[id];
-      if (!entity) continue;
-      entity.clippable = false;
-      entity.visible = true;
+    if (!hvacClipConfigured || force) {
+      model.clippable = false;
+      if (viewer.scene.setObjectsClippable && model.objectIds) {
+        viewer.scene.setObjectsClippable(model.objectIds, false);
+      } else {
+        for (const id of model.objectIds || []) {
+          const object = viewer.scene.objects[id];
+          if (object && object.clippable !== false) object.clippable = false;
+        }
+      }
+      hvacClipConfigured = true;
     }
+    if (force || model.visible === false) model.visible = true;
   }
 
   function updateArchitectureStatus(value, warning = false) {
@@ -110,10 +113,9 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     showArchitecture = Boolean(enabled);
     if (architecturalModel) architecturalModel.visible = showArchitecture;
     if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, showArchitecture);
-    // Recalculate when the operator restores the architectural layer.
-    // Leave the recovery action free to disable both planes explicitly.
-    if (showArchitecture && architecturalModel && model && !floorPlane?.active) {
-      updateFloorUnderlay();
+    // Restore the verified floor cut only when architecture is switched on.
+    if (showArchitecture && floorCutInspected && floorCut && floorPlane && !floorPlane.active) {
+      floorPlane.active = true;
     }
     const checkbox = stage.querySelector("[data-architecture-toggle]");
     if (checkbox) checkbox.checked = showArchitecture;
@@ -124,50 +126,51 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   function updateFloorUnderlay() {
-    if (!model?.aabb || !architecturalModel?.aabb) return;
-    const h = model.aabb, a = architecturalModel.aabb;
-    if (![...h, ...a].every(Number.isFinite)) return;
-    const y = h[1] - FLOOR_DROP;
-    const xyOverlap = h[0] <= a[3] && a[0] <= h[3] &&
-                      h[2] <= a[5] && a[2] <= h[5];
-    const height = a[4] - a[1];
-    // Level 5 may legitimately be near the TOP of a full-building model.
-    // The old 70%-of-building-height check rejected such valid elevations,
-    // leaving all the lower wall geometry visible. Instead, require the plane
-    // to lie strictly inside the architectural height range.
-    const epsilon = Math.max(1e-4, height * 1e-5);
-    const withinArchitecturalHeight = height > 0 &&
-      y > a[1] + epsilon && y < a[4] - epsilon;
-    // Where per-object AABBs exist, check that at least one object extends
-    // above the cut, so an invalid datum cannot empty the entire scene.
-    const bounds = architecturalIds
-      .map(id => viewer.scene.objects[id]?.aabb)
-      .filter(box => box && box.length === 6 && [...box].every(Number.isFinite));
-    const keepsGeometry = bounds.length === 0 ||
-      bounds.some(box => box[4] > y + epsilon);
-    if (!xyOverlap || !withinArchitecturalHeight || !keepsGeometry) {
+    if (!model?.aabb || !architecturalModel?.aabb || !architecturalIds.length) return;
+    if (!floorCutInspected) {
+      // Calculate this once after architectural metadata and geometry have loaded.
+      // MetaObject.type is the original IFC classification stored in the XKT.
+      const candidates = architecturalIds.map(id => {
+        const object = viewer.scene.objects[id];
+        const meta = viewer.metaScene.metaObjects[id];
+        return {
+          id,
+          type: meta?.type || "",
+          aabb: object?.aabb
+        };
+      });
+      floorCut = findLevel5FloorCut(model.aabb, architecturalModel.aabb, candidates);
+      floorCutInspected = true;
+      console.info("Level 5 architectural floor-cut selection:", {
+        selected: floorCut,
+        slabObjects: candidates.filter(c => /IfcSlab/i.test(c.type)).length,
+        architectureObjects: candidates.length,
+        hvacBounds: Array.from(model.aabb),
+        architectureBounds: Array.from(architecturalModel.aabb)
+      });
+    }
+    if (!floorCut) {
       if (floorPlane) floorPlane.active = false;
       preserveHVACVisibility();
-      console.warn("Skipped unsafe under-floor cut; verify Level 5 datum", {
-        proposedY: y,
-        hvac: Array.from(h),
-        architecture: Array.from(a),
-        checkedArchitectureObjects: bounds.length
-      });
-      updateArchitectureStatus("Architecture loaded — floor cut skipped (unverified elevation)", true);
+      updateArchitectureStatus("Floor not identified — architecture visible without cut", true);
       return;
     }
-    const pos = [(h[0]+h[3])/2, y, (h[2]+h[5])/2];
+    const h = model.aabb;
+    const pos = [(h[0] + h[3])/2, floorCut.y, (h[2] + h[5])/2];
     if (!floorPlane) {
       floorPlane = sectionPlanes.createSectionPlane({
-        id:"underLevel5", pos, dir:[0,-1,0], active:true
+        id: "underLevel5",
+        pos,
+        dir: [0, -1, 0], // xeokit discards geometry BELOW the plane
+        active: true
       });
     } else {
       floorPlane.pos = pos;
+      floorPlane.dir = [0, -1, 0];
       floorPlane.active = true;
     }
     preserveHVACVisibility();
-    updateArchitectureStatus("Floor underlay cut active");
+    updateArchitectureStatus("Lower floors trimmed at Level 5 slab");
   }
 
   function updateCameraSection() {
@@ -310,7 +313,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (cameraPlane) cameraPlane.active = false;
     if (architecturalModel) architecturalModel.visible = true;
     if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, true);
-    preserveHVACVisibility();
+    preserveHVACVisibility(true);
     updateArchitectureStatus("All geometry restored — clipping disabled");
     showWholeBuilding();
   }
