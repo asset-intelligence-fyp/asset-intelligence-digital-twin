@@ -207,7 +207,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       floorPlane = sectionPlanes.createSectionPlane({
         id: "underLevel5",
         pos,
-        dir: [0,-1,0],
+        dir: [0,1,0],
         active: true
       });
     } else {
