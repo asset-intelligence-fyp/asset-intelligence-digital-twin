@@ -71,3 +71,43 @@ export function findLevel5FloorCut(hvac, architecture, objects) {
 
   return { y, slabId: String(slab.id), slabTop: slab.top, source: "nearest-IfcSlab" };
 }
+
+
+/**
+ * Cut against an operator-identified Level 5 floor slab.
+ *
+ * Do not substitute an inferred bottom-of-HVAC height: the HVAC model does
+ * not provide an architectural floor elevation. The BIM scene uses +Y as up.
+ * The clipping plane discards the half-space BELOW this Y coordinate.
+ *
+ * @param {number[]} architecture Architectural scene AABB
+ * @param {{id:string,type:string,aabb:number[]}} slab IFC slab scene object
+ * @returns {{y:number,slabId:string,slabTop:number,source:string}|null}
+ */
+export function findFloorCutFromIdentifiedSlab(architecture, slab) {
+  if (!validAABB(architecture) || !slab || !validAABB(slab.aabb)) return null;
+  if (!/^IfcSlab$/i.test(String(slab.type || ""))) return null;
+  const a = slab.aabb;
+  const height = architecture[4] - architecture[1];
+  if (!(height > 0)) return null;
+
+  // Use the BOTTOM face of the actual slab; clipping at its top would remove
+  // the user's marked floor itself.
+  const thickness = a[4] - a[1];
+  const margin = Math.min(0.05, Math.max(0.01, thickness * 0.1));
+  const y = a[1] - margin;
+  const epsilon = Math.max(1e-4, height * 1e-5);
+
+  // Reject out-of-range coordinates and large vertical objects masquerading
+  // as floor geometry instead of blanking the architectural model.
+  if (thickness > height * 0.25 ||
+      y <= architecture[1] + epsilon ||
+      y >= architecture[4] - epsilon) return null;
+
+  return {
+    y,
+    slabId: String(slab.id),
+    slabTop: a[4],
+    source: "operator-identified-IfcSlab"
+  };
+}
