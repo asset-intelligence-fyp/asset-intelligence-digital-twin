@@ -20,6 +20,8 @@ psql -d digital_twin -f database/postgres_init.sql
 
 The init script drops and recreates the demo tables, so do not run it against a database containing data you need to keep.
 
+*The latest database schema is postgre_schema.sql and the data is postgres_seed.sql*
+
 ## Connection
 
 Copy `.env.example` to `.env`. The default configuration assumes PostgreSQL is on `localhost:5432` and the database is named `digital_twin`.

@@ -50,6 +50,8 @@ psql -d digital_twin -f database/postgres_init.sql
 
 **Warning:** `postgres_init.sql` drops and recreates the demo tables. Use it only for this temporary PoC database.
 
+**Latest** postgres_schema.sql is the database schema and postgres_seed.sql is the data.
+
 Verify the data:
 
 ```bash
