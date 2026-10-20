@@ -11,6 +11,7 @@ let active = null;
 export function destroyActiveViewer() {
   if (!active) return;
   try {
+    if (active.loadingTimer) clearTimeout(active.loadingTimer);
     active.viewer?.destroy?.();
   } catch (error) {
     console.warn("Viewer cleanup warning:", error);
@@ -30,6 +31,15 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   const floorLabel = stage.querySelector("[data-floor-label]");
   const floorSelect = stage.closest(".viewer-panel")?.querySelector("[data-floor-select]");
   const selectedLabel = stage.querySelector("[data-selected-element]");
+  let hvacLoaded = false;
+  let loadingTimer = null;
+  const showLoadingProblem = (title, details) => {
+    if (!loading) return;
+    const titleEl = loading.querySelector(".viewer-loading-title");
+    const subtitleEl = loading.querySelector(".viewer-loading-sub");
+    if (titleEl) titleEl.textContent = title;
+    if (subtitleEl) subtitleEl.textContent = details;
+  };
 
   if (!canvas || !navCanvas) return null;
 
@@ -390,35 +400,58 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   });
 
 
-  model = xktLoader.load({
-    id: "SnowdonTowers",
-    src: "/models/Snowdon_Level5_Model+HVAC.xkt",
-    edges: true,
-    saoEnabled: true,
-    dtxEnabled: true
-  });
-
-  model.on("loaded", () => {
-    loading?.remove();
-    preserveHVACVisibility();
-    console.info("HVAC model loaded", {aabb: Array.from(model.aabb), objects: model.objectIds?.length});
-    if (floorLabel) floorLabel.textContent = "Level 5";
-    // Under-floor cut is applied once architecture finishes loading.
-    showWholeBuilding();
-    loadArchitecturalContext();
-  });
-
-  model.on("error", (error) => {
-    console.error("XKT load failed:", error);
-    if (loading) {
-      loading.innerHTML = `
-        <div class="viewer-loading-card viewer-error">
-          <div class="viewer-loading-title">BIM model could not load</div>
-          <div class="viewer-loading-sub">Check the XKT path and xeokit dependency.</div>
-        </div>`;
+  // Never leave an uninformative spinner running indefinitely.
+  // A slow XKT may still load later; this warning does not cancel it.
+  loadingTimer = setTimeout(() => {
+    if (!hvacLoaded) {
+      console.warn("Level 5 HVAC XKT has not reported loaded after 25s.");
+      showLoadingProblem(
+        "BIM model is taking longer than expected",
+        "Check browser Console / Network for XKT errors. The model may still be processing."
+      );
     }
-  });
+  }, 25000);
 
-  active = { viewer, model };
+  try {
+    model = xktLoader.load({
+      id: "SnowdonTowers",
+      src: "/models/Snowdon_Level5_Model+HVAC.xkt",
+      edges: true,
+      saoEnabled: true,
+      dtxEnabled: true
+    });
+
+    model.on("loaded", () => {
+      hvacLoaded = true;
+      clearTimeout(loadingTimer);
+      loading?.remove();
+      try {
+        preserveHVACVisibility();
+        console.info("HVAC XKT loaded", { aabb: Array.from(model.aabb), objects: model.objectIds?.length });
+        if (floorLabel) floorLabel.textContent = "Level 5";
+        // Load architectural context only after the HVAC has become usable.
+        showWholeBuilding();
+        loadArchitecturalContext();
+      } catch (error) {
+        console.error("BIM viewer post-load initialization failed:", error);
+        updateArchitectureStatus("Viewer loaded; architectural setup failed (see Console)", true);
+      }
+    });
+
+    model.on("error", (error) => {
+      clearTimeout(loadingTimer);
+      console.error("Level 5 HVAC XKT loading failed:", error);
+      showLoadingProblem(
+        "BIM model could not load",
+        "Verify public/models/Snowdon_Level5_Model+HVAC.xkt and see browser Console for details."
+      );
+    });
+  } catch (error) {
+    clearTimeout(loadingTimer);
+    console.error("Could not start xeokit XKT loader:", error);
+    showLoadingProblem("Could not start BIM viewer", String(error?.message || error));
+  }
+
+  active = { viewer, model, loadingTimer };
   return { viewer, model, showWholeBuilding, selectSensor, configureSensors, setViewMode, clearSection, resetAllCuts, toggleArchitecture };
 }
