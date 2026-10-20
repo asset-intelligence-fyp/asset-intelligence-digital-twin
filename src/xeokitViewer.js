@@ -1,16 +1,18 @@
 import {
   Viewer,
   XKTLoaderPlugin,
-  StoreyViewsPlugin,
   NavCubePlugin,
   SectionPlanesPlugin
 } from "@xeokit/xeokit-sdk";
+import {findFloorCutFromIdentifiedSlab} from "./data/level5FloorCut.js";
+import {LEVEL5_SENSORS} from "./data/level5Sensors.js";
 
 let active = null;
 
 export function destroyActiveViewer() {
   if (!active) return;
   try {
+    if (active.loadingTimer) clearTimeout(active.loadingTimer);
     active.viewer?.destroy?.();
   } catch (error) {
     console.warn("Viewer cleanup warning:", error);
@@ -30,6 +32,15 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   const floorLabel = stage.querySelector("[data-floor-label]");
   const floorSelect = stage.closest(".viewer-panel")?.querySelector("[data-floor-select]");
   const selectedLabel = stage.querySelector("[data-selected-element]");
+  let hvacLoaded = false;
+  let loadingTimer = null;
+  const showLoadingProblem = (title, details) => {
+    if (!loading) return;
+    const titleEl = loading.querySelector(".viewer-loading-title");
+    const subtitleEl = loading.querySelector(".viewer-loading-sub");
+    if (titleEl) titleEl.textContent = title;
+    if (subtitleEl) subtitleEl.textContent = details;
+  };
 
   if (!canvas || !navCanvas) return null;
 
@@ -59,9 +70,8 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   const xktLoader = new XKTLoaderPlugin(viewer);
-  const storeyViews = new StoreyViewsPlugin(viewer);
   const sectionPlanes = new SectionPlanesPlugin(viewer);
-  let sectionPlane = null;
+  let floorPlane = null;
 
   new NavCubePlugin(viewer, {
     canvasId: navCanvas.id,
@@ -72,11 +82,194 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   });
 
   let model = null;
-  let storeys = [];
-  let currentStoreyIndex = -1;
-  let level5StoreyIndex = -1;
   let selectedEntity = null;
   let sensorCatalog = [];
+  let architecturalModel = null;
+  let architecturalIds = [];
+  let showArchitecture = true;
+  let floorCut = null;
+  let floorCutInspected = false;
+  let hvacClipConfigured = false;
+  // This is the IfcSlab identified in the user's BIM screenshot as the Level 5
+  // finished floor, not an automatically inferred ground or roof slab.
+  const DEFAULT_LEVEL5_SLAB_GUID = "19jRsGRmHCtQuanP7b0FIs";
+  let level5SlabGuid = DEFAULT_LEVEL5_SLAB_GUID;
+  const physicalSensorGuids = new Set(LEVEL5_SENSORS.map(s => s.guid.toLowerCase()));
+  const architecturalTypePattern = /^Ifc(?:Wall|WallStandardCase|Slab|Roof|CurtainWall|Column|Beam|Covering|Door|Window|Stair|StairFlight|Railing|BuildingElementProxy|Footing|Plate)/i;
+
+  // The primary HVAC XKT also contains walls and slabs. Previous revisions
+  // protected the whole model from clipping, which kept the lower storeys.
+  // Clip architectural objects in BOTH models, but protect sensors and HVAC.
+  function preserveHVACVisibility(force = false) {
+    if (!model) return;
+    if (!hvacClipConfigured || force) {
+      const clipIds = [];
+      const protectedIds = [];
+      for (const id of model.objectIds || []) {
+        const type = viewer.metaScene.metaObjects[id]?.type || "";
+        const guid = id.split(/[.#]/).pop().toLowerCase();
+        if (architecturalTypePattern.test(type) && !physicalSensorGuids.has(guid)) {
+          clipIds.push(id);
+        } else {
+          protectedIds.push(id);
+        }
+      }
+      // Enable clipping at model level before setting per-object exemptions.
+      model.clippable = true;
+      if (typeof viewer.scene.setObjectsClippable === "function") {
+        if (clipIds.length) viewer.scene.setObjectsClippable(clipIds, true);
+        if (protectedIds.length) viewer.scene.setObjectsClippable(protectedIds, false);
+      } else {
+        for (const id of clipIds) {
+          const entity = viewer.scene.objects[id];
+          if (entity) entity.clippable = true;
+        }
+        for (const id of protectedIds) {
+          const entity = viewer.scene.objects[id];
+          if (entity) entity.clippable = false;
+        }
+      }
+      hvacClipConfigured = true;
+      console.info("Primary XKT clipping configuration", {
+        architectural: clipIds.length,
+        protectedHVACAndSensors: protectedIds.length
+      });
+    }
+    if (force || model.visible === false) model.visible = true;
+  }
+
+  function findSceneObjectByIFCGuid(guid) {
+    if (!guid) return null;
+    const normalized = String(guid).toLowerCase();
+    const objects = viewer.scene.objects;
+    let id = objects[guid] ? guid : null;
+    if (!id) {
+      id = Object.keys(objects).find(key => key.toLowerCase() === normalized ||
+        key.split(/[.#]/).pop().toLowerCase() === normalized);
+    }
+    if (!id) return null;
+    const object = objects[id];
+    const meta = viewer.metaScene.metaObjects[id] ||
+      viewer.metaScene.metaObjects[guid];
+    return {
+      id, type: meta?.type || "", aabb: object?.aabb
+    };
+  }
+
+  function updateArchitectureStatus(value, warning = false) {
+    const el = stage.querySelector("[data-architecture-status]");
+    if (el) {
+      el.textContent = value;
+      el.classList.toggle("warning", warning);
+    }
+  }
+
+  function toggleArchitecture(enabled) {
+    showArchitecture = Boolean(enabled);
+    if (architecturalModel) architecturalModel.visible = showArchitecture;
+    if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, showArchitecture);
+    // Restore the verified floor cut only when architecture is switched on.
+    if (showArchitecture && floorCutInspected && floorCut && floorPlane && !floorPlane.active) {
+      floorPlane.active = true;
+    }
+    const checkbox = stage.querySelector("[data-architecture-toggle]");
+    if (checkbox) checkbox.checked = showArchitecture;
+    preserveHVACVisibility();
+    updateArchitectureStatus(showArchitecture ? "Architecture visible" : "HVAC-only view");
+  }
+
+  function updateFloorUnderlay() {
+    if (!model?.aabb || !architecturalModel?.aabb) return;
+    if (!floorCutInspected) {
+      const reference = findSceneObjectByIFCGuid(level5SlabGuid);
+      floorCut = findFloorCutFromIdentifiedSlab(architecturalModel.aabb, reference);
+      floorCutInspected = true;
+      console.info("Level 5 floor cut from selected slab", {
+        requestedGuid: level5SlabGuid,
+        found: reference ? {id:reference.id, type:reference.type, aabb:Array.from(reference.aabb || [])} : null,
+        selected: floorCut,
+        architectureBounds: Array.from(architecturalModel.aabb)
+      });
+    }
+    if (!floorCut) {
+      if (floorPlane) floorPlane.active = false;
+      preserveHVACVisibility();
+      updateArchitectureStatus("Level 5 reference slab not found — showing the complete model", true);
+      return;
+    }
+    const h = model.aabb;
+    const pos = [(h[0] + h[3])/2, floorCut.y, (h[2] + h[5])/2];
+    if (!floorPlane) {
+      floorPlane = sectionPlanes.createSectionPlane({
+        id: "underLevel5",
+        pos,
+        dir: [0, 1, 0],
+        active: true
+      });
+    } else {
+      floorPlane.pos = pos;
+      floorPlane.dir = [0, 1, 0];
+      floorPlane.active = true;
+    }
+    preserveHVACVisibility();
+    updateArchitectureStatus("Showing upper building above selected Level 5 slab");
+  }
+
+  function loadArchitecturalContext() {
+    updateArchitectureStatus("Loading walls and floor…");
+    // Existing repository architectural XKT; not created from the new HVAC-only IFC.
+    // Globalized IFC ids prevent collisions with the unprefixed live-sensor model.
+    try {
+      architecturalModel = xktLoader.load({
+        id: "Level5Architecture",
+        src: "/models/Snowdon Towers Sample Architectural.xkt",
+        globalizeObjectIds: true,
+        includeTypes: [
+          "IfcWall", "IfcWallStandardCase", "IfcSlab", "IfcCurtainWall",
+          "IfcColumn", "IfcBeam", "IfcCovering", "IfcDoor", "IfcWindow",
+          "IfcStair", "IfcStairFlight", "IfcRailing", "IfcBuildingElementProxy"
+        ],
+        objectDefaults: {
+          IfcWall: { colorize: [0.69, 0.76, 0.81], opacity: 0.45, pickable: false },
+          IfcWallStandardCase: { colorize: [0.69, 0.76, 0.81], opacity: 0.45, pickable: false },
+          IfcSlab: { colorize: [0.62, 0.68, 0.73], opacity: 0.75, pickable: false },
+          IfcCurtainWall: { colorize: [0.6, 0.72, 0.78], opacity: 0.36, pickable: false },
+          IfcWindow: { opacity: 0.18, pickable: false },
+          IfcSpace: { visible: false, pickable: false },
+          DEFAULT: { opacity: 0.55, pickable: false }
+        },
+        edges: true,
+        saoEnabled: true,
+        dtxEnabled: true
+      });
+      architecturalModel.on("loaded", () => {
+        // Architecture objects have globalized IDs; they are not sensor targets.
+        architecturalIds = Object.keys(viewer.scene.objects).filter(id =>
+          id.startsWith("Level5Architecture#") ||
+          id.startsWith("Level5Architecture.")
+        );
+        if (!architecturalIds.length && architecturalModel.objectIds) {
+          architecturalIds = Array.from(architecturalModel.objectIds);
+        }
+        if (!architecturalIds.length) {
+          console.warn("Architectural XKT loaded, but no supported walls/slabs were found. Check IFC type metadata.");
+          updateArchitectureStatus("No architectural geometry in XKT", true);
+          return;
+        }
+        toggleArchitecture(showArchitecture);
+        updateFloorUnderlay();
+        preserveHVACVisibility();
+        console.info("Loaded architectural context:", { objects: architecturalIds.length, aabb: Array.from(architecturalModel.aabb) });
+      });
+      architecturalModel.on("error", error => {
+        console.error("Architectural XKT could not load:", error);
+        updateArchitectureStatus("Architectural XKT failed to load", true);
+      });
+    } catch (error) {
+      console.error("Could not initialize architectural context:", error);
+      updateArchitectureStatus("Architecture unavailable", true);
+    }
+  }
 
   function selectSensor(guid) {
     const entity = viewer.scene.objects[guid];
@@ -105,148 +298,66 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     return { matched, total: sensorCatalog.length };
   }
 
-  function clearSection() {
-    sectionPlane?.destroy();
-    sectionPlane = null;
+  function resetAllCuts() {
+    // Emergency recovery must actually disable ALL clipping and show BOTH models.
+    toggleArchitecture(true);
+    // Recovery intentionally shows all geometry without any floor cut.
+    if (floorPlane) floorPlane.active = false;
+    if (architecturalModel) architecturalModel.visible = true;
+    if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, true);
+    preserveHVACVisibility(true);
+    updateArchitectureStatus("All geometry restored — clipping disabled");
+    showWholeBuilding();
   }
 
-  function setSection(axis = "z", fraction = 0.5) {
-    if (!model?.aabb) return;
-    const box = model.aabb;
-    const index = axis === "x" ? 0 : axis === "y" ? 1 : 2;
-    const position = [(box[0] + box[3]) / 2, (box[1] + box[4]) / 2, (box[2] + box[5]) / 2];
-    position[index] = box[index] + Math.max(0, Math.min(1, Number(fraction))) * (box[index + 3] - box[index]);
-    const direction = [0, 0, 0];
-    direction[index] = -1;
-    clearSection();
-    sectionPlane = sectionPlanes.createSectionPlane({id: "level5Section", pos: position, dir: direction, active: true});
-  }
 
-  const getStoreyName = (storey, index) => {
-    const metaObject = viewer.metaScene.metaObjects[storey.storeyId];
-    return metaObject?.name || `Floor ${index + 1}`;
-  };
-
-  // A Level 5-specific XKT is the primary source of truth.
-  // If extra storeys are present, isolate the named L5 storey when possible.
-  const populateFloors = () => {
-    storeys = storeyViews.storeysList || [];
-    level5StoreyIndex = storeys.findIndex((storey, index) =>
-      /(?:level|floor|storey|l)\s*0?5\b/i.test(getStoreyName(storey, index))
-    );
-    if (level5StoreyIndex < 0 && storeys.length === 1) level5StoreyIndex = 0;
-    if (floorSelect) {
-      floorSelect.innerHTML = '<option value="-1">Level 5</option>';
-      floorSelect.disabled = true;
-    }
-    if (floorLabel) floorLabel.textContent = "Level 5";
-    if (storeys.length > 1 && level5StoreyIndex < 0) {
-      console.warn("Multiple IFC storeys found, but Level 5 was not identifiable:", storeys.map(getStoreyName));
-      if (floorLabel) floorLabel.textContent = "Verify IFC floor";
-    }
-    if (level5StoreyIndex >= 0 && model) goToStorey(level5StoreyIndex, false);
-  };
-
-  const showWholeBuilding = () => {
+  function showWholeBuilding() {
     if (!model) return;
-    if (level5StoreyIndex >= 0) {
-      goToStorey(level5StoreyIndex, false);
-      return;
-    }
-    currentStoreyIndex = -1;
     if (floorLabel) floorLabel.textContent = "Level 5";
     viewer.cameraControl.navMode = "orbit";
-    viewer.scene.setObjectsVisible(model.objectIds || viewer.scene.objectIds, true);
+    // Keep the floor band active; never expose the full-height architecture.
     viewer.cameraFlight.flyTo({
-      aabb: model.aabb,
-      projection: "perspective",
-      duration: 0.9,
-      fitFOV: 45
+      aabb: model.aabb, projection: "perspective", duration: 0.7, fitFOV: 50
     });
-  };
+  }
 
-  const goToStorey = (index, plan = true) => {
-    if (index < 0 || index >= storeys.length) return;
-    currentStoreyIndex = index;
-    const storey = storeys[index];
-    const name = getStoreyName(storey, index);
-
-    if (floorSelect) floorSelect.value = String(index);
-    if (floorLabel) floorLabel.textContent = name;
-
-    storeyViews.showStoreyObjects(storey.storeyId, { hideOthers: true });
-
-    if (plan) {
-      storeyViews.gotoStoreyCamera(storey.storeyId, {
-        projection: "ortho",
-        done: () => {
-          viewer.cameraControl.navMode = "planView";
-        }
-      });
-    } else {
-      viewer.cameraControl.navMode = "orbit";
-      viewer.cameraFlight.flyTo({
-        aabb: storey.aabb,
-        projection: "perspective",
-        duration: 0.7,
-        fitFOV: 45
-      });
-    }
-  };
+  function planView() {
+    if (!model?.aabb) return;
+    const box = model.aabb;
+    const x = (box[0] + box[3]) / 2;
+    const y = (box[1] + box[4]) / 2;
+    const z = (box[2] + box[5]) / 2;
+    const distance = Math.max(box[3] - box[0], box[5] - box[2], 20) * 1.6;
+    viewer.cameraFlight.flyTo({
+      eye: [x, y + distance, z],
+      look: [x, y, z],
+      up: [0, 0, -1],
+      projection: "ortho",
+      duration: 0.7
+    });
+    viewer.cameraControl.navMode = "planView";
+  }
 
   const actionHandlers = {
-    home: () => { clearSection(); showWholeBuilding(); },
-    section: () => setSection(),
-    clearSection,
+    home: showWholeBuilding,
+    resetAllCuts,
     fit: showWholeBuilding,
-    all: () => { clearSection(); showWholeBuilding(); },
-    plan: () => {
-      if (currentStoreyIndex === -1 && level5StoreyIndex >= 0) goToStorey(level5StoreyIndex, true);
-      else if (currentStoreyIndex >= 0) goToStorey(currentStoreyIndex, true);
-    },
-    threeD: () => {
-      if (currentStoreyIndex >= 0) goToStorey(currentStoreyIndex, false);
-      else showWholeBuilding();
-    },
-    up: () => {
-      if (!storeys.length) return;
-      if (currentStoreyIndex === -1) goToStorey(0, true);
-      else goToStorey(Math.min(storeys.length - 1, currentStoreyIndex + 1), true);
-    },
-    down: () => {
-      if (!storeys.length) return;
-      if (currentStoreyIndex === -1) goToStorey(storeys.length - 1, true);
-      else goToStorey(Math.max(0, currentStoreyIndex - 1), true);
-    },
+    all: showWholeBuilding,
+    plan: planView,
+    threeD: showWholeBuilding,
     focus: () => {
       if (!selectedEntity) return;
       viewer.cameraControl.navMode = "orbit";
       viewer.cameraFlight.flyTo({
-        aabb: selectedEntity.aabb,
-        projection: "perspective",
-        duration: 0.65,
-        fitFOV: 35
+        aabb:selectedEntity.aabb, projection:"perspective", duration:0.65, fitFOV:35
       });
     }
   };
-
-  stage.querySelectorAll("[data-viewer-action]").forEach((button) => {
-    const action = button.dataset.viewerAction;
-    button.addEventListener("click", () => actionHandlers[action]?.());
+  stage.querySelectorAll("[data-viewer-action]").forEach(button => {
+    button.addEventListener("click", () => actionHandlers[button.dataset.viewerAction]?.());
   });
+  stage.querySelector("[data-architecture-toggle]")?.addEventListener("change", event => toggleArchitecture(event.target.checked));
 
-  stage.querySelector("[data-section-range]")?.addEventListener("input", event =>
-    setSection(stage.querySelector("[data-section-axis]")?.value || "z", Number(event.target.value) / 100)
-  );
-  stage.querySelector("[data-section-axis]")?.addEventListener("change", event =>
-    setSection(event.target.value, Number(stage.querySelector("[data-section-range]")?.value || 50) / 100)
-  );
-
-  floorSelect?.addEventListener("change", () => {
-    const index = Number(floorSelect.value);
-    if (index === -1) showWholeBuilding();
-    else goToStorey(index, true);
-  });
 
   viewer.scene.input.on("mouseclicked", (canvasPos) => {
     const hit = viewer.scene.pick({ canvasPos, pickSurface: true });
@@ -268,39 +379,59 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     });
   });
 
-  storeyViews.on("storeys", populateFloors);
 
-  model = xktLoader.load({
-    id: "SnowdonTowers",
-    src: "/models/Snowdon_Level5_Model+HVAC.xkt",
-    edges: true,
-    saoEnabled: true,
-    dtxEnabled: true
-  });
-
-  model.on("loaded", () => {
-    loading?.remove();
-    viewer.cameraControl.navMode = "orbit";
-    viewer.cameraFlight.flyTo({
-      aabb: model.aabb,
-      projection: "perspective",
-      duration: 1,
-      fitFOV: 45
-    });
-    setTimeout(populateFloors, 350);
-  });
-
-  model.on("error", (error) => {
-    console.error("XKT load failed:", error);
-    if (loading) {
-      loading.innerHTML = `
-        <div class="viewer-loading-card viewer-error">
-          <div class="viewer-loading-title">BIM model could not load</div>
-          <div class="viewer-loading-sub">Check the XKT path and xeokit dependency.</div>
-        </div>`;
+  // Never leave an uninformative spinner running indefinitely.
+  // A slow XKT may still load later; this warning does not cancel it.
+  loadingTimer = setTimeout(() => {
+    if (!hvacLoaded) {
+      console.warn("Level 5 HVAC XKT has not reported loaded after 25s.");
+      showLoadingProblem(
+        "BIM model is taking longer than expected",
+        "Check browser Console / Network for XKT errors. The model may still be processing."
+      );
     }
-  });
+  }, 25000);
 
-  active = { viewer, model };
-  return { viewer, model, showWholeBuilding, goToStorey, selectSensor, configureSensors, setSection, clearSection };
+  try {
+    model = xktLoader.load({
+      id: "SnowdonTowers",
+      src: "/models/Snowdon_Level5_Model+HVAC.xkt",
+      edges: true,
+      saoEnabled: true,
+      dtxEnabled: true
+    });
+
+    model.on("loaded", () => {
+      hvacLoaded = true;
+      clearTimeout(loadingTimer);
+      loading?.remove();
+      try {
+        preserveHVACVisibility();
+        console.info("HVAC XKT loaded", { aabb: Array.from(model.aabb), objects: model.objectIds?.length });
+        if (floorLabel) floorLabel.textContent = "Level 5";
+        // Load architectural context only after the HVAC has become usable.
+        showWholeBuilding();
+        loadArchitecturalContext();
+      } catch (error) {
+        console.error("BIM viewer post-load initialization failed:", error);
+        updateArchitectureStatus("Viewer loaded; architectural setup failed (see Console)", true);
+      }
+    });
+
+    model.on("error", (error) => {
+      clearTimeout(loadingTimer);
+      console.error("Level 5 HVAC XKT loading failed:", error);
+      showLoadingProblem(
+        "BIM model could not load",
+        "Verify public/models/Snowdon_Level5_Model+HVAC.xkt and see browser Console for details."
+      );
+    });
+  } catch (error) {
+    clearTimeout(loadingTimer);
+    console.error("Could not start xeokit XKT loader:", error);
+    showLoadingProblem("Could not start BIM viewer", String(error?.message || error));
+  }
+
+  active = { viewer, model, loadingTimer };
+  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, resetAllCuts, toggleArchitecture };
 }

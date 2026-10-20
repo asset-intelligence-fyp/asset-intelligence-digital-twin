@@ -22,6 +22,14 @@ import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js
 
 const app = document.getElementById("app");
 
+document.addEventListener("fullscreenchange", () => {
+  const expanded = Boolean(document.fullscreenElement?.matches?.("[data-bim-workspace]"));
+  const button = document.querySelector("[data-viewer-fullscreen]");
+  if (button) button.textContent = expanded ? "⤢ Exit full screen" : "⛶ Expand";
+  // Xeokit canvas resizes with its CSS container; force a viewport update.
+  window.dispatchEvent(new Event("resize"));
+});
+
 let liveEventSource = null;
 
 const state = {
@@ -435,8 +443,8 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       </div>
       <div class="viewer-tools-row">
         <span class="viewer-level-tag">Level 5 only</span>
-        <button class="btn" data-viewer-action="threeD">3D View</button>
-        ${detailed ? `<select class="select"><option>All Assets</option><option>HVAC</option></select><select class="select"><option>All Statuses</option><option>Anomaly</option><option>Normal</option></select>` : ""}
+        <button class="btn" data-viewer-action="threeD" title="Return to 3D orbit">3D View</button>
+        ${detailed ? `<button class="btn viewer-expand-btn" data-viewer-fullscreen type="button" title="Expand BIM viewer and sensor details">⛶ Expand</button>` : ""}
       </div>
     </div>
     <div class="viewer-stage" id="${stageId}">
@@ -444,8 +452,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
       <canvas class="nav-cube-canvas" data-navcube-canvas></canvas>
       <div class="viewer-overlay-top"><span>● Snowdon Towers &nbsp;/&nbsp; Level 5</span><span>● Selected Element &nbsp; <strong data-selected-element>${escapeHtml(state.selectedBimElement?.entityId || "None")}</strong></span></div>
       <div class="viewer-toolbar" aria-label="BIM viewer tools">
-        <button class="viewer-tool" title="Section cut" data-viewer-action="section">◪</button>
-        <button class="viewer-tool" title="Clear section" data-viewer-action="clearSection">✕</button>
+        <button class="viewer-tool" title="Restore all BIM geometry" data-viewer-action="resetAllCuts">▣</button>
         <button class="viewer-tool" title="Reset / Home" data-viewer-action="home">⌂</button>
         <button class="viewer-tool" title="Plan view" data-viewer-action="plan">⌗</button>
         <button class="viewer-tool" title="3D floor view" data-viewer-action="threeD">◉</button>
@@ -454,8 +461,17 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <button class="viewer-tool active" title="BIM selection active">◇</button>
       </div>
       <div class="level5-viewer-tools">
-        <label>Section axis <select data-section-axis aria-label="Section axis"><option value="z">Horizontal</option><option value="x">East–west</option><option value="y">North–south</option></select></label>
-        <label>Section depth <input data-section-range type="range" min="0" max="100" value="50" aria-label="Section depth" /></label>
+        <details class="level5-viewer-details">
+          <summary class="level5-panel-summary" aria-label="Expand or collapse view options">
+            <span>View options</span><span class="level5-collapse-chevron" aria-hidden="true">⌄</span>
+          </summary>
+          <div class="level5-viewer-content">
+            <label class="architecture-checkbox"><input type="checkbox" data-architecture-toggle checked /> Show architecture</label>
+            <div class="level5-layer-status" data-architecture-status>Loading architectural floor…</div>
+            <button type="button" class="level5-recovery-btn" data-viewer-action="resetAllCuts">Restore visible model</button>
+            <div class="level5-mode-help">The Level 5 floor cut is applied automatically when the reference slab is available.</div>
+          </div>
+        </details>
       </div>
       <div class="viewer-floor-control"><span class="viewer-floor-label" data-floor-label>Level 5</span></div>
       <div class="viewer-loading" data-viewer-loading>
@@ -504,15 +520,32 @@ function initViewer(stageId) {
   const stage = document.getElementById(stageId);
   const panel = stage?.closest(".viewer-panel");
   if (!panel) return controller;
+  const fullButton = panel.querySelector("[data-viewer-fullscreen]");
+  fullButton?.addEventListener("click", async () => {
+    const workspace = panel.closest("[data-bim-workspace]");
+    if (!workspace) return;
+    try {
+      if (document.fullscreenElement === workspace) await document.exitFullscreen();
+      else await workspace.requestFullscreen();
+    } catch (error) {
+      console.error("Could not expand BIM viewer:", error);
+    }
+  });
   const navigation = document.createElement("aside");
   navigation.className = "level5-sensor-nav";
   navigation.setAttribute("aria-label", "Level 5 physical sensors");
-  navigation.innerHTML = '<div class="level5-sensor-nav-title">Level 5 sensors <span data-mapping-count>Checking model…</span></div>' +
-    '<input data-sensor-filter type="search" aria-label="Find a sensor" placeholder="Search ID or asset…" />' +
-    '<div class="level5-sensor-nav-list">' +
-    LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
-      '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
-    '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>';
+  navigation.innerHTML = '<details class="level5-sensor-details">' +
+    '<summary class="level5-panel-summary" aria-label="Expand or collapse Level 5 sensors">' +
+      '<span>Level 5 sensors</span><span class="level5-sensor-summary-right">' +
+        '<span data-mapping-count>Checking model…</span><span class="level5-collapse-chevron" aria-hidden="true">⌄</span>' +
+      '</span></summary>' +
+    '<div class="level5-sensor-body">' +
+      '<input data-sensor-filter type="search" aria-label="Find a sensor" placeholder="Search ID or asset…" />' +
+      '<div class="level5-sensor-nav-list">' +
+      LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
+        '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
+      '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>' +
+    '</div></details>';
   stage.appendChild(navigation);
   navigation.querySelector("[data-sensor-filter]")?.addEventListener("input", event => {
     const value = event.target.value.trim().toLowerCase();
@@ -668,8 +701,8 @@ function renderDashboard() {
 
 function renderBimViewer() {
   destroyActiveViewer();
-  const html = `<div class="page" style="height:100%;display:flex;flex-direction:column;overflow:hidden;padding:14px 16px">
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;min-height:0;flex:1">${viewerPanelHtml({stageId:"mainViewer", detailed:true})}${assetInspectorHtml({detailed:true})}</div>
+  const html = `<div class="page bim-viewer-page">
+    <div class="bim-workspace" data-bim-workspace>${viewerPanelHtml({stageId:"mainViewer", detailed:true})}${assetInspectorHtml({detailed:true})}</div>
     <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM VIEWER</span><span>Click a BIM element to select and inspect it</span></div>
   </div>`;
   shell(html, { activePath: "/bim-viewer", breadcrumb: "BIM Viewer", noScroll: true });
