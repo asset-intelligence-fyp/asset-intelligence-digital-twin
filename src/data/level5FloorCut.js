@@ -78,7 +78,8 @@ export function findLevel5FloorCut(hvac, architecture, objects) {
  *
  * Do not substitute an inferred bottom-of-HVAC height: the HVAC model does
  * not provide an architectural floor elevation. The BIM scene uses +Y as up.
- * The clipping plane discards the half-space BELOW this Y coordinate.
+ * This helper computes the cutting height only. The xeokit viewer decides
+ * clipping orientation; in the current Level 5 scene it uses dir [0,1,0].
  *
  * @param {number[]} architecture Architectural scene AABB
  * @param {{id:string,type:string,aabb:number[]}} slab IFC slab scene object
