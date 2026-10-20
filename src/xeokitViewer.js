@@ -304,6 +304,10 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     if (floorPlane) floorPlane.active = false;
     if (cameraPlane) cameraPlane.active = false;
     toggleArchitecture(true);
+    // toggleArchitecture can reactivate the automatic floor cut. Recovery must
+    // finish with clipping OFF, so both models are guaranteed to be visible.
+    if (floorPlane) floorPlane.active = false;
+    if (cameraPlane) cameraPlane.active = false;
     if (architecturalModel) architecturalModel.visible = true;
     if (architecturalIds.length) viewer.scene.setObjectsVisible(architecturalIds, true);
     preserveHVACVisibility();
