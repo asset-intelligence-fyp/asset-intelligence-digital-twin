@@ -123,6 +123,30 @@ A healthy response looks similar to:
 {"ok":true,"database":"digital_twin","server_time":"..."}
 ```
 
+## Level 5 live simulator → BIM viewer
+
+The integrated 11-point historical replay simulator lives at
+[`tools/level5_digital_twin_simulator_final/`](tools/level5_digital_twin_simulator_final/README.md).
+It publishes on `dt/+/+` through Mosquitto, is checked against the
+Level 5 sensor registry in `database/seed_level5_sensor_registry.sql`,
+and uses the existing Node.js MQTT ingestion and SSE browser updates.
+It replaces the **old simulator for Level 5 integration testing**; do not
+run the two simulators at the same time.
+
+Generated CSV datasets are not committed. Generate a small rule-based test
+CSV or use your validated LBNL-derived **holdout** CSV locally.
+See the simulator README for environment setup, `mosquitto -v`, Python
+dependencies, Start/Stop controls, and end-to-end verification.
+
+Validate the 11 simulator-to-database mappings without a broker:
+
+```bash
+node --test tests/level5SimulatorRegistry.test.mjs
+```
+
+This checks only the integration contract. Actual MQTT-to-PostgreSQL-to-browser
+delivery must be tested with the broker, database and local web app running.
+
 ## 5. What now comes from PostgreSQL
 
 The following dashboard data are loaded from PostgreSQL through `/api/bootstrap`:
