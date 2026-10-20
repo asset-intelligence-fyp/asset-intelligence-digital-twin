@@ -4,7 +4,8 @@ import {
   NavCubePlugin,
   SectionPlanesPlugin
 } from "@xeokit/xeokit-sdk";
-import {findLevel5FloorCut} from "./data/level5FloorCut.js";
+import {findFloorCutFromIdentifiedSlab} from "./data/level5FloorCut.js";
+import {LEVEL5_SENSORS} from "./data/level5Sensors.js";
 
 let active = null;
 
@@ -91,24 +92,70 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   let floorCut = null;
   let floorCutInspected = false;
   let hvacClipConfigured = false;
+  // This is the IfcSlab identified in the user's BIM screenshot as the Level 5
+  // finished floor, not an automatically inferred ground or roof slab.
+  const DEFAULT_LEVEL5_SLAB_GUID = "19jRsGRmHCtQuanP7b0FIs";
+  let level5SlabGuid = DEFAULT_LEVEL5_SLAB_GUID;
+  const physicalSensorGuids = new Set(LEVEL5_SENSORS.map(s => s.guid.toLowerCase()));
+  const architecturalTypePattern = /^Ifc(?:Wall|WallStandardCase|Slab|Roof|CurtainWall|Column|Beam|Covering|Door|Window|Stair|StairFlight|Railing|BuildingElementProxy|Footing|Plate)/i;
 
-  // Avoid changing the visibility/clippability of every HVAC object repeatedly.
-  // Doing so for a large XKT can block the browser's main thread.
+  // The primary HVAC XKT also contains walls and slabs. Previous revisions
+  // protected the whole model from clipping, which kept the lower storeys.
+  // Clip architectural objects in BOTH models, but protect sensors and HVAC.
   function preserveHVACVisibility(force = false) {
     if (!model) return;
     if (!hvacClipConfigured || force) {
-      model.clippable = false;
-      if (viewer.scene.setObjectsClippable && model.objectIds) {
-        viewer.scene.setObjectsClippable(model.objectIds, false);
+      const clipIds = [];
+      const protectedIds = [];
+      for (const id of model.objectIds || []) {
+        const type = viewer.metaScene.metaObjects[id]?.type || "";
+        const guid = id.split(/[.#]/).pop().toLowerCase();
+        if (architecturalTypePattern.test(type) && !physicalSensorGuids.has(guid)) {
+          clipIds.push(id);
+        } else {
+          protectedIds.push(id);
+        }
+      }
+      // Enable clipping at model level before setting per-object exemptions.
+      model.clippable = true;
+      if (typeof viewer.scene.setObjectsClippable === "function") {
+        if (clipIds.length) viewer.scene.setObjectsClippable(clipIds, true);
+        if (protectedIds.length) viewer.scene.setObjectsClippable(protectedIds, false);
       } else {
-        for (const id of model.objectIds || []) {
-          const object = viewer.scene.objects[id];
-          if (object && object.clippable !== false) object.clippable = false;
+        for (const id of clipIds) {
+          const entity = viewer.scene.objects[id];
+          if (entity) entity.clippable = true;
+        }
+        for (const id of protectedIds) {
+          const entity = viewer.scene.objects[id];
+          if (entity) entity.clippable = false;
         }
       }
       hvacClipConfigured = true;
+      console.info("Primary XKT clipping configuration", {
+        architectural: clipIds.length,
+        protectedHVACAndSensors: protectedIds.length
+      });
     }
     if (force || model.visible === false) model.visible = true;
+  }
+
+  function findSceneObjectByIFCGuid(guid) {
+    if (!guid) return null;
+    const normalized = String(guid).toLowerCase();
+    const objects = viewer.scene.objects;
+    let id = objects[guid] ? guid : null;
+    if (!id) {
+      id = Object.keys(objects).find(key => key.toLowerCase() === normalized ||
+        key.split(/[.#]/).pop().toLowerCase() === normalized);
+    }
+    if (!id) return null;
+    const object = objects[id];
+    const meta = viewer.metaScene.metaObjects[id] ||
+      viewer.metaScene.metaObjects[guid];
+    return {
+      id, type: meta?.type || "", aabb: object?.aabb
+    };
   }
 
   function updateArchitectureStatus(value, warning = false) {
@@ -136,33 +183,22 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   function updateFloorUnderlay() {
-    if (!model?.aabb || !architecturalModel?.aabb || !architecturalIds.length) return;
+    if (!model?.aabb || !architecturalModel?.aabb) return;
     if (!floorCutInspected) {
-      // Calculate this once after architectural metadata and geometry have loaded.
-      // MetaObject.type is the original IFC classification stored in the XKT.
-      const candidates = architecturalIds.map(id => {
-        const object = viewer.scene.objects[id];
-        const meta = viewer.metaScene.metaObjects[id];
-        return {
-          id,
-          type: meta?.type || "",
-          aabb: object?.aabb
-        };
-      });
-      floorCut = findLevel5FloorCut(model.aabb, architecturalModel.aabb, candidates);
+      const reference = findSceneObjectByIFCGuid(level5SlabGuid);
+      floorCut = findFloorCutFromIdentifiedSlab(architecturalModel.aabb, reference);
       floorCutInspected = true;
-      console.info("Level 5 architectural floor-cut selection:", {
+      console.info("Level 5 floor cut from selected slab", {
+        requestedGuid: level5SlabGuid,
+        found: reference ? {id:reference.id, type:reference.type, aabb:Array.from(reference.aabb || [])} : null,
         selected: floorCut,
-        slabObjects: candidates.filter(c => /IfcSlab/i.test(c.type)).length,
-        architectureObjects: candidates.length,
-        hvacBounds: Array.from(model.aabb),
         architectureBounds: Array.from(architecturalModel.aabb)
       });
     }
     if (!floorCut) {
       if (floorPlane) floorPlane.active = false;
       preserveHVACVisibility();
-      updateArchitectureStatus("Floor not identified — architecture visible without cut", true);
+      updateArchitectureStatus("Level 5 slab not found — select a floor and use Cut below selected floor", true);
       return;
     }
     const h = model.aabb;
@@ -171,16 +207,36 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
       floorPlane = sectionPlanes.createSectionPlane({
         id: "underLevel5",
         pos,
-        dir: [0, -1, 0], // xeokit discards geometry BELOW the plane
+        dir: [0,-1,0],
         active: true
       });
     } else {
       floorPlane.pos = pos;
-      floorPlane.dir = [0, -1, 0];
+      floorPlane.dir = [0,-1,0];
       floorPlane.active = true;
     }
     preserveHVACVisibility();
-    updateArchitectureStatus("Lower floors trimmed at Level 5 slab");
+    updateArchitectureStatus("Showing upper building above selected Level 5 slab");
+  }
+
+  function cutBelowSelectedFloor() {
+    if (!selectedEntity) {
+      updateArchitectureStatus("Select the Level 5 floor slab in the viewer first", true);
+      return false;
+    }
+    const meta = viewer.metaScene.metaObjects[selectedEntity.id];
+    if (!/^IfcSlab$/i.test(String(meta?.type || ""))) {
+      updateArchitectureStatus("Selected BIM object is not an IfcSlab", true);
+      return false;
+    }
+    level5SlabGuid = selectedEntity.id.split(/[.#]/).pop();
+    floorCutInspected = false;
+    floorCut = null;
+    if (architecturalModel && model) {
+      toggleArchitecture(true);
+      updateFloorUnderlay();
+    }
+    return true;
   }
 
   function updateCameraSection() {
@@ -360,6 +416,7 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
     home: () => { setViewMode("walls"); showWholeBuilding(); },
     resetAllCuts,
     clearSection,
+    cutBelowSelectedFloor,
     fit: showWholeBuilding,
     all: showWholeBuilding,
     plan: planView,
@@ -453,5 +510,5 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   }
 
   active = { viewer, model, loadingTimer };
-  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, setViewMode, clearSection, resetAllCuts, toggleArchitecture };
+  return { viewer, model, showWholeBuilding, selectSensor, configureSensors, setViewMode, clearSection, resetAllCuts, toggleArchitecture, cutBelowSelectedFloor };
 }
