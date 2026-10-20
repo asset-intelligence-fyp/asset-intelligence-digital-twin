@@ -9,13 +9,17 @@ The BIM viewer loads two existing XKT models into one xeokit scene:
 
 The physical sensor GlobalIds are preserved for selecting the eight mapped Level 5 devices. Their live readings continue to arrive through PostgreSQL and the existing SSE endpoint; no MQTT or database changes are required by the new view controls.
 
-## Default floor cut
+## Default floor cut (slab-based)
 
-When the HVAC model and architecture have loaded, the viewer automatically creates **one** lower clipping plane at the minimum HVAC world-Y position minus `0.25` scene units. The plane faces down (`[0,-1,0]`) and cuts away geometry below that position. The automatic plane applies to the architecture; the HVAC model is **not clippable** in normal view, preserving sensor visibility.
+After the HVAC and architectural XKT files have finished loading, the viewer examines **architectural `IfcSlab` objects** whose horizontal bounding boxes overlap the HVAC model. It selects the closest supporting slab below the HVAC elevation and positions a horizontal section plane **just below the slab's lower surface**.
 
-This is a **provisional floor elevation estimate**, not a verified Revit Level 5 datum. If the architectural and HVAC bounds do not overlap, or the cut is not strictly inside the architectural height range, the crop is skipped and a warning is shown. The previous rule that rejected cuts above 70% of the building's height has been removed because Level 5 can legitimately lie near the top of the model. If the Level 5 slab is clipped, increase `FLOOR_DROP` in `src/xeokitViewer.js` to lower the cutting plane. The correct value should ultimately come from the Revit/IFC Level 5 floor elevation rather than the HVAC bounding box.
+The cut uses `dir: [0,-1,0]`: xeokit discards geometry in the negative Y direction, leaving walls and room partitions **above** the selected Level 5 floor. HVAC and sensor objects remain non-clippable.
 
-The former upper/lower slice controls and **Enable Level 5 crop** checkbox have been removed because they could hide the entire scene.
+**Safety fallback:** The viewer will not cut automatically when it cannot identify a suitable slab or the IFC models appear spatially inconsistent. It shows `Floor not identified — architecture visible without cut` instead. This avoids exposing only the building's ground slab again.
+
+This is still a geometry-derived Level 5 estimate. For an engineering-accurate result, use the verified Revit/IFC Level 5 slab elevation, with coordinated architectural and HVAC exports.
+
+The old `FLOOR_DROP`, 70%-building-height rule and manual crop controls are no longer used.
 
 ## View options
 
@@ -66,3 +70,11 @@ The code modifications were inspected for JavaScript syntax but have not been ru
 - Retained checks that the cut lies within the architecture's vertical extent and leaves some geometry above it.
 - Re-applies the floor undercut when the architectural layer is re-enabled, while keeping **Restore visible model** fully unclipped.
 - JavaScript syntax and a simulated viewer test passed, including startup, camera section, architecture toggle and recovery. Browser rendering against the actual XKT still needs checking.
+
+## 2026-10-20 loading-state safeguard
+
+- The initial HVAC `.xkt` loading callback now catches post-load viewer errors separately from model transfer/decoding errors.
+- After 25 seconds without a `loaded` event, the loading card explains that processing is delayed and directs the developer to the browser Network and Console panels. This warning does not stop loading.
+- Error events display a file-path-specific message instead of leaving a permanent spinner.
+- Repeated per-object HVAC visibility updates were replaced by one-time/batched clippability configuration where available.
+- Unit cases validate selecting the nearby Level 5 slab and safely rejecting unclassified, misaligned, or ground-floor-only geometry.
