@@ -70,7 +70,7 @@ function pointAsset(point){
 }
 function pointRow(p){
  const reading=getReading(p.point_code);
- return '<div class="ai-point-row" data-channel="'+esc(p.point_code)+'"><div><div class="point-code">'+esc(p.point_code)+'</div><div class="point-name">'+esc(p.measurement_type)+'</div><div class="point-time">'+(reading?esc(when(reading.latest_update||reading.timestamp)):'No current reading')+'</div></div><div><div class="point-value">'+esc(display(p.point_code))+' <small>'+esc(p.unit)+'</small></div><div class="point-quality">'+esc(reading?.quality||(reading?'Recorded':'No data'))+'</div></div></div>';
+ return '<div class="ai-point-row" data-channel="'+esc(p.point_code)+'"><div><div class="point-code">'+esc(p.point_code)+'</div><div class="point-name">'+esc(p.measurement_type)+'</div><div class="point-time">'+(reading?esc(when(reading.latest_update||reading.timestamp)):'No current reading')+'</div></div><div><div class="point-value">'+esc(display(p.point_code))+' <small>'+esc(p.point_code === "FS-501A" ? "" : p.unit)+'</small></div><div class="point-quality">'+esc(reading?.quality||(reading?'Recorded':'No data'))+'</div></div></div>';
 }
 export function monitoring(){
  const plots=[
