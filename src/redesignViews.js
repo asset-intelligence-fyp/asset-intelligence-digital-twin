@@ -3,7 +3,12 @@ import { db, getReading, getAssetCurrentValues, getLatestAnomalyRows } from "./d
 
 const esc = x => String(x ?? "—").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
 const latest = code => getReading(code)?.value ?? null;
-const display = code => latest(code) == null ? "—" : Number(latest(code)).toLocaleString(undefined,{maximumFractionDigits:2});
+const display = code => {
+ const value = latest(code);
+ if (value == null || !Number.isFinite(Number(value))) return "—";
+ if (code === "FS-501A") return Number(value) === 1 ? "ON" : Number(value) === 0 ? "OFF" : "—";
+ return Number(value).toLocaleString(undefined,{maximumFractionDigits:2});
+};
 const info = code => db.Sensor_Points.find(p=>p.point_code===code);
 const history = code => db.Historical_Sensor_Readings.filter(r=>String(r.point_code??r.sensor_id)===code && Number.isFinite(Number(r.value))).sort((a,b)=>String(a.timestamp).localeCompare(String(b.timestamp))).slice(-110);
 const when = ts => { if (!ts) return "Not available";const d=new Date(ts);return Number.isNaN(d.getTime())?String(ts):d.toLocaleString(); };
