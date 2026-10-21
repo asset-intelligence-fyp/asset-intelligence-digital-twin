@@ -43,7 +43,7 @@ export function chart(codes){
 export function overviewDetails(){
  const channels=[
   {name:"Supply-air temperature",codes:["SAT-501A","SAT-504","SAT-507"],path:"/sensor-data"},
-  {name:"Supply-air velocity",codes:["AF-501A","AF-504","AF-507"],path:"/sensor-data"}
+  {name:"Damper and cooling controls",codes:["DP-504","DPCMD-504","CV-507"],path:"/sensor-data"}
  ];
  const cards=channels.map(c=>'<section class="ai-card">'+titleCard(c.name,'Available stored time-series readings',c.path,'Monitoring ↗')+chart(c.codes)+'</section>').join('');
  const assets=["HRU501A","HRU504","HRU507"].map(name=>{
@@ -70,9 +70,9 @@ function pointRow(p){
 export function monitoring(){
  const plots=[
   ['Supply-air temperature',['SAT-501A','SAT-504','SAT-507'],'°C'],
-  ['Supply-air velocity',['AF-501A','AF-504','AF-507'],'m/s'],
-  ['Relative humidity',['S-L5-008-HUM'],'%RH'],
-  ['CO₂ concentration',['S-L5-008-CO2'],'ppm']
+  ['Mixed-air and room temperature',['MAT-501A','S-L5-008-TEMP'],'°C'],
+  ['Outdoor-air damper position and command',['DP-504','DPCMD-504'],'%'],
+  ['Cooling-valve position',['CV-507'],'%']
  ];
  const plotsHtml=plots.map(p=>'<section class="ai-card">'+titleCard(p[0],p[1].map(c=>c+' '+display(c)).join(' / ')+' '+p[2])+chart(p[1])+'</section>').join('');
  const groups=[
@@ -82,7 +82,7 @@ export function monitoring(){
   ['Unit 507 Environmental Sensor',db.Sensor_Points.filter(p=>p.point_code.startsWith('S-L5-008'))]
  ];
  const cards=groups.map(g=>'<section class="ai-point-card" data-equipment="'+esc(g[0])+'">'+titleCard(g[0],g[1].length+' measurement channels','/bim-viewer','BIM ↗')+(g[1].map(pointRow).join('')||'<div class="ai-empty">No points registered.</div>')+'</section>').join('');
- return '<div class="page ai-page">'+heading('Sensor Monitoring','All 11 measurement channels, organized by equipment.')+
+ return '<div class="page ai-page">'+heading('Sensor Monitoring','All 9 measurement channels, organized by equipment.')+
  banner('Local simulation · no physical sensor feed',db.Sensor_Points.length+' point registrations, '+db.Sensor_Readings.length+' cached latest readings. Data may be stale if replay has stopped.')+
  '<div class="ai-chip-row"><input id="channelSearch" class="field" aria-label="Search channels" placeholder="Search channels or equipment…" style="max-width:260px"/><span class="ai-chip">Building / Level 5</span><span class="ai-chip">Simulated data</span></div>'+
  '<div class="ai-grid-two">'+plotsHtml+'</div><div class="ai-point-grid" id="channelCards">'+cards+'</div><p class="ai-demo-foot">Recorded values come from the PostgreSQL cache, not external live building sensors. A connected SSE stream does not guarantee the latest values are fresh.</p></div>';
@@ -125,26 +125,26 @@ export function historical(){
 
 export function simulator(){
  const timestamp=db.Sensor_Readings.map(r=>r.latest_update||r.timestamp).filter(Boolean).sort().at(-1);
- const summary=['SAT-501A','AF-501A','SAT-504','AF-504','SAT-507','AF-507','S-L5-008-CO2'].map(code=>
+ const summary=['SAT-501A','MAT-501A','FS-501A','SAT-504','DP-504','DPCMD-504','SAT-507','CV-507','S-L5-008-TEMP'].map(code=>
   '<div class="ai-key-value"><span>'+esc(code)+'</span><strong>'+esc(display(code))+' '+esc(info(code)?.unit||'')+'</strong></div>').join('');
- return '<div class="page ai-page">'+heading('Sensor Simulator','Run local historical replay without controlling physical equipment.')+
- banner('Local simulation · no equipment controlled','The Python simulator runs at http://127.0.0.1:8001. The separate replay application implements Start / Stop / Reset, while fault-injection controls shown in the design reference are not implemented.')+
- '<div class="ai-chip-row"><span class="ai-badge">11 MQTT measurement channels</span><span class="ai-chip">Last cached reading: '+esc(timestamp?when(timestamp):'Unavailable')+'</span></div>'+
+ return '<div class="page ai-page">'+heading('Sensor Simulator','Prepare to connect the new nine-channel Python replay.')+
+ banner('New nine-point simulator not connected yet','The repository Python replay publishes the old 11-channel profile and is not compatible with this nine-point setup. Upload the new Python script to connect it next; no physical equipment is controlled.')+
+ '<div class="ai-chip-row"><span class="ai-badge">9 expected MQTT measurement channels · connection pending</span><span class="ai-chip">Last cached reading: '+esc(timestamp?when(timestamp):'Unavailable')+'</span></div>'+
  '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Historical MQTT replay','Controlled by the final Python simulator')+
- '<a class="btn btn-primary" href="http://127.0.0.1:8001/" target="_blank" rel="noopener noreferrer">Open simulator ↗</a>'+
- '<div class="ai-demo-foot">Start Mosquitto and the Node API, then run <code>python app.py</code> in <code>tools/level5_digital_twin_simulator_final</code>. Open the separate simulator for its Start / Stop / Reset controls.</div>'+
- '<div class="ai-key-value"><span>Replay mode</span><strong>Historical CSV</strong></div>'+
+ '<span class="ai-badge">Awaiting updated nine-point Python script</span>'+
+ '<div class="ai-demo-foot">Do not run the older 11-point app against the new active profile. The updated MQTT point codes are defined in the nine-point registry.</div>'+
+ '<div class="ai-key-value"><span>Replay mode</span><strong>Awaiting updated script</strong></div>'+
  '<div class="ai-key-value"><span>Transport</span><strong>MQTT · dt/+/+</strong></div>'+
  '<div class="ai-key-value"><span>Physical sensors</span><strong>Not connected</strong></div>'+
  '<div class="ai-key-value"><span>Fault injection</span><strong>Not available in current replay</strong></div></section>'+
  '<section class="ai-card">'+titleCard('Latest stored values','PostgreSQL · not simulator running state')+summary+'</section></div>'+
- '<section class="ai-card"><strong>Test the integration</strong><p class="ai-demo-foot">Start replay, open Sensor Monitoring, and check the newest timestamps. If they do not update, verify the Mosquitto broker and backend ingestion logs.</p><button class="btn" data-route="/sensor-data">Open Sensor Monitoring ↗</button></section></div>';
+ '<section class="ai-card"><strong>Next integration step</strong><p class="ai-demo-foot">Provide the new Python simulator source. Then validate its payloads against PostgreSQL and test MQTT → Node.js → PostgreSQL → SSE → BIM.</p><button class="btn" data-route="/sensor-data">Open Sensor Monitoring ↗</button></section></div>';
 }
 
 export function settings(theme,connectionState){
  const sources=[
  ['LBNL-derived CSV','Historical simulation','External local file'],
- ['Local simulator','Python MQTT replay','Separate process'],
+ ['Nine-point Python simulator','MQTT replay','Awaiting new script'],
  ['MQTT broker','Messaging','Backend configuration'],
  ['PostgreSQL','Database',connectionState.status==='connected'?'Connected':'Unavailable'],
  ['Smart Citizen','Public IoT','Under investigation'],
@@ -163,5 +163,5 @@ export function settings(theme,connectionState){
  '<div data-settings-section="appearance"><section class="ai-card">'+titleCard('Appearance','Saved on this browser')+
  '<div class="ai-appearance-grid">'+themes+'</div><p class="ai-demo-foot">System mode follows your device color preference.</p></section></div>'+
  '<div data-settings-section="workspace"><section class="ai-card">'+titleCard('Workspace','Snowdon Towers Level 5 pilot')+
- '<div class="ai-key-value"><span>BIM Viewer</span><strong>xeokit 3D</strong></div><div class="ai-key-value"><span>Mapped physical sensors</span><strong>8</strong></div><div class="ai-key-value"><span>Measurement channels</span><strong>11</strong></div><div class="ai-key-value"><span>Source classification</span><strong>Simulated PoC</strong></div></section></div></div>';
+ '<div class="ai-key-value"><span>BIM Viewer</span><strong>xeokit 3D</strong></div><div class="ai-key-value"><span>Mapped physical sensors</span><strong>8</strong></div><div class="ai-key-value"><span>Measurement channels</span><strong>9 (new profile)</strong></div><div class="ai-key-value"><span>Source classification</span><strong>Simulated PoC</strong></div></section></div></div>';
 }
