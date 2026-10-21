@@ -41,6 +41,13 @@ test("stored high severity anomaly gives red, unrelated anomaly does not", () =>
  assert.equal(getSensorCardState(sample,dataFor([reading],[{...alert,point_code:"SAT-507"}]),now).status,"recent");
  assert.equal(getSensorCardState(sample,dataFor([reading],[{...alert,anomaly_status:"Closed"}]),now).status,"recent");
 });
+test("ABB requires all three readings to be recent before green", () => {
+ const abb=LEVEL5_SENSORS.find(s=>s.sensorId==="S-L5-008");
+ const one=[{point_code:abb.pointCodes[0],value:22,timestamp:"2026-10-21T01:59:00Z"}];
+ assert.equal(getSensorCardState(abb,{readings:one,anomalies:[],points:[]},now).status,"offline");
+ const all=abb.pointCodes.map(point_code=>({point_code,value:22,timestamp:"2026-10-21T01:59:00Z"}));
+ assert.equal(getSensorCardState(abb,{readings:all,anomalies:[],points:[]},now).status,"recent");
+});
 test("ABB multi-channel values and selected state use physical sensor identity", () => {
  for(const key of Object.keys(db))db[key]=[];
  const abb=LEVEL5_SENSORS.find(s=>s.sensorId==="S-L5-008");
