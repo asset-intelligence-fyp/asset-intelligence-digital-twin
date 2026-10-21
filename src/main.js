@@ -1265,6 +1265,24 @@ function startLiveUpdates() {
           reading
         );
 
+        // Update visible monitoring cards without rebuilding the xeokit scene
+        // or rerendering the entire SPA on every MQTT message.
+        document.querySelectorAll("[data-channel]").forEach(card => {
+          if (card.dataset.channel !== String(reading.point_code)) return;
+          const point = db.Sensor_Points.find(p => String(p.point_code) === String(reading.point_code));
+          const valueNode = card.querySelector(".point-value");
+          const timeNode = card.querySelector(".point-time");
+          const qualityNode = card.querySelector(".point-quality");
+          if (valueNode) {
+            const value = Number(reading.value);
+            valueNode.textContent = (Number.isFinite(value)
+              ? value.toLocaleString(undefined, {maximumFractionDigits:2})
+              : "—") + " " + (point?.unit || "");
+          }
+          if (timeNode) timeNode.textContent = String(reading.timestamp || reading.latest_update || "—");
+          if (qualityNode) qualityNode.textContent = String(reading.quality || "simulated");
+        });
+
         updateAssetDetailLiveReading(
           reading
         );
