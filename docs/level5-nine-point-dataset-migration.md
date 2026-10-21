@@ -1,86 +1,80 @@
-# Level 5 nine-point dataset update (October 2026)
+# Nine-point sensor IDs mapped to original Level 5 BIM (October 2026)
 
-## Source of truth
+## Requested logical renaming
 
-The nine **point codes** below were transcribed from the supplied screenshot of the user's new AI CSV / independent live Python simulator. These are **not verified physical building measurements**.
+The original unchanged `L5_Asset_List` screenshot contains eight *original* physical sensor IFC GlobalIds and one virtual fan-status row with no IfcGUID. The user's updated AI CSV/live simulator uses nine new point codes.
 
-| BIM / HRU asset | New CSV point | Measurement | Unit | Current database sensor | Physical IFC marker? |
-| --- | --- | --- | --- | --- | --- |
-| HRU501A | SAT-501A | Supply-air temperature | °C | S-L5-001 | Yes, existing GlobalId |
-| HRU501A | MAT-501A | Mixed-air temperature | °C | MAT-501A | No confirmed GUID; virtual asset point |
-| HRU501A | FS-501A | Supply-fan status | ON/OFF | FS-501A | Existing virtual fan point |
-| HRU504 | SAT-504 | Supply-air temperature | °C | S-L5-003 | Yes, existing GlobalId |
-| HRU504 | DP-504 | Outdoor-air damper position | % | S-L5-005 | Yes, existing GlobalId |
-| HRU504 | DPCMD-504 | Outdoor-air damper command | % | DPCMD-504 | No confirmed GUID; virtual asset point |
-| HRU507 | SAT-507 | Supply-air temperature | °C | S-L5-006 | Yes, existing GlobalId |
-| HRU507 | CV-507 | Cooling-valve position | % | CV-507 | No confirmed GUID; virtual asset point |
-| Unit 507 room (HRU507 asset) | S-L5-008-TEMP | Room temperature | °C | S-L5-008 | Yes, existing ABB Fusion GlobalId |
+This implementation uses the **new CSV point code as the sensor ID and sensor point code**, and reuses the *original row's existing* IFC GlobalId and HRU asset. The Mark values are kept for provenance.
 
-There are **eight original physical BIM sensor markers**, of which **five now have active measurement channels**. The three original physical air-velocity sensor markers (`S-L5-002`, `S-L5-004`, `S-L5-007`) remain in the BIM model but have no channel in the new dataset. They are *not* relabeled as different kinds of sensors.
+| Original Mark | Updated sensor ID = CSV point | Asset | Measurement | Original IfcGUID |
+| --- | --- | --- | --- | --- |
+| S-L5-001 | SAT-501A | HRU501A | Supply-air temperature (°C) | `2kuK4GGyjA5QV8NiAnXeXZ` |
+| S-L5-002 | MAT-501A | HRU501A | Mixed-air temperature (°C) | `3gW6u2ne59c8oABDoS7b3j` |
+| — | FS-501A | HRU501A | Supply-fan status (ON/OFF) | **None in source** |
+| S-L5-003 | SAT-504 | HRU504 | Supply-air temperature (°C) | `3gW6u2ne59c8oABDoS7bB3` |
+| S-L5-004 | DPCMD-504 | HRU504 | Outdoor-air damper command (%) | `3iie255UfEvg3mun9qVzgx` |
+| S-L5-005 | DP-504 | HRU504 | Outdoor-air damper position (%) | `050uZGzlP8Yg9H1S$ofK0i` |
+| S-L5-006 | SAT-507 | HRU507 | Supply-air temperature (°C) | `050uZGzlP8Yg9H1S$ofKIe` |
+| S-L5-007 | CV-507 | HRU507 | Cooling-valve position (%) | `050uZGzlP8Yg9H1S$ofKRW` |
+| S-L5-008 | S-L5-008-TEMP | HRU507 / Unit 507 room | Room temperature (°C) | `1Rnvr0S6DA0x5eK1Aa66rR` |
 
-Three new HRU telemetry identities (`MAT-501A`, `DPCMD-504`, `CV-507`) are represented in `sensors` with clearly named **virtual** `bim_elements`. These virtual database IDs are not XKT geometry, not physical IFC GlobalIds, and must not be used to focus a fictional BIM element. `FS-501A` remains virtual.
+**Important:** The original spreadsheet describes S-L5-002, S-L5-004 and S-L5-007 as **Air Velocity** devices. Associating MAT-501A, DPCMD-504 and CV-507 with these same original GUIDs is **a user-directed logical PoC mapping**, not a verified physical reclassification. No IFC/XKT geometry was altered.
 
-## Safe database migration
+There are nine sensor IDs and nine data-point codes. **Eight** have original BIM geometry; `FS-501A` is an asset-linked, selectable telemetry card without a physical BIM marker. The frontend displays all nine cards, and selecting FS shows its HRU-linked inspector without attempting to focus nonexistent geometry.
 
-**Important: The GitHub commit cannot edit the PostgreSQL instance on your Mac.** Apply the migration to the **same** database that the Node.js backend connects to.
+## Apply to your PostgreSQL instance
 
-1. Make a backup (optional but recommended if you have important historical data):
+Changes are committed only to the GitHub branch `feature/ui-redesign`, **not to the PostgreSQL service on your Mac**.
 
-   ```bash
-   pg_dump -Fc -d digital_twin -f digital_twin_before_9point.backup
-   ```
+From the project repository root:
 
-2. Pull `feature/ui-redesign` and from the repository root run:
+```bash
+git fetch origin
+git switch feature/ui-redesign
+git pull --ff-only origin feature/ui-redesign
+pg_dump -Fc -d digital_twin -f digital_twin_before_sensor_rename.backup
+psql -X -v ON_ERROR_STOP=1 -d digital_twin -f database/seed_level5_nine_point_profile.sql
+```
 
-   ```bash
-   psql -X -v ON_ERROR_STOP=1 -d digital_twin \
-     -f database/seed_level5_nine_point_profile.sql
-   ```
+Or use **Adminer → SQL command** and execute the contents of `database/seed_level5_nine_point_profile.sql`.
 
-   If your `.env` points to another database, use its actual database and server/role options. **Do not run `postgres_init.sql`: it drops and recreates tables.**
+The script is non-destructive and re-runnable. It supports databases with the original eleven-point seed or the previous nine-point migration. It inserts/update eight current sensor IDs using the original GUIDs, retains virtual `FS-501A`, and updates the nine active point records. Legacy point codes `AF-501A`, `AF-504`, `AF-507`, `S-L5-008-HUM`, `S-L5-008-CO2` are marked **Inactive**, with historical `sensor_readings` retained.
 
-   Alternatively in Adminer, use **SQL command** and paste the contents of `database/seed_level5_nine_point_profile.sql`.
+**Do not run `database/postgres_init.sql`** on your populated database because it resets tables. Do not rerun `database/seed_level5_sensor_registry.sql` after the updated profile without reapplying the new migration: the original seed re-enables the old channels.
 
-3. Verify the nine active rows:
+The migration retains the original `S-L5-00x` sensor records to preserve legacy relationships. Consequently, historical/legacy metadata may contain duplicate references to the same IFC GlobalId; the Node.js API now returns only sensors with an active point, ensuring the frontend selects the correct new sensor identity.
 
-   ```sql
-   SELECT sp.point_code, sp.measurement_type, sp.unit,
-          sp.point_status, s.equipment_code, s.global_id
-   FROM sensor_points sp
-   JOIN sensors s ON s.sensor_code=sp.sensor_code
-   WHERE sp.point_status='Online'
-   ORDER BY s.equipment_code, sp.point_code;
-   ```
+### Validate in Adminer
 
-   Exactly nine rows should return if no other unrelated online points exist in the database. Check the **point code set**, rather than relying only on the number if this database contains another building or test sensors.
+```sql
+SELECT sp.point_code, sp.sensor_code AS sensor_id,
+       s.equipment_code AS asset_id, s.global_id AS bim_guid,
+       sp.measurement_type, sp.unit, sp.point_status
+FROM sensor_points sp
+JOIN sensors s ON s.sensor_code = sp.sensor_code
+WHERE sp.point_status = 'Online'
+ORDER BY s.equipment_code, sp.point_code;
+```
 
-4. Verify historical readings remain:
+Expected: the nine rows in the table above, with `sensor_id = point_code`. Exactly one has `VIRTUAL-FS-501A` rather than a physical IFC GUID.
 
-   ```sql
-   SELECT point_code, COUNT(*)
-   FROM sensor_readings
-   WHERE point_code IN ('AF-501A','AF-504','AF-507','S-L5-008-HUM','S-L5-008-CO2')
-   GROUP BY point_code;
-   ```
+### Validate preservation of older readings
 
-   This query lists only archival rows **if** any existed; a missing result does not mean the migration deleted anything.
+```sql
+SELECT point_code, COUNT(*) AS stored_readings
+FROM sensor_readings
+WHERE point_code IN
+ ('AF-501A','AF-504','AF-507','S-L5-008-HUM','S-L5-008-CO2')
+GROUP BY point_code;
+```
 
-The migration does not remove any `sensor_readings` or existing `sensors` / `bim_elements`. It marks `AF-501A`, `AF-504`, `AF-507`, `S-L5-008-HUM`, `S-L5-008-CO2` `Inactive`, keeps six existing channels active, and adds three new points.
+This query returns historical counts only where archival observations existed; a point with no prior readings does not appear.
 
-**Important:** `database/seed_level5_sensor_registry.sql` is the **original eleven-point seed**. Do not rerun it *after* this migration without rerunning the nine-point migration, because the old seed re-enables old channels. Keep the original seed only for historical initial setup.
+## New Python simulator: next step
 
-## Frontend/backend changes
+The new independent Python script is not yet in GitHub in this conversation. The previous `tools/level5_digital_twin_simulator_final` is for the **old 11-point** layout and is not compatible with the new mapping.
 
-- `src/data/level5Sensors.js`: eight exact physical sensor GUIDs retained; nine-point registry added and four virtual asset-level points documented.
-- `src/bimSensorUI.js`: eight original markers are still selectable. The three physical velocity sensors say “No channel in new dataset” and remain grey.
-- Sensor inspector: readings for the selected physical sensor stay distinct from a section labeled **Related HRU telemetry · no physical BIM marker**, including the other four point names.
-- `src/redesignViews.js`: sensor charts, monitoring and simulator pages use the nine new variables, not the retired air-flow/humidity/CO₂ channels.
-- `server/index.js`: MQTT ingestion rejects inactive channels; active PostgreSQL bootstrap/current/history results show only online channels. Archived historical records are retained in the database and can still be queried in SQL.
-- The original 11-point Python `app.py` and `generate_historical.py` are **not changed**. They are for the previous data profile and must not be treated as compatible with the new nine-point training CSV.
-
-## Next: connect your independent Python simulator
-
-Upload its script and a small CSV header/sample (with private paths/credentials removed). The backend's existing subscriber listens for:
+The backend subscribes to these topics, each of which is linked to the corresponding sensor identity:
 
 ```text
 dt/HRU501A/SAT-501A
@@ -94,28 +88,11 @@ dt/HRU507/CV-507
 dt/HRU507/S-L5-008-TEMP
 ```
 
-Expected payload contract (example **shape only**, not actual sensor values):
+The current backend message format requires `timestamp`, `asset_id`, `sensor_id`, `point_code`, `value`, and supports `quality`, `sequence`, `unit`; the new profile uses `sensor_id == point_code`. `FS-501A` must publish a numeric 0/1 value because PostgreSQL stores numeric readings; the frontend renders OFF/ON. The project API validates point and asset before insertion and pushes accepted readings through SSE.
 
-```json
-{
-  "timestamp": "<valid ISO 8601 timestamp>",
-  "asset_id": "HRU501A",
-  "sensor_id": "MAT-501A",
-  "point_code": "MAT-501A",
-  "value": 0,
-  "unit": "°C",
-  "quality": "simulated",
-  "sequence": 1
-}
-```
+Provide the new simulator source and CSV header/sample to adapt its publisher; **the live feed has not yet been tested or connected**.
 
-Use the simulator's real values; `0` above only demonstrates a numeric JSON field. For `FS-501A`, encode fan state numerically (`0` OFF, `1` ON) as required by the current `sensor_readings.reading_value` numeric column. If the uploaded script uses different keys/encoding, adapt its publisher or a validated backend adapter after inspection—do not assume it is automatically compatible.
-
-The backend verifies `sensor_id`, `asset_id` and `point_code` against the active database registry. Incoming observations go through MQTT → Node.js → PostgreSQL → SSE → frontend. The original timestamp and source-sequence handling still require separate real-world testing.
-
-## Verification
-
-After migration and website restart, check:
+## Verification steps
 
 ```bash
 node --test tests/level5NinePointProfile.test.mjs
@@ -125,6 +102,4 @@ npm run build
 npm run dev
 ```
 
-Then open `http://localhost:5173/bim-viewer`. Check that all eight sensor markers remain and that current readings show **only** the five directly mapped points plus four virtual points in their owning HRU sections (nine unique channels overall; some HRU sections repeat context on multiple selected sensors).
-
-The current change has only been checked using code/static contract tests until you run it against your actual PostgreSQL and local XKT files. Neither your new Python simulator nor the new CSV bytes were supplied in this turn, so live replay is **not yet connected or validated**.
+Open the BIM Viewer and verify nine sensor cards, eight selectable original model markers and the unlocated FS-501A card. Inspect all eight model selections, check current values against PostgreSQL, and confirm MQTT/SSE refresh once the new simulator is connected. Source-level syntax and data-contract checks are not a substitute for actual browser, SQL and MQTT testing.
