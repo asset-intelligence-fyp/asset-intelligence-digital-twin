@@ -1,5 +1,14 @@
 # Level 5 Digital Twin Simulator — historical MQTT replay
 
+> **Legacy eleven-channel simulator:** This directory contains the *previous*
+> 11-point profile (AF-501A/AF-504/AF-507 and ABB humidity/CO₂). The current
+> nine-point dataset uses MAT-501A, DPCMD-504 and CV-507 instead.
+> Do **not** run this old publisher against the nine-point PostgreSQL migration.
+> See [nine-point migration and next simulator contract](../../docs/level5-nine-point-dataset-migration.md).
+> The user's new independent Python simulator has not yet been provided or connected.
+
+
+
 This is the final, **11-channel Level 5 simulator**, imported from the supplied `level5_digital_twin_simulator_final.zip`. It is distinct from the legacy `tools/hru_digital_twin_simulator_v2`.
 
 - **HRU501A:** `SAT-501A`, `AF-501A`, `FS-501A`
