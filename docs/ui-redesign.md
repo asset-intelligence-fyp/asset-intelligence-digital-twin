@@ -150,3 +150,13 @@ The old `hru_digital_twin_simulator_v2` and eleven-point `level5_digital_twin_si
 ## Refined BIM layout: single vertical sensor sidebar
 
 The old left sensor navigator and separate three-column status-card strip above the canvas were consolidated into a **single searchable vertical list** on the left. Each row retains its live reading, sensor/asset label, freshness or anomaly state, and click-to-select behavior. The eight IFC-linked points still focus the actual xeokit geometry, while the virtual `FS-501A` opens the HRU-linked inspector without fabricating an IFC marker. Incoming MQTT→SSE updates modify row values in place; the search box and the BIM viewer are not reconstructed. The center column now contains only the full-height 3D BIM viewer, and the selected-sensor inspector stays on the right. Narrow viewports stack the panels with a vertically scrolling sensor list.
+
+## Operational UI and live chart updates (21 October 2026)
+
+The visible workspace no longer displays research/development instructions, prototype badges, oversized demonstration warnings, placeholder training splits, or fake evaluation sections. The source-status chip remains **Synthetic MQTT** and forecasting status remains **Unavailable** until an evaluated forecasting model exists; neither is relabeled as physical building telemetry.
+
+The Overview, Sensor Monitoring, Historical Data, and AI Forecasting charts are now wrapped in per-channel live containers. As the browser receives an accepted `sensor-reading` SSE event from the existing MQTT/PostgreSQL backend, it updates the sensor cache and appends a history sample. A short 200 ms debounce then regenerates each active SVG *inside its chart container*, updating captions and current values without rebuilding the page, selected equipment inspector, or xeokit BIM scene. A chart can transition from an empty state to recorded points without navigation. The historical record table is still a snapshot loaded at navigation time; the graphs are live.
+
+Check the page while the Python publisher is running (e.g. `--mqtt --interval-seconds 5`). In Overview and Sensor Monitoring, ensure the line changes without refreshing the browser; check Historical Data and the selected trend in AI Forecasting as well. Inspect the top-bar sensor coverage badge for MQTT freshness. Stopping the Python process stops new plot samples; no fictitious points are inserted.
+
+Tests: `node --test tests/uiRedesign.test.mjs tests/liveCharts.test.mjs tests/bimSensorCards.test.mjs`; build: `npm run build`.

@@ -20,15 +20,15 @@ test("all redesigned views show honest empty-state messaging without backend dat
   assert.match(heading("Overview","Test"), /Overview/);
   assert.match(banner("Local simulation","No physical feed"), /Local simulation/);
   assert.match(metrics([["HRU assets",3],["Sensors",8],["Channels",9]]), /9/);
-  assert.match(chart(["SAT-507"]), /No historical readings/);
+  assert.match(chart(["SAT-507"]), /No readings available/);
   assert.match(monitoring(), /Sensor Monitoring/);
-  assert.match(monitoring(), /No data/);
-  assert.match(forecasting(15,"SAT-507"), /No trained forecasting model connected/);
-  assert.match(forecasting(15,"SAT-507"), /No model predictions available/);
-  assert.match(historical(), /No historical records loaded/);
-  assert.match(simulator(), /no physical equipment is controlled/i);
+  assert.match(monitoring(), /No points registered|No readings available/);
+  assert.match(forecasting(15,"SAT-507"), /Forecast status/);
+  assert.match(forecasting(15,"SAT-507"), /Unavailable/);
+  assert.match(historical(), /No historical readings available/);
+  assert.match(simulator(), /Three-HRU MQTT telemetry/);
   assert.match(settings("light",{status:"connected"}), /data-appearance-option="dark"/);
-  assert.match(overviewDetails(), /AI forecasting/);
+  assert.match(overviewDetails(), /Forecasting & anomalies/);
 });
 
 test("monitoring view renders actual mapped values and all nine point codes", () => {
@@ -59,4 +59,15 @@ test("redesigned navigation and CSS are included without replacing xeokit or SSE
   assert.match(main,/new EventSource/);
   assert.match(css,/data-theme="dark"/);
   assert.match(css,/data-theme="light"/);
+});
+
+
+test("workspaces have no prototype banners and show the true telemetry source", () => {
+ for(const key of Object.keys(db)) db[key]=[];
+ for(const page of [heading("Overview","Operations"),monitoring(),forecasting(),historical(),simulator(),settings("light",{status:"connected"})]) {
+   assert.doesNotMatch(page,/demo environment|demonstration data|prototype environment|no fabricated prediction|run the python simulator|not implemented/i);
+ }
+ const main=fs.readFileSync("src/main.js","utf8");
+ assert.match(main,/Synthetic MQTT · checking/);
+ assert.doesNotMatch(main,/PostgreSQL demonstration data|The interface displays PostgreSQL demonstration data/);
 });

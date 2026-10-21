@@ -14,7 +14,7 @@ const history = code => db.Historical_Sensor_Readings.filter(r=>String(r.point_c
 const when = ts => { if (!ts) return "Not available";const d=new Date(ts);return Number.isNaN(d.getTime())?String(ts):d.toLocaleString(); };
 
 export function heading(title,subtitle) {
- return '<div class="ai-heading"><div><div class="ai-kicker">Workspace / Level 5</div><h1>'+esc(title)+'</h1><p>'+esc(subtitle)+'</p></div><span class="ai-badge">Demo environment</span></div>';
+ return '<div class="ai-heading"><div><div class="ai-kicker">Workspace / Level 5</div><h1>'+esc(title)+'</h1><p>'+esc(subtitle)+'</p></div></div>';
 }
 export function banner(title,text) {
  return '<div class="ai-banner"><strong>'+esc(title)+'</strong><div>'+esc(text)+'</div></div>';
@@ -24,11 +24,11 @@ export function metrics(items){
 }
 const titleCard=(title,caption,action,label)=>'<div class="ai-card-title"><div><strong>'+esc(title)+'</strong>'+(caption?'<small>'+esc(caption)+'</small>':'')+'</div>'+(action?'<button class="ai-link" data-route="'+esc(action)+'">'+esc(label||'View ↗')+'</button>':'')+'</div>';
 
-export function chart(codes){
+function chartContent(codes){
  const palettes=['#668cb8','#4a9a83','#b77f5f','#9274b6'];
  const lines=codes.map((code,i)=>({code,rows:history(code),color:palettes[i%palettes.length]}));
  const available=lines.filter(p=>p.rows.length);
- if(!available.length)return '<div class="ai-empty">No historical readings are available for these channels yet.<br/>Start replay and verify PostgreSQL ingestion.</div>';
+ if(!available.length)return '<div class="ai-empty">No readings available yet.</div>';
  const vals=available.flatMap(c=>c.rows.map(r=>Number(r.value)));
  const min=Math.min(...vals),max=Math.max(...vals),pad=Math.max((max-min)*.16,.1);
  const lo=min-pad,hi=max+pad,left=44,right=674,top=14,bottom=155;
@@ -45,6 +45,26 @@ export function chart(codes){
  return '<svg class="ai-chart" viewBox="0 0 700 180" preserveAspectRatio="none" role="img" aria-label="Recorded sensor time series">'+grids+drawings+'<text class="ai-chart-label" x="44" y="177">Earlier</text><text class="ai-chart-label" x="674" y="177" text-anchor="end">Latest</text></svg><div class="ai-chart-legend">'+legend+'</div>';
 }
 
+// Refresh chart contents without recreating the surrounding page or xeokit.
+export function chart(codes) {
+ return '<div data-chart-codes="'+esc(codes.join(","))+'">'+chartContent(codes)+'</div>';
+}
+export function refreshLiveCharts(root = document) {
+ root.querySelectorAll("[data-chart-codes]").forEach(node=>{
+  node.innerHTML=chartContent(node.dataset.chartCodes.split(",").filter(Boolean));
+ });
+ root.querySelectorAll("[data-live-asset-summary]").forEach(node=>{
+  const points=getAssetCurrentValues(node.dataset.liveAssetSummary);
+  node.textContent=points.slice(0,2).map(p=>(p.point_code||p.sensor_id)+" "+display(p.point_code||p.sensor_id)+" "+(p.unit||"")).join(" · ") || "No readings";
+ });
+ root.querySelectorAll("[data-live-current-code]").forEach(node=>{
+  const code=node.dataset.liveCurrentCode;
+  node.textContent=display(code)+(code==="FS-501A"?"":" "+(info(code)?.unit||""));
+ });
+ root.querySelectorAll("[data-live-plot-caption]").forEach(node=>{
+  node.textContent=node.dataset.livePlotCaption.split(",").map(c=>c+" "+display(c)).join(" / ");
+ });
+}
 export function overviewDetails(){
  const channels=[
   {name:"Supply-air temperature",codes:["SAT-501A","SAT-504","SAT-507"],path:"/sensor-data"},
@@ -54,13 +74,13 @@ export function overviewDetails(){
  const assets=["HRU501A","HRU504","HRU507"].map(name=>{
   const values=getAssetCurrentValues(name);
   const summary=values.slice(0,2).map(p=>esc(p.point_code||p.sensor_id)+' '+esc(display(p.point_code||p.sensor_id))+' '+esc(p.unit||'')).join(' · ');
-  return '<div class="ai-key-value"><span>'+name+'</span><strong>'+(summary||'No current readings')+'</strong></div>';
+  return '<div class="ai-key-value"><span>'+name+'</span><strong data-live-asset-summary="'+esc(name)+'">'+(summary||'No readings')+'</strong></div>';
  }).join('');
  return '<div class="ai-grid-two">'+cards+'</div><div class="ai-grid-two"><section class="ai-card">'+
- titleCard('Equipment & latest readings','Three Level 5 HRU assets','/sensor-data','All channels ↗')+assets+
- '</section><section class="ai-card">'+titleCard('AI forecasting & anomalies','Actual experiment outputs are not connected','/model-results','Forecast ↗')+
- '<div class="ai-demo-foot">TFT and Chronos metrics are not evaluated on this website. No fabricated forecasts are shown.</div><hr class="ai-divider"/>'+
- titleCard('Recent anomaly records','PostgreSQL demonstration data','/anomalies','Investigate ↗')+
+ titleCard('Equipment & latest readings','Three Level 5 HRU units','/sensor-data','All channels ↗')+assets+
+ '</section><section class="ai-card">'+titleCard('Forecasting & anomalies','Operational status','/model-results','Forecast ↗')+
+ '<hr class="ai-divider"/>'+
+ titleCard('Recent anomalies','Recorded events','/anomalies','Investigate ↗')+
  (getLatestAnomalyRows().slice(0,3).map(a=>'<div class="ai-key-value"><span>'+esc(a.point_code||a.sensor_id)+'</span><strong>'+esc(a.anomaly_status||a.severity||'Recorded')+'</strong></div>').join('')||'<p class="ai-demo-foot">No current anomaly records.</p>')+'</section></div>';
 }
 
@@ -79,7 +99,7 @@ export function monitoring(){
   ['Outdoor-air damper position and command',['DP-504','DPCMD-504'],'%'],
   ['Cooling-valve position',['CV-507'],'%']
  ];
- const plotsHtml=plots.map(p=>'<section class="ai-card">'+titleCard(p[0],p[1].map(c=>c+' '+display(c)).join(' / ')+' '+p[2])+chart(p[1])+'</section>').join('');
+ const plotsHtml=plots.map(p=>'<section class="ai-card"><div class="ai-card-title"><div><strong>'+esc(p[0])+'</strong><small data-live-plot-caption="'+esc(p[1].join(','))+'">'+esc(p[1].map(c=>c+' '+display(c)).join(' / '))+'</small></div></div>'+chart(p[1])+'</section>').join('');
  const groups=[
   ['HRU501A',db.Sensor_Points.filter(p=>pointAsset(p)==='HRU501A')],
   ['HRU504',db.Sensor_Points.filter(p=>pointAsset(p)==='HRU504')],
@@ -88,87 +108,66 @@ export function monitoring(){
  ];
  const cards=groups.map(g=>'<section class="ai-point-card" data-equipment="'+esc(g[0])+'">'+titleCard(g[0],g[1].length+' measurement channels','/bim-viewer','BIM ↗')+(g[1].map(pointRow).join('')||'<div class="ai-empty">No points registered.</div>')+'</section>').join('');
  return '<div class="page ai-page">'+heading('Sensor Monitoring','All 9 measurement channels, organized by equipment.')+
- banner('Local simulation · no physical sensor feed',db.Sensor_Points.length+' point registrations, '+db.Sensor_Readings.length+' cached latest readings. Data may be stale if replay has stopped.')+
- '<div class="ai-chip-row"><input id="channelSearch" class="field" aria-label="Search channels" placeholder="Search channels or equipment…" style="max-width:260px"/><span class="ai-chip">Building / Level 5</span><span class="ai-chip">Simulated data</span></div>'+
- '<div class="ai-grid-two">'+plotsHtml+'</div><div class="ai-point-grid" id="channelCards">'+cards+'</div><p class="ai-demo-foot">Recorded values come from the PostgreSQL cache, not external live building sensors. A connected SSE stream does not guarantee the latest values are fresh.</p></div>';
+ 
+ '<div class="ai-chip-row"><input id="channelSearch" class="field" aria-label="Search channels" placeholder="Search channels or equipment…" style="max-width:260px"/><span class="ai-chip">Building / Level 5</span></div>'+
+ '<div class="ai-grid-two">'+plotsHtml+'</div><div class="ai-point-grid" id="channelCards">'+cards+'</div></div>';
 }
 
 export function forecasting(horizon=15,code='SAT-507'){
  const point=info(code),unit=point?.unit||'';
  const choices=db.Sensor_Points.map(p=>'<option value="'+esc(p.point_code)+'" '+(p.point_code===code?'selected':'')+'>'+esc(p.point_code)+'</option>').join('');
  const buttons=[5,15,30,60].map(h=>'<button class="ai-chip '+(h===horizon?'is-active':'')+'" data-horizon="'+h+'" aria-pressed="'+(h===horizon)+'">'+h+' min</button>').join('');
- const rows=[['Output source','Not connected'],['Model version','Unavailable'],['Training run','Not verified'],['MAE','Not evaluated'],['RMSE','Not evaluated'],['Confidence','Not available']].map(p=>'<div class="ai-key-value"><span>'+p[0]+'</span><strong>'+p[1]+'</strong></div>').join('');
- return '<div class="page ai-page">'+heading('AI Forecasting','See what could happen next. Understand what is illustrative.')+
- banner('No trained forecasting model connected','No TFT or Chronos inference service is connected. Accuracy, confidence and calibrated uncertainty are not available.')+
+ return '<div class="page ai-page">'+heading('AI Forecasting','Sensor trends and forecasting status.')+
  '<div class="ai-chip-row"><label class="ai-chip">Channel <select class="select" data-forecast-point>'+choices+'</select></label><div style="flex:1"></div>'+buttons+'</div>'+
- '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Supply-air temperature / sensor trend',code+' · recorded simulation values')+
- '<div class="ai-metric-value" style="font-size:24px;margin:6px 0 12px">'+esc(display(code))+' '+esc(unit)+' <small style="font-size:11px;color:var(--muted)">Latest → forecast unavailable</small></div>'+chart([code])+
- '<div class="ai-forecast-note">Selected horizon: '+horizon+' minutes. This chart contains historical readings only, not model predictions.</div></section>'+
- '<section class="ai-card">'+titleCard('Model & evaluation','Training and production inference status')+
- '<span class="ai-badge">Not connected</span>'+rows+
- '<p class="ai-demo-foot">Evaluate a trained forecasting model before relying on its outputs.</p><button class="btn" data-route="/settings">Data source settings</button></section></div>'+
- '<section class="ai-card" style="margin-bottom:14px">'+titleCard('Forecast values','No fabricated prediction table')+
- '<div class="ai-empty">No model predictions available for the selected '+horizon+'-minute horizon.</div></section>'+
- '<section class="ai-card"><strong>How to read this forecast</strong><p class="ai-demo-foot">The recorded trend is from simulated values in PostgreSQL. No forecast, uncertainty interval, or AI-based anomaly diagnosis has been generated.</p></section></div>';
+ '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Sensor trend',code+' · recorded values')+
+ '<div class="ai-metric-value" data-live-current-code="'+esc(code)+'" style="font-size:24px;margin:6px 0 12px">'+esc(display(code))+' '+esc(unit)+'</div>'+chart([code])+
+ '</section><section class="ai-card">'+titleCard('Forecast status','Model availability')+
+ '<div class="ai-key-value"><span>Forecast model</span><strong>Unavailable</strong></div>'+
+ '<div class="ai-key-value"><span>Selected horizon</span><strong>'+horizon+' minutes</strong></div>'+
+ '<div class="ai-key-value"><span>Forecast values</span><strong>—</strong></div>'+
+ '<div class="ai-key-value"><span>Accuracy metrics</span><strong>—</strong></div></section></div></div>';
 }
 
 export function historical(){
  const rows=db.Historical_Sensor_Readings.slice().sort((a,b)=>String(b.timestamp).localeCompare(String(a.timestamp)));
  const table=rows.slice(0,60).map(r=>{const code=String(r.point_code??r.sensor_id??'');return '<tr><td>'+esc(when(r.timestamp))+'</td><td>'+esc(code)+'</td><td>'+esc(r.value)+'</td><td>'+esc(info(code)?.unit||'')+'</td><td>'+esc(r.quality||'simulated')+'</td></tr>';}).join('');
- return '<div class="page ai-page">'+heading('Historical Data','Explore the fault-free baseline behind the simulation.')+
- banner('Historical + simulated · not physical measurements','The 525,540-row historical dataset is a prepared local research artifact. Only records actually loaded from the backend are displayed here.')+
- metrics([['Loaded history rows',rows.length.toLocaleString(),'Current API/browser cache'],['Sampling interval','1 min','Dataset specification'],['CSV columns','16','Prepared historical dataset'],['HRU assets','3','Level 5 scope']])+
- '<section class="ai-card" style="margin-bottom:14px">'+titleCard('Historical temperature profile','Loaded PostgreSQL history · no illustrative CSV values')+chart(['SAT-501A','SAT-504','SAT-507'])+'</section>'+
- '<section class="ai-card" style="margin-bottom:14px">'+titleCard('Record explorer','Latest 60 cached readings')+
- (table?'<div class="ai-table-wrap"><table class="ai-table"><thead><tr><th>Timestamp</th><th>Point</th><th>Value</th><th>Unit</th><th>Quality</th></tr></thead><tbody>'+table+'</tbody></table></div>':'<div class="ai-empty">No historical records loaded into this browser session.</div>')+'</section>'+
- '<div class="ai-grid-two"><section class="ai-card">'+titleCard('Chronological partitions','Research dataset split · no random shuffling')+
- '<div style="display:flex;height:12px;overflow:hidden;border-radius:5px"><span style="width:70%;background:#648dbf"></span><span style="width:15%;background:#7eb4a1"></span><span style="width:15%;background:#9da8b5"></span></div>'+
- '<div class="ai-key-value"><span>Training</span><strong>70%</strong></div><div class="ai-key-value"><span>Validation</span><strong>15%</strong></div><div class="ai-key-value"><span>Holdout</span><strong>15%</strong></div></section>'+
- '<section class="ai-card">'+titleCard('Dataset details','Provenance and integration state')+
- '<div class="ai-key-value"><span>Origin</span><strong>LBNL-derived simulation</strong></div><div class="ai-key-value"><span>Adaptation</span><strong>Level 5 synthetic channels</strong></div><div class="ai-key-value"><span>Historical CSV</span><strong>Separate local file</strong></div><div class="ai-key-value"><span>Frontend CSV import</span><strong>Not implemented</strong></div></section></div></div>';
+ return '<div class="page ai-page">'+heading('Historical Data','Sensor history and recorded trends.')+
+ '<section class="ai-card" style="margin-bottom:14px">'+titleCard('Supply-air temperature','Recorded history')+chart(['SAT-501A','SAT-504','SAT-507'])+'</section>'+
+ '<section class="ai-card" style="margin-bottom:14px">'+titleCard('Recent readings','Latest 60 stored records')+
+ (table?'<div class="ai-table-wrap"><table class="ai-table"><thead><tr><th>Timestamp</th><th>Point</th><th>Value</th><th>Unit</th><th>Quality</th></tr></thead><tbody>'+table+'</tbody></table></div>':'<div class="ai-empty">No historical readings available.</div>')+'</section></div>';
 }
 
 export function simulator(){
  const timestamp=db.Sensor_Readings.map(r=>r.latest_update||r.timestamp).filter(Boolean).sort().at(-1);
  const summary=['SAT-501A','MAT-501A','FS-501A','SAT-504','DP-504','DPCMD-504','SAT-507','CV-507','S-L5-008-TEMP'].map(code=>
-  '<div class="ai-key-value"><span>'+esc(code)+'</span><strong>'+esc(display(code))+' '+esc(code==='FS-501A'?'':info(code)?.unit||'')+'</strong></div>').join('');
- return '<div class="page ai-page">'+heading('Sensor Simulator','Independent synthetic three-HRU telemetry via MQTT.')+
- banner('Simulated data only · no physical HRU control','The new Python generator publishes independent stateful measurements to MQTT. Source values are synthetic and LBNL-informed; no trained AI inference or physical BMS is connected.')+
- '<div class="ai-chip-row"><span class="ai-badge">Nine MQTT sensor channels</span><span class="ai-chip">Last cached reading: '+esc(timestamp?when(timestamp):'Unavailable')+'</span></div>'+
- '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Live MQTT feed','Run the independent Python simulator locally')+
- '<div data-live-status role="status" aria-live="polite" class="ai-badge">Checking broker and incoming readings…</div>'+
- '<div data-live-coverage class="ai-demo-foot">Checking all nine sensor channels…</div>'+ 
- '<div class="ai-demo-foot">From project root: <code>python tools/independent_3hru_live/scripts/simulate_live.py --mqtt --interval-seconds 5</code>. Start Mosquitto and the Node API first; see tools/independent_3hru_live/README.md for setup. No physical equipment is controlled.</div>'+
- '<div class="ai-key-value"><span>Source</span><strong>Independent stateful synthetic</strong></div>'+
- '<div class="ai-key-value"><span>Transport</span><strong>MQTT · dt/+/+ → PostgreSQL → SSE</strong></div>'+
- '<div class="ai-key-value"><span>Last accepted reading</span><strong data-live-last>Not yet received</strong></div>'+
- '<div class="ai-key-value"><span>Physical sensors</span><strong>Not connected</strong></div>'+
- '<div class="ai-key-value"><span>AI predictions</span><strong>Not connected</strong></div></section>'+
- '<section class="ai-card">'+titleCard('Latest stored values','Nine current PostgreSQL points')+summary+'</section></div>'+
- '<p class="ai-demo-foot">Do not run the previous 11-channel simulator simultaneously. Fault ground-truth labels remain separate from published telemetry.</p></div>';
+  '<div class="ai-key-value"><span>'+esc(code)+'</span><strong data-live-current-code="'+esc(code)+'">'+esc(display(code))+' '+esc(code==='FS-501A'?'':info(code)?.unit||'')+'</strong></div>').join('');
+ return '<div class="page ai-page">'+heading('Sensor Simulator','Three-HRU MQTT telemetry.')+
+ '<div class="ai-chip-row"><div data-live-status role="status" aria-live="polite" class="ai-badge">Checking MQTT connection…</div><span class="ai-chip">Last reading: <span data-live-last>'+esc(timestamp?when(timestamp):'Unavailable')+'</span></span></div>'+
+ '<div data-live-coverage class="ai-demo-foot">Checking sensor coverage…</div>'+
+ '<div class="ai-grid-two"><section class="ai-card">'+titleCard('Data connection','Synthetic MQTT stream')+
+ '<div class="ai-key-value"><span>Source</span><strong>Independent three-HRU simulation</strong></div>'+
+ '<div class="ai-key-value"><span>Transport</span><strong>MQTT → PostgreSQL</strong></div>'+
+ '<div class="ai-key-value"><span>Channels</span><strong>9</strong></div></section>'+
+ '<section class="ai-card">'+titleCard('Latest sensor values','PostgreSQL')+summary+'</section></div></div>';
 }
 
 export function settings(theme,connectionState){
  const sources=[
- ['LBNL-derived CSV','Historical simulation','External local file'],
- ['Independent three-HRU simulator','Synthetic MQTT','Available · external Python process'],
- ['MQTT broker','Messaging','Backend configuration'],
+ ['Three-HRU simulator','Synthetic MQTT','Active when publishing'],
+ ['MQTT broker','Messaging','Configured'],
  ['PostgreSQL','Database',connectionState.status==='connected'?'Connected':'Unavailable'],
- ['Smart Citizen','Public IoT','Under investigation'],
- ['openSenseMap','Public IoT','Under investigation'],
- ['ThingSpeak','Public IoT','Under investigation'],
- ['Physical sensors','Future BMS','Not connected']
+ ['Physical BMS sensors','Hardware','Not connected']
  ];
  const sourceTable=sources.map(r=>'<tr>'+r.map(v=>'<td>'+esc(v)+'</td>').join('')+'</tr>').join('');
  const themes=['light','dark','system'].map(name=>
  '<button type="button" class="ai-appearance-option '+(name===theme?'is-selected':'')+'" aria-pressed="'+(name===theme)+'" data-appearance-option="'+name+'"><span class="ai-theme-preview '+name+'"></span><span class="ai-theme-name">'+name[0].toUpperCase()+name.slice(1)+'</span></button>').join('');
  return '<div class="page ai-page">'+heading('Settings','Manage data sources, integrations, and your workspace.')+
  '<div class="ai-tablist" role="tablist"><button class="ai-tab" data-settings-tab="sources" aria-selected="true">Data sources & integrations</button><button class="ai-tab" data-settings-tab="appearance" aria-selected="false">Appearance</button><button class="ai-tab" data-settings-tab="workspace" aria-selected="false">Workspace</button></div>'+
- banner('Connection transparency','The backend loads demonstration data from PostgreSQL. MQTT and Python replay run separately; no external IoT or physical hardware feed is connected.')+
+ 
  '<div data-settings-section="sources"><section class="ai-card">'+titleCard('Data sources & integrations','Source type and configured state')+
  '<div class="ai-table-wrap"><table class="ai-table"><thead><tr><th>Source</th><th>Type</th><th>Status</th></tr></thead><tbody>'+sourceTable+'</tbody></table></div></section></div>'+
  '<div data-settings-section="appearance"><section class="ai-card">'+titleCard('Appearance','Saved on this browser')+
  '<div class="ai-appearance-grid">'+themes+'</div><p class="ai-demo-foot">System mode follows your device color preference.</p></section></div>'+
- '<div data-settings-section="workspace"><section class="ai-card">'+titleCard('Workspace','Snowdon Towers Level 5 pilot')+
- '<div class="ai-key-value"><span>BIM Viewer</span><strong>xeokit 3D</strong></div><div class="ai-key-value"><span>Mapped physical sensors</span><strong>8</strong></div><div class="ai-key-value"><span>Measurement channels</span><strong>9 (new profile)</strong></div><div class="ai-key-value"><span>Source classification</span><strong>Simulated PoC</strong></div></section></div></div>';
+ '<div data-settings-section="workspace"><section class="ai-card">'+titleCard('Workspace','Snowdon Towers · Level 5')+
+ '<div class="ai-key-value"><span>BIM Viewer</span><strong>xeokit 3D</strong></div><div class="ai-key-value"><span>Mapped physical sensors</span><strong>8</strong></div><div class="ai-key-value"><span>Measurement channels</span><strong>9</strong></div><div class="ai-key-value"><span>Data source</span><strong>Synthetic MQTT</strong></div></section></div></div>';
 }
