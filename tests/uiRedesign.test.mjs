@@ -26,7 +26,7 @@ test("all redesigned views show honest empty-state messaging without backend dat
   assert.match(forecasting(15,"SAT-507"), /No trained forecasting model connected/);
   assert.match(forecasting(15,"SAT-507"), /No model predictions available/);
   assert.match(historical(), /No historical records loaded/);
-  assert.match(simulator(), /No equipment controlled|no equipment controlled/i);
+  assert.match(simulator(), /no physical equipment is controlled/i);
   assert.match(settings("light",{status:"connected"}), /data-appearance-option="dark"/);
   assert.match(overviewDetails(), /AI forecasting/);
 });
