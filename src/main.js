@@ -19,6 +19,7 @@ import {
 } from "./data/dataStore.js";
 import { initXeokitViewer, destroyActiveViewer } from "./xeokitViewer.js";
 import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js";
+import { sensorMiniOverviewHtml, refreshMiniOverview } from "./bimSensorUI.js";
 import { applyTheme, getSavedTheme, initAppearance } from "./theme.js";
 import {
   heading, banner, metrics, overviewDetails, monitoring, forecasting,
@@ -38,6 +39,7 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 let liveEventSource = null;
+let activeBimController = null;
 
 const state = {
   selectedAssetId: "HRU501A",
@@ -521,6 +523,23 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
   </section>`;
 }
 
+function bindMiniSensorOverview() {
+  const region = document.querySelector(".bim-sensor-overview");
+  region?.addEventListener("click", event => {
+    const button = event.target.closest("[data-sensor-mini]");
+    if (!button) return;
+    const sensor = LEVEL5_SENSORS.find(item => item.sensorId === button.dataset.sensorMini);
+    if (!sensor) return;
+    const feedback = region.querySelector("[data-sensor-feedback]");
+    if (!activeBimController?.viewer.scene.objects[sensor.guid]) {
+      if (feedback) feedback.textContent = "BIM sensor marker is not loaded. Check the model loading status.";
+      return;
+    }
+    if (feedback) feedback.textContent = "";
+    activeBimController.selectSensor(sensor.guid);
+  });
+}
+
 function initViewer(stageId) {
   const controller = initXeokitViewer({
     stageId,
@@ -540,9 +559,11 @@ function initViewer(stageId) {
       document.querySelectorAll("[data-sensor-guid]").forEach(button => {
         button.classList.toggle("active", button.dataset.sensorGuid === selection.entityId);
       });
+      refreshMiniOverview(selection.entityId);
     }
   });
   if (!controller) return null;
+  if (stageId === "mainViewer") activeBimController = controller;
   const stage = document.getElementById(stageId);
   const panel = stage?.closest(".viewer-panel");
   if (!panel) return controller;
@@ -572,7 +593,10 @@ function initViewer(stageId) {
         '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
       '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>' +
     '</div></details>';
-  stage.appendChild(navigation);
+  const treeMount = stageId === "mainViewer"
+    ? document.querySelector("[data-bim-sensor-tree]") : null;
+  (treeMount || stage).appendChild(navigation);
+  if (treeMount) navigation.querySelector("details").open = true;
   navigation.querySelector("[data-sensor-filter]")?.addEventListener("input", event => {
     const value = event.target.value.trim().toLowerCase();
     navigation.querySelectorAll("[data-sensor-guid]").forEach(button => {
@@ -724,17 +748,24 @@ function renderDashboard() {
 }
 function renderBimViewer() {
   destroyActiveViewer();
+  activeBimController = null;
   const html = '<div class="page bim-viewer-page ai-fullscreen-bim">' +
-    heading("BIM Viewer", "Explore Level 5 and the sensors behind every reading.") +
-    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>Actual Level 5 IFC/XKT geometry and sensor selection; values shown in the inspector come from PostgreSQL simulated records.</div></div>' +
-    '<div class="bim-workspace" data-bim-workspace>' +
-       viewerPanelHtml({stageId:"mainViewer",detailed:true}) +
+    heading("BIM Viewer", "Explore Level 5 and monitor all eight physical sensor devices.") +
+    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>Click any sensor card or BIM element to inspect real recorded simulation values. Status colors use reading freshness and stored anomaly records.</div></div>' +
+    '<div class="bim-workspace bim-three-column" data-bim-workspace>' +
+       '<aside class="bim-tree-column panel" aria-label="Level 5 sensor tree"><div class="bim-tree-heading">Sensor tree</div><div data-bim-sensor-tree></div></aside>' +
+       '<div class="bim-center-column">' +
+         sensorMiniOverviewHtml(state.selectedBimElement?.entityId) +
+         viewerPanelHtml({stageId:"mainViewer",detailed:true}) +
+       '</div>' +
        assetInspectorHtml({detailed:true}) +
-    '</div><p class="ai-demo-foot">Orbit or select the model to inspect an element. Use the sensor navigator for 8 mapped devices / 11 measurement channels.</p></div>';
-  shell(html, { activePath:"/bim-viewer", breadcrumb:"BIM Viewer", noScroll:true });
+    '</div><p class="ai-demo-foot">Green = recent data without a matching anomaly record; amber/red = stored demonstration anomaly; gray = missing or stale. Statuses do not diagnose physical equipment.</p></div>';
+  shell(html, {activePath:"/bim-viewer",breadcrumb:"BIM Viewer",noScroll:true});
   bindAssetInspector();
+  bindMiniSensorOverview();
   requestAnimationFrame(() => initViewer("mainViewer"));
 }
+
 function assetsTableRows() {
   const q = state.assetSearch.trim().toLowerCase();
   return db.Assets.filter((asset) => {
@@ -1292,6 +1323,7 @@ function startLiveUpdates() {
           if (qualityNode) qualityNode.textContent = String(reading.quality || "simulated");
         });
 
+        refreshMiniOverview(state.selectedBimElement?.entityId);
         updateAssetDetailLiveReading(
           reading
         );
@@ -1394,5 +1426,7 @@ async function initialize() {
   }
 }
 
+// Freshness can expire even without new MQTT events.
+setInterval(() => refreshMiniOverview(state.selectedBimElement?.entityId), 30_000);
 window.addEventListener("popstate", render);
 initialize();
