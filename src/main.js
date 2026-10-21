@@ -540,7 +540,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <span class="legend-item"><span class="legend-dot" style="background:#ff5154"></span>Critical</span>
         <span class="legend-item"><span class="legend-dot" style="background:#55b7ff"></span>Selected</span>
       </div>
-      <span>8 mapped devices · 11 channels</span>
+      <span>8 physical BIM markers · 9 active channels</span>
     </div>
   </section>`;
 }
