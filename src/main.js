@@ -278,11 +278,13 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
     ? `<div class="bim-selected-reading-grid">${points.map((point) => {
         const reading = point.reading;
         const number = reading?.value == null ? null : Number(reading.value);
+        const fanPoint = (point.point_code ?? point.sensor_id) === "FS-501A";
         const value = number == null || !Number.isFinite(number) ? "—"
+          : fanPoint ? (number === 1 ? "ON" : number === 0 ? "OFF" : "—")
           : number.toLocaleString(undefined, {maximumFractionDigits:2});
         return `<div class="bim-selected-reading">
           <span>${escapeHtml(point.measurement_type ?? point.sensor_type ?? point.point_code)}</span>
-          <strong>${escapeHtml(value)} <small>${escapeHtml(point.unit || "")}</small></strong>
+          <strong>${escapeHtml(value)} <small>${escapeHtml(fanPoint ? "" : point.unit || "")}</small></strong>
           <em>${escapeHtml(reading?.quality || "No data")} · ${escapeHtml(formatTime(reading?.latest_update ?? reading?.timestamp))}</em>
         </div>`;
       }).join("")}</div>`
@@ -290,7 +292,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
 
   // Related asset telemetry is not a measurement from the selected physical
   // marker: keep virtual point provenance explicit in the inspector.
-  const relatedUnlocated = LEVEL5_UNLOCATED_POINTS.filter(point => point.assetId === assetId);
+  const relatedUnlocated = LEVEL5_UNLOCATED_POINTS.filter(point => point.assetId === assetId && point.sensorId !== sensorId);
   const relatedHtml = relatedUnlocated.length
     ? `<div class="info-section">
         <div class="info-heading">Related HRU telemetry · no physical BIM marker</div>
