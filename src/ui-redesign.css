@@ -535,3 +535,16 @@ details[open]>.level5-panel-summary {border-color:var(--border);}
 .bim-selected-reading>strong small {font-size:11px;color:var(--muted);font-weight:500;}
 .bim-selected-reading>em {font-style:normal;font-size:9px;color:var(--muted);}
 .bim-three-column .asset-inspector .info-section {margin-top:12px;}
+
+
+/* Nine point IDs: eight existing IFC markers plus the fan-status virtual point. */
+.bim-mini-card[data-unlocated="true"] {
+  border-style:dashed;
+  background:var(--panel);
+}
+.bim-mini-card[data-unlocated="true"] .bim-mini-label {font-style:italic;}
+@media (min-width:761px) {
+  .bim-three-column .bim-mini-grid {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
