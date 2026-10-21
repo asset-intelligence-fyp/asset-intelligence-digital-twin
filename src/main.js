@@ -272,15 +272,17 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
     .at(-1) || null;
 
   const readingsHtml = points.length
-    ? points.map((point) => {
+    ? `<div class="bim-selected-reading-grid">${points.map((point) => {
         const reading = point.reading;
-        const value = reading?.value ?? "—";
-        const unit = point.unit || "";
-        return `<div class="info-row">
-          <span class="info-key">${escapeHtml(point.measurement_type ?? point.sensor_type ?? point.point_code)}</span>
-          <span class="info-value">${escapeHtml(value)} ${escapeHtml(unit)}</span>
+        const number = reading?.value == null ? null : Number(reading.value);
+        const value = number == null || !Number.isFinite(number) ? "—"
+          : number.toLocaleString(undefined, {maximumFractionDigits:2});
+        return `<div class="bim-selected-reading">
+          <span>${escapeHtml(point.measurement_type ?? point.sensor_type ?? point.point_code)}</span>
+          <strong>${escapeHtml(value)} <small>${escapeHtml(point.unit || "")}</small></strong>
+          <em>${escapeHtml(reading?.quality || "No data")} · ${escapeHtml(formatTime(reading?.latest_update ?? reading?.timestamp))}</em>
         </div>`;
-      }).join("")
+      }).join("")}</div>`
     : `<div class="section-meta">No measurement points or current readings are stored for this sensor.</div>`;
 
   const qualityRows = points
@@ -321,7 +323,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
       </div>
 
       <div class="info-section">
-        <div class="info-heading">Live Readings</div>
+        <div class="info-heading">Sensor measurements · stored simulation data</div>
         ${readingsHtml}
       </div>
 
