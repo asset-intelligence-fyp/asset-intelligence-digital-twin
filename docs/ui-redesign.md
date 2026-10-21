@@ -89,6 +89,25 @@ npm run build
 - [ ] Asset detail and assistant remain reachable.
 - [ ] Tablet/mobile layouts keep navigation usable and do not cover the 3D canvas.
 
+## Nine-point Level 5 telemetry update
+
+The current dataset uses nine active point names:
+`SAT-501A`, `MAT-501A`, `FS-501A`, `SAT-504`, `DP-504`,
+`DPCMD-504`, `SAT-507`, `CV-507`, `S-L5-008-TEMP`.
+
+All eight original physical sensor BIM GlobalIds remain intact; three
+previous air-velocity sensor markers no longer have active dataset channels.
+Four current points are **HRU-linked virtual telemetry** (MAT, FS, DPCMD,
+CV) without confirmed physical BIM markers. The new Python simulator remains
+to be connected.
+
+Apply `database/seed_level5_nine_point_profile.sql` in PostgreSQL after
+pulling this branch. See
+[`docs/level5-nine-point-dataset-migration.md`](level5-nine-point-dataset-migration.md).
+
+The original 11-point references elsewhere in this document describe the
+previous prototype and should not be used as the current profile.
+
 ## Verification status
 
 JavaScript parsing and simulated data-template checks passed in the authoring environment. A full `npm run build` and real browser rendering against the locally generated XKT files **have not been executed** here. Complete the above checks before merging into `develop`.
