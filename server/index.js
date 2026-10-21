@@ -500,10 +500,7 @@ mqttClient.on(
 //
 // Example:
 //
-// S-L5-008
-// ├── S-L5-008-TEMP
-// ├── S-L5-008-HUM
-// └── S-L5-008-CO2
+// S-L5-008 → S-L5-008-TEMP (nine-point profile); HUM and CO2 are archived.
 //
 // =========================================================
 
