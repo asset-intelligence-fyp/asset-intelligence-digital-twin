@@ -349,7 +349,7 @@ mqttClient.on(
         !new Set([
           String(mapped.sensor_code),
           String(point_code),
-          ...(mapped.sensor_code === "S-L5-008" ? ["ENV-507"] : [])
+          ...(mapped.sensor_code === "S-L5-008-TEMP" ? ["ENV-507"] : [])
         ]).has(String(sensor_id))
       ) {
 
@@ -652,8 +652,13 @@ app.get("/api/bootstrap", async (_req, res) => {
           model,
           sensor_status AS status,
           data_source
-        FROM sensors
-        ORDER BY sensor_code
+        FROM sensors s
+        WHERE EXISTS (
+          SELECT 1 FROM sensor_points sp
+          WHERE sp.sensor_code = s.sensor_code
+            AND sp.point_status = 'Online'
+        )
+        ORDER BY s.sensor_code
       `),
 
 
@@ -1098,10 +1103,15 @@ app.get("/api/assets/:id", async (req, res) => {
 
           data_source
 
-        FROM sensors
+        FROM sensors s
 
         WHERE
           equipment_code = $1
+          AND EXISTS (
+            SELECT 1 FROM sensor_points sp
+            WHERE sp.sensor_code=s.sensor_code
+              AND sp.point_status='Online'
+          )
 
         ORDER BY
           sensor_code
