@@ -92,3 +92,37 @@ npm run build
 ## Verification status
 
 JavaScript parsing and simulated data-template checks passed in the authoring environment. A full `npm run build` and real browser rendering against the locally generated XKT files **have not been executed** here. Complete the above checks before merging into `develop`.
+
+
+## BIM viewer status-board update (21 October 2026)
+
+The BIM Viewer now uses a three-column workspace at desktop sizes:
+
+1. **Left sensor tree** — the existing searchable Level 5 xeokit sensor navigator in a separate collapsible panel, not over the BIM canvas.
+2. **Middle canvas and persistent sensor cards** — eight mini cards are always visible above the real xeokit viewer. Each uses the physical device's `sensorId` and IFC GlobalId from `src/data/level5Sensors.js`; Unit 507's ABB card displays TEMP, HUM and CO2 together.
+3. **Right selected-sensor inspector** — the existing PostgreSQL inspector now displays large measurement tiles with units, quality and latest update time for every measurement channel on the selected physical sensor.
+
+Clicking a mini card calls the same `controller.selectSensor(guid)` method used by the existing BIM navigator. It focuses/highlights the real IFC element and fires the existing selection handler, updating the inspector without reloading the BIM model. The existing floor clipping, camera controls and fullscreen viewer remain unchanged. Cards receive in-place updates from the existing MQTT→backend→SSE path; freshness is also checked periodically.
+
+The status dots are **informational** and do not indicate verified equipment health:
+
+- **Green** = a simulated sensor reading timestamp within 5 minutes and no *matching* active database anomaly record
+- **Amber** = a matching open anomaly record or invalid reading quality
+- **Red** = a matching open high/critical-severity anomaly record
+- **Gray** = no recent valid timestamp/measurement available
+
+Statuses are matched by point code or physical sensor ID, not inferred from an unrelated anomaly on the same HRU. Closed anomaly records are ignored. PostgreSQL demo anomalies are not confirmed real building faults.
+
+The top-right header now keeps data-source status, theme/notifications and Facility Manager account controls in separate aligned groups, with responsive hiding of low-priority text on small screens.
+
+### Review checklist
+
+- [ ] At 1440px+ desktop width, data-source status, icons and user account share one header row.
+- [ ] BIM scene, dedicated sensor tree, all 8 mini cards and right sensor inspector fit without overlapping.
+- [ ] Selecting a mini card focuses the sensor BIM element and updates the inspector; selecting a BIM object highlights its corresponding mini card.
+- [ ] S-L5-008 shows three independent TEMP/HUM/CO2 readings with stored units.
+- [ ] New MQTT readings update mini cards and the selected inspector; stopping replay eventually turns stale cards gray.
+- [ ] Demo high/critical anomaly linked to a point lights the matching card red; unrelated sensors remain unaffected.
+- [ ] Dark/light themes, fullscreen, small screens and level-5 clipping continue to work.
+
+`node --test tests/bimSensorCards.test.mjs` runs data-state and source integration checks. Real xeokit rendering, actual MQTT delivery and responsive browser checks are **not** verified from the remote editing environment.
