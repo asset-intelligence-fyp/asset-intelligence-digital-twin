@@ -774,6 +774,7 @@ app.get("/api/bootstrap", async (_req, res) => {
         JOIN sensor_points sp
           ON sp.point_code =
              sr.point_code
+         AND sp.point_status = 'Online'
 
         JOIN sensors s
           ON s.sensor_code =
@@ -1238,6 +1239,7 @@ app.get("/api/assets/:id", async (req, res) => {
         JOIN sensor_points sp
           ON sp.point_code =
              sr.point_code
+         AND sp.point_status = 'Online'
 
         JOIN sensors s
           ON s.sensor_code =
@@ -1424,6 +1426,7 @@ app.get(
         JOIN sensor_points sp
           ON sp.point_code =
              sr.point_code
+         AND sp.point_status = 'Online'
 
         JOIN sensors s
           ON s.sensor_code =
