@@ -37,7 +37,8 @@ export function getSensorCardState(sensor, data, now = Date.now(), freshnessMs =
     ["bad", "invalid", "error", "fault"].includes(String(entry.reading.quality || "").toLowerCase()));
   const status = hasAnomaly ? (hasCritical ? "critical" : "warning") :
     invalid ? "warning" : recent ? "recent" : "offline";
-  const statusText = hasAnomaly ? "Stored demo anomaly" :
+  const statusText = points.length === 0 ? "No channel in current dataset" :
+    hasAnomaly ? "Stored demo anomaly" :
     invalid ? "Invalid quality" : recent ? "Recent simulated data" : "No recent data";
   return { status, statusText, matches, latestTime:latest.length ? Math.max(...latest) : null };
 }
