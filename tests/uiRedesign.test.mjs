@@ -19,7 +19,7 @@ test("all redesigned views show honest empty-state messaging without backend dat
   for (const key of Object.keys(db)) db[key] = [];
   assert.match(heading("Overview","Test"), /Overview/);
   assert.match(banner("Local simulation","No physical feed"), /Local simulation/);
-  assert.match(metrics([["HRU assets",3],["Sensors",8],["Channels",11]]), /11/);
+  assert.match(metrics([["HRU assets",3],["Sensors",8],["Channels",9]]), /9/);
   assert.match(chart(["SAT-507"]), /No historical readings/);
   assert.match(monitoring(), /Sensor Monitoring/);
   assert.match(monitoring(), /No data/);
@@ -31,9 +31,9 @@ test("all redesigned views show honest empty-state messaging without backend dat
   assert.match(overviewDetails(), /AI forecasting/);
 });
 
-test("monitoring view renders actual mapped values and all eleven point codes", () => {
-  const codes = ["SAT-501A","AF-501A","FS-501A","SAT-504","AF-504",
-    "DP-504","SAT-507","AF-507","S-L5-008-TEMP","S-L5-008-HUM","S-L5-008-CO2"];
+test("monitoring view renders actual mapped values and all nine point codes", () => {
+  const codes = ["SAT-501A","MAT-501A","FS-501A","SAT-504","DP-504",
+    "DPCMD-504","SAT-507","CV-507","S-L5-008-TEMP"];
   db.Sensor_Points = codes.map((point_code,i)=>({
     point_code,sensor_id:"S"+i,measurement_type:"Test measurement",unit:"°C"
   }));
