@@ -123,33 +123,49 @@ A healthy response looks similar to:
 {"ok":true,"database":"digital_twin","server_time":"..."}
 ```
 
-## Current nine-point independent MQTT live simulator
+## Current live MQTT simulator (nine-point profile)
 
-The supplied independent, LBNL-informed **stateful synthetic** three-HRU Python simulator is now connected through MQTT → Node.js → PostgreSQL → SSE → website. See [the independent simulator setup](tools/independent_3hru_live/README.md). The older eleven-point historical simulator below is **legacy**; do not run it with the current nine-point PostgreSQL mapping.
+The only supported simulator is the Python program from the uploaded
+`PPT_LBNL_Independent_3HRU_Live.zip`. Its **independent HVAC generator
+is preserved**, and the publisher has been adapted to send the nine active
+sensor identities over MQTT. This is synthetic telemetry, not physical
+building measurements.
 
-## Level 5 live simulator → BIM viewer (legacy 11-point instructions)
-
-The integrated 11-point historical replay simulator lives at
-[`tools/level5_digital_twin_simulator_final/`](tools/level5_digital_twin_simulator_final/README.md).
-It publishes on `dt/+/+` through Mosquitto, is checked against the
-Level 5 sensor registry in `database/seed_level5_sensor_registry.sql`,
-and uses the existing Node.js MQTT ingestion and SSE browser updates.
-It replaces the **old simulator for Level 5 integration testing**; do not
-run the two simulators at the same time.
-
-Generated CSV datasets are not committed. Generate a small rule-based test
-CSV or use your validated LBNL-derived **holdout** CSV locally.
-See the simulator README for environment setup, `mosquitto -v`, Python
-dependencies, Start/Stop controls, and end-to-end verification.
-
-Validate the 11 simulator-to-database mappings without a broker:
+[Setup and troubleshooting](tools/independent_3hru_live/README.md)
 
 ```bash
-node --test tests/level5SimulatorRegistry.test.mjs
+# Stop any previously running hru-simulator-v2 or 11-point replay first.
+git switch feature/ui-redesign
+git pull --ff-only origin feature/ui-redesign
+# Terminal 1: mqtt broker
+mosquitto -v
+# Terminal 2: API + website (after npm install)
+npm run dev
+# Terminal 3: Python (after the README virtual-environment setup)
+python tools/independent_3hru_live/scripts/simulate_live.py --mqtt --interval-seconds 5
 ```
 
-This checks only the integration contract. Actual MQTT-to-PostgreSQL-to-browser
-delivery must be tested with the broker, database and local web app running.
+The API now **rejects messages without the independent simulator provenance**,
+even on a topic that overlaps a legacy simulator. It reports how many
+of all nine active points were accepted in the last 90 seconds:
+`curl http://localhost:3001/api/live-status`. A live MQTT connection by
+itself does not mean all nine sensors are reporting. The browser badges show
+`N/9` and the Simulator view identifies missing points.
+
+The old `tools/hru_digital_twin_simulator_v2` and
+`tools/level5_digital_twin_simulator_final` directories were deleted from
+this branch. **Already-running processes must still be stopped manually**:
+pulling new code does not terminate Python or Mosquitto.
+
+```bash
+node --test tests/liveMqttContract.test.mjs tests/level5SimulatorRegistry.test.mjs
+python -m unittest discover -s tools/independent_3hru_live/tests -v
+```
+
+These are contract/unit checks, not proof of an end-to-end PostgreSQL
+deployment. Verify the broker log, API live-status, SQL inserts and website
+cards on your local machine.
+
 
 ## 5. What now comes from PostgreSQL
 

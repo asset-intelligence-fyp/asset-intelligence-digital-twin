@@ -70,27 +70,21 @@ GROUP BY point_code;
 
 This query returns historical counts only where archival observations existed; a point with no prior readings does not appear.
 
-## New Python simulator: next step
+## Nine-point independent Python MQTT publisher
 
-The new independent Python script is not yet in GitHub in this conversation. The previous `tools/level5_digital_twin_simulator_final` is for the **old 11-point** layout and is not compatible with the new mapping.
+The uploaded `PPT_LBNL_Independent_3HRU_Live.zip` independent generator
+is now used by `tools/independent_3hru_live`. It is a **synthetic
+stateful stream**, not physical BMS telemetry and not an LBNL row replay.
+It publishes exactly the nine active IDs listed above under
+`dt/<asset_id>/<point_code>`; the backend validates that the sensor ID,
+asset ID, topic and provenance match. Previous 11-point simulators were
+removed from the repository.
 
-The backend subscribes to these topics, each of which is linked to the corresponding sensor identity:
-
-```text
-dt/HRU501A/SAT-501A
-dt/HRU501A/MAT-501A
-dt/HRU501A/FS-501A
-dt/HRU504/SAT-504
-dt/HRU504/DP-504
-dt/HRU504/DPCMD-504
-dt/HRU507/SAT-507
-dt/HRU507/CV-507
-dt/HRU507/S-L5-008-TEMP
-```
-
-The current backend message format requires `timestamp`, `asset_id`, `sensor_id`, `point_code`, `value`, and supports `quality`, `sequence`, `unit`; the new profile uses `sensor_id == point_code`. `FS-501A` must publish a numeric 0/1 value because PostgreSQL stores numeric readings; the frontend renders OFF/ON. The project API validates point and asset before insertion and pushes accepted readings through SSE.
-
-Provide the new simulator source and CSV header/sample to adapt its publisher; **the live feed has not yet been tested or connected**.
+Start Mosquitto, PostgreSQL, Node API, and the independent Python
+publisher as described in [the integration README](../tools/independent_3hru_live/README.md).
+Stop the legacy Python process if it is still running; deleting its Git
+files does **not** terminate that process. The API exposes
+`/api/live-status` with the list of nine point states and missing points.
 
 ## Verification steps
 

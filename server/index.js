@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import pg from "pg";
 import mqtt from "mqtt";
+import { LIVE_POINT_ASSETS, validateLiveMqttMessage } from "./liveMqttContract.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -84,8 +85,10 @@ const mqttLiveStatus = {
   last_received_at: null,
   last_point_code: null,
   last_source_timestamp: null,
-  received_count: 0
+  received_count: 0,
+  by_point: Object.fromEntries(Object.keys(LIVE_POINT_ASSETS).map(code => [code, null]))
 };
+const ignoredLegacyWarnings = new Map();
 
 const liveClients = new Set();
 
@@ -93,8 +96,14 @@ const liveClients = new Set();
 // MQTT transport state and last persisted simulated reading; no assumption
 // that the external Python process itself is still running.
 app.get("/api/live-status", (_req, res) => {
-  const age = mqttLiveStatus.last_received_at
-    ? Date.now() - Date.parse(mqttLiveStatus.last_received_at) : null;
+  const now = Date.now();
+  const points = Object.entries(mqttLiveStatus.by_point).map(([point_code, last_received_at]) => {
+    const age_seconds = last_received_at
+      ? Math.max(0, Math.floor((now - Date.parse(last_received_at)) / 1000)) : null;
+    return {point_code,last_received_at,age_seconds,
+      recent: mqttLiveStatus.connected && age_seconds !== null && age_seconds < 90};
+  });
+  const received_points = points.filter(point => point.recent).length;
   res.setHeader("Cache-Control", "no-store");
   res.json({
     mqtt_connected: mqttLiveStatus.connected,
@@ -102,10 +111,12 @@ app.get("/api/live-status", (_req, res) => {
     last_point_code: mqttLiveStatus.last_point_code,
     last_source_timestamp: mqttLiveStatus.last_source_timestamp,
     accepted_readings: mqttLiveStatus.received_count,
-    age_seconds: age === null ? null : Math.max(0, Math.round(age / 1000)),
-    recent: mqttLiveStatus.connected && age !== null && age < 90000,
+    expected_points: points.length,
+    received_points,
+    points,
+    recent: mqttLiveStatus.connected && received_points === points.length,
     source: "independent_synthetic_simulator",
-    note: "Simulated telemetry, not a physical sensor or AI inference feed"
+    note: "Coverage counts persisted synthetic MQTT readings; no physical HRUs or AI inference"
   });
 });
 
@@ -272,6 +283,19 @@ mqttClient.on(
         );
 
 
+      // Reject legacy feeds *before* doing any SQL writes. In particular, the
+      // old hru-simulator-v2 can use some valid topics but not this provenance.
+      const contract = validateLiveMqttMessage(topic, message);
+      if (!contract.ok) {
+        const key = `${contract.reason}:${contract.point_code || topic}`;
+        const now = Date.now();
+        if ((ignoredLegacyWarnings.get(key) || 0) < now - 30000) {
+          console.warn(`[MQTT] Ignored ${key}; stop any old simulator process`);
+          ignoredLegacyWarnings.set(key, now);
+        }
+        return;
+      }
+
       const {
         timestamp,
         asset_id,
@@ -381,7 +405,6 @@ mqttClient.on(
         !new Set([
           String(mapped.sensor_code),
           String(point_code),
-          ...(mapped.sensor_code === "S-L5-008-TEMP" ? ["ENV-507"] : [])
         ]).has(String(sensor_id))
       ) {
 
@@ -503,6 +526,7 @@ mqttClient.on(
 
       mqttLiveStatus.last_received_at = new Date().toISOString();
       mqttLiveStatus.last_point_code = point_code;
+      mqttLiveStatus.by_point[point_code] = mqttLiveStatus.last_received_at;
       mqttLiveStatus.last_source_timestamp = message.source_timestamp || null;
       mqttLiveStatus.received_count += 1;
 

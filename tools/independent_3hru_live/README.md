@@ -2,6 +2,20 @@
 
 This is the independent stateful synthetic simulator from the supplied `PPT_LBNL_Independent_3HRU_Live.zip`, adapted to publish to the existing Level 5 website's MQTT ingestion path. It does **not** replay historical LBNL rows and is **not** a physical building feed. It produces 9 BIM-linked sensor points plus 5 supporting variables (supporting variables are written locally, not sent to MQTT). The simulator uses outdoor-weather statistics fitted from an offline training split; thermal/control assumptions are illustrative, not field-validated.
 
+## Important: stop ALL previous simulator processes
+
+On your Mac, press `Ctrl+C` in any terminal running
+`tools/hru_digital_twin_simulator_v2/app.py` or
+`tools/level5_digital_twin_simulator_final/app.py`. Git pull removes
+the repository files, **not the running processes**. If you cannot find
+the terminal, inspect the process list with `ps aux | grep '[p]ython'`;
+stop only the PID for the obsolete simulator, using `kill <PID>`.
+Leave Mosquitto running.
+
+Old topics `S-L5-008-HUM` and `S-L5-008-CO2` must never become
+new active PostgreSQL points. No need to delete historical rows or
+recreate the database.
+
 ## One-time setup
 
 From the project root, install Node dependencies (`npm install`) and configure PostgreSQL. Apply the nine-point migration if it has not been applied already (back up the existing database first):
@@ -61,3 +75,22 @@ Each tick publishes exactly 9 JSON messages to topics of the form `dt/HRU501A/SA
 Local output under `outputs/` includes `latest.json`, `telemetry_history.csv`, and separately `ground_truth_labels.csv` and `ground_truth_events.csv`. **Fault truth is never sent to the MQTT backend, normal UI, or AI inference stream.** The simulator does not perform trained AI inference or validate Chronos/TFT scores. Generated data and fault labels are ignored by Git.
 
 The physical BIM model and eight original IFC GlobalIds are unchanged; FS-501A is represented as an unlocated HRU-linked point. If the simulator stops, stored readings remain visible but the live status changes to stale.
+
+
+## Investigating fewer than nine live readings
+
+Check `curl http://localhost:3001/api/live-status`. It returns
+`expected_points: 9`, `received_points`, plus a `points` array with
+`recent` and `age_seconds` for each point. The site's top-bar label and
+Simulator page will show missing coverage rather than claiming full live
+status when only 3 points have been received.
+
+Use `mosquitto_sub -t 'dt/+/+' -v` while the independent script runs to
+ensure nine topics appear every generated minute. In the Node logs, each
+accepted message is logged with `[MQTT]`. If a point never appears in
+the broker, check the Python publisher terminal and `MQTT_HOST` /
+`MQTT_PORT`. If a point appears in the broker but not in PostgreSQL,
+the Node terminal will report whether it was ignored as legacy, was
+unmapped, or failed SQL ingestion. Run the nine-point SQL migration
+only after making a database backup. The retired simulators are not
+required and must not be restarted.

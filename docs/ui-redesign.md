@@ -36,12 +36,12 @@ Both **Light** and **Dark** variants are supported. The new theme is not a stati
 | `/model-results` | AI Forecasting | Current measured/simulated history; **no invented model predictions** |
 | `/anomalies` | Anomaly Detection | Existing PostgreSQL demonstration anomaly records |
 | `/historical-data` | Historical Data | Current browser/backend history only; separate prepared CSV clearly distinguished |
-| `/simulator` | Sensor Simulator | Nine-point Python simulator integration pending; existing old replay is incompatible |
+| `/simulator` | Sensor Simulator | Independent nine-point synthetic Python simulator over MQTT, with 9/9 ingestion status |
 | `/settings` | Settings | Data-source table, persistent light/dark/system theme and workspace information |
 | `/assets`, `/assets/:id` | Existing asset directory/detail | Remains available as a secondary navigation item |
 | Assistant drawer | Existing prototype assistant | Remains available via secondary navigation |
 
-The later nine-point feature changes the sensor-point registry, adds a safe SQL migration, and preserves the existing XKT geometry. The new Python simulator is not yet connected.
+The later nine-point feature changes the sensor-point registry, adds a safe SQL migration, and preserves the existing XKT geometry. The replacement independent Python simulator publishes nine active points via MQTT; its telemetry is synthetic and must be run separately.
 
 ## Appearance
 
@@ -68,7 +68,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`; verify the eight routes and both themes. For relevant work, start PostgreSQL and Mosquitto separately, do not run the old 11-point Python publisher against the new active database profile; the replacement script has not yet been supplied.
+Open `http://localhost:5173`; verify the eight routes and both themes. For relevant work, start PostgreSQL and Mosquitto separately, do not run the old 11-point Python publisher against the new active database profile; run only the replacement independent Python script under tools/independent_3hru_live.
 
 ```bash
 node --test tests/uiRedesign.test.mjs
@@ -86,7 +86,7 @@ npm run build
 - [ ] Forecast view shows no fictional accuracy, confidence or predicted readings.
 - [ ] Anomaly Detection shows database records, not a fabricated injected fault.
 - [ ] Historical screen does not mistake the full local dataset row count for loaded API history.
-- [ ] Simulator page correctly reports that the new independent nine-point Python app is awaiting integration.
+- [ ] Simulator page reports actual accepted points out of nine and names missing sensor channels.
 - [ ] Asset detail and assistant remain reachable.
 - [ ] Tablet/mobile layouts keep navigation usable and do not cover the 3D canvas.
 
@@ -96,7 +96,7 @@ The current dataset uses nine active point names:
 `SAT-501A`, `MAT-501A`, `FS-501A`, `SAT-504`, `DP-504`,
 `DPCMD-504`, `SAT-507`, `CV-507`, `S-L5-008-TEMP`.
 
-All eight original physical BIM GlobalIds remain intact. Their new sensor IDs are the CSV point names. Three former air-velocity BIM rows are **logically reassigned** to MAT-501A, DPCMD-504 and CV-507 at the user's direction; this does not verify the actual device hardware. Only FS-501A has no IFC GlobalId. The new Python simulator remains to be connected.
+All eight original physical BIM GlobalIds remain intact. Their new sensor IDs are the CSV point names. Three former air-velocity BIM rows are **logically reassigned** to MAT-501A, DPCMD-504 and CV-507 at the user's direction; this does not verify the actual device hardware. Only FS-501A has no IFC GlobalId. The independent Python simulator was added under tools/independent_3hru_live; use its MQTT-enabled publisher.
 
 Apply `database/seed_level5_nine_point_profile.sql` in PostgreSQL after
 pulling this branch. See
@@ -141,3 +141,8 @@ The top-right header now keeps data-source status, theme/notifications and Facil
 - [ ] Dark/light themes, fullscreen, small screens and level-5 clipping continue to work.
 
 `node --test tests/bimSensorCards.test.mjs` runs data-state and source integration checks. Real xeokit rendering, actual MQTT delivery and responsive browser checks are **not** verified from the remote editing environment.
+
+
+## MQTT simulator replacement
+
+The old `hru_digital_twin_simulator_v2` and eleven-point `level5_digital_twin_simulator_final` publishers were removed from this branch. Running legacy processes on the developer's machine must be stopped separately. `/api/live-status` measures **all nine** accepted current points rather than a single reading, and the Node MQTT contract rejects legacy/unapproved messages by provenance and topic. No physical measurements or AI inference are claimed.

@@ -137,7 +137,8 @@ export function simulator(){
  '<div class="ai-chip-row"><span class="ai-badge">Nine MQTT sensor channels</span><span class="ai-chip">Last cached reading: '+esc(timestamp?when(timestamp):'Unavailable')+'</span></div>'+
  '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Live MQTT feed','Run the independent Python simulator locally')+
  '<div data-live-status role="status" aria-live="polite" class="ai-badge">Checking broker and incoming readings…</div>'+
- '<div class="ai-demo-foot">From project root: <code>python tools/independent_3hru_live/scripts/simulate_live.py --mqtt --interval-seconds 5</code>. Start Mosquitto and the Node API first; see tools/independent_3hru_live/README.md for setup.</div>'+
+ '<div data-live-coverage class="ai-demo-foot">Checking all nine sensor channels…</div>'+ 
+ '<div class="ai-demo-foot">From project root: <code>python tools/independent_3hru_live/scripts/simulate_live.py --mqtt --interval-seconds 5</code>. Start Mosquitto and the Node API first; see tools/independent_3hru_live/README.md for setup. No physical equipment is controlled.</div>'+
  '<div class="ai-key-value"><span>Source</span><strong>Independent stateful synthetic</strong></div>'+
  '<div class="ai-key-value"><span>Transport</span><strong>MQTT · dt/+/+ → PostgreSQL → SSE</strong></div>'+
  '<div class="ai-key-value"><span>Last accepted reading</span><strong data-live-last>Not yet received</strong></div>'+

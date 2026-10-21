@@ -1,46 +1,33 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
+import { LIVE_POINT_ASSETS } from "../server/liveMqttContract.js";
 
-const root = process.cwd();
-const registry = JSON.parse(
-  fs.readFileSync(path.join(root, "tools/level5_digital_twin_simulator_final/config/level5_points.json"), "utf8")
-);
-const seed = fs.readFileSync(path.join(root, "database/seed_level5_sensor_registry.sql"), "utf8");
-const backend = fs.readFileSync(path.join(root, "server/index.js"), "utf8");
+const root=process.cwd();
+const pythonContract=fs.readFileSync(root+"/tools/independent_3hru_live/scripts/mqtt_contract.py","utf8");
+const seed=fs.readFileSync(root+"/database/seed_level5_nine_point_profile.sql","utf8");
+const backend=fs.readFileSync(root+"/server/index.js","utf8");
 
-const expected = new Set([
-  "SAT-501A", "AF-501A", "FS-501A",
-  "SAT-504", "AF-504", "DP-504",
-  "SAT-507", "AF-507",
-  "S-L5-008-TEMP", "S-L5-008-HUM", "S-L5-008-CO2"
-]);
-
-test("Level 5 simulator publishes exactly the 11 registered measurement points", () => {
-  const all = registry.points.map(p => p.point_code);
-  assert.equal(all.length, 11);
-  assert.equal(new Set(all).size, 11);
-  assert.deepEqual(new Set(all), expected);
+test("only one supported live publisher implementation remains", () => {
+ assert.equal(fs.existsSync(root+"/tools/hru_digital_twin_simulator_v2"),false);
+ assert.equal(fs.existsSync(root+"/tools/level5_digital_twin_simulator_final"),false);
+ assert.equal(fs.existsSync(root+"/tools/independent_3hru_live/scripts/simulate_live.py"),true);
 });
 
-test("simulator topics and physical sensor links match the PostgreSQL seed", () => {
-  const entries = [...seed.matchAll(/\('([^']+)','([^']+)','([^']+)','([^']+)','Online'\)/g)];
-  const pointToSensor = new Map(entries.map(match => [
-    match[1], {sensor: match[2], measurement: match[3], unit: match[4]}
-  ]));
-  for (const point of registry.points) {
-    assert.equal(point.topic, "dt/" + point.asset_id + "/" + point.point_code);
-    const mapped = pointToSensor.get(point.point_code);
-    assert.ok(mapped, "Missing PostgreSQL point: " + point.point_code);
-    assert.equal(point.sensor_id, mapped.sensor, "Physical device mismatch: " + point.point_code);
-    assert.equal(point.measurement_type, mapped.measurement);
-    assert.equal(point.unit, mapped.unit);
-  }
+test("Python MQTT topics and database mapping agree for all nine points", () => {
+ const python=[...pythonContract.matchAll(/\("([^"]+)", "([^"]+)", "[^"]+", "[^"]+"\)/g)]
+   .map(match=>[match[1],match[2]]);
+ assert.equal(python.length,9);
+ assert.deepEqual(Object.fromEntries(python),LIVE_POINT_ASSETS);
+ for(const [code,asset] of python) {
+   assert.ok(seed.includes("'"+code+"'"),"SQL registry missing "+code);
+   assert.ok(seed.includes("'"+asset+"'"),"SQL asset missing "+asset);
+ }
 });
 
-test("backend subscribes to all points and exposes sensor-reading SSE", () => {
-  assert.match(backend, /"dt\/\+\/\+"/);
-  assert.match(backend, /broadcastLiveEvent\(\s*"sensor-reading"/);
-  assert.match(backend, /INSERT INTO sensor_readings/);
+test("backend validates replacement stream before database insertion and emits SSE",()=>{
+ assert.match(backend,/validateLiveMqttMessage\(topic, message\)/);
+ assert.match(backend,/INSERT INTO sensor_readings/);
+ assert.match(backend,/broadcastLiveEvent\(\s*"sensor-reading"/);
+ assert.match(backend,/\/api\/live-status/);
 });

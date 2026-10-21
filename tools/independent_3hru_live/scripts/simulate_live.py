@@ -98,6 +98,10 @@ def main(argv=None):
         fault_mode=args.fault_mode, mean_hours_between_faults=args.mean_hours_between_faults,
         initial_fault_after_minutes=args.initial_fault_after_minutes)
     client = connect_broker(args)
+    if client is not None:
+        topics = ", ".join(f"dt/{asset}/{code}" for code, asset, _, _ in MQTT_POINTS)
+        print(f"[MQTT] Independent publisher connected to {args.mqtt_host}:{args.mqtt_port}; "
+              f"publishing {len(MQTT_POINTS)} topics: {topics}", file=sys.stderr, flush=True)
     history_file, history = writer(args.out_dir / "telemetry_history.csv", COLUMNS)
     labels_file, labels = writer(args.out_dir / "ground_truth_labels.csv",
         ["timestamp", "event_id", "event_type", "asset", "affected_field", "active"])
@@ -129,6 +133,10 @@ def main(argv=None):
                 "values": values}
             atomic_json(args.out_dir / "latest.json", message)
             publish_values(client, message, args.mqtt_qos)
+            if client is not None and not args.quiet:
+                print(f"[MQTT] Tick {i}: broker acknowledged {len(MQTT_POINTS)}/"
+                      f"{len(MQTT_POINTS)} messages (DB acceptance is checked via /api/live-status)",
+                      file=sys.stderr, flush=True)
             if not args.quiet:
                 print(json.dumps(message, separators=(",", ":")), flush=True)
             if not args.ticks or i < args.ticks:
