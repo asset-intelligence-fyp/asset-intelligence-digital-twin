@@ -41,6 +41,9 @@ UPDATE sensor_points SET point_status='Online'
 WHERE point_code IN
  ('SAT-501A','FS-501A','SAT-504','DP-504','SAT-507','S-L5-008-TEMP');
 
+UPDATE sensor_points SET measurement_type='Supply Fan Status', unit='ON/OFF'
+WHERE point_code='FS-501A';
+
 -- Three new asset-linked but unlocated signals.
 INSERT INTO sensor_points
  (point_code,sensor_code,measurement_type,unit,point_status)
