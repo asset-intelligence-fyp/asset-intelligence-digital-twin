@@ -319,6 +319,7 @@ mqttClient.on(
 
             WHERE
               sp.point_code = $1
+              AND sp.point_status = 'Online'
           `,
           [point_code]
         );
@@ -676,6 +677,7 @@ app.get("/api/bootstrap", async (_req, res) => {
           unit,
           point_status AS status
         FROM sensor_points
+        WHERE point_status = 'Online'
         ORDER BY
           sensor_code,
           point_code
@@ -693,6 +695,9 @@ app.get("/api/bootstrap", async (_req, res) => {
           reading_value AS value,
           quality
         FROM sensor_readings
+        WHERE point_code IN (
+          SELECT point_code FROM sensor_points WHERE point_status = 'Online'
+        )
         ORDER BY
           point_code,
           reading_timestamp DESC
@@ -710,6 +715,9 @@ app.get("/api/bootstrap", async (_req, res) => {
           reading_value AS value,
           quality
         FROM sensor_readings
+        WHERE point_code IN (
+          SELECT point_code FROM sensor_points WHERE point_status = 'Online'
+        )
         ORDER BY
           reading_timestamp,
           point_code
@@ -1157,6 +1165,7 @@ app.get("/api/assets/:id", async (req, res) => {
 
         WHERE
           s.equipment_code = $1
+          AND sp.point_status = 'Online'
 
         ORDER BY
           sp.sensor_code,
