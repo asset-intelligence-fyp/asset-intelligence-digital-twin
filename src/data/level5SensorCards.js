@@ -27,8 +27,12 @@ export function getSensorCardState(sensor, data, now = Date.now(), freshnessMs =
   const hasCritical = severities.some(s => ["critical", "high"].includes(s));
   const hasAnomaly = active.length > 0;
   const latest = matches.map(entry => readingTime(entry.reading)).filter(t => t != null);
-  // Reading freshness is separate from the browser's SSE connection status.
-  const recent = latest.some(t => t <= now + 60_000 && now - t >= -60_000 && now - t <= freshnessMs);
+  // A multi-channel device (the ABB sensor) is only green when ALL of its
+  // channels are recent; one healthy CO2 value cannot hide missing humidity.
+  const recent = matches.length > 0 && matches.every(entry => {
+    const t = readingTime(entry.reading);
+    return t != null && t <= now + 60_000 && now - t >= -60_000 && now - t <= freshnessMs;
+  });
   const invalid = matches.some(entry => entry.reading &&
     ["bad", "invalid", "error", "fault"].includes(String(entry.reading.quality || "").toLowerCase()));
   const status = hasAnomaly ? (hasCritical ? "critical" : "warning") :
