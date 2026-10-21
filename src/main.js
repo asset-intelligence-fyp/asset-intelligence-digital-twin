@@ -9,6 +9,7 @@ import {
   getAssetContext,
   getLatestAnomalyRows,
   getSensorsForAsset,
+  getSensorById,
   getSensorByBimId,
   getAssetByBimId,
   getSensorCurrentValues,
@@ -44,6 +45,7 @@ let activeBimController = null;
 const state = {
   selectedAssetId: "HRU501A",
   selectedBimElement: null,
+  selectedVirtualSensorId: null,
   aiDrawerOpen: false,
   aiResponse: "",
   sensorAssetId: "HRU501A",
@@ -255,6 +257,7 @@ function latestReadingTimestamp(context = null) {
 }
 
 function selectedSensor() {
+  if (state.selectedVirtualSensorId) return getSensorById(state.selectedVirtualSensorId);
   const entityId = state.selectedBimElement?.entityId;
   return entityId ? getSensorByBimId(entityId) : null;
 }
@@ -283,7 +286,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
           <em>${escapeHtml(reading?.quality || "No data")} · ${escapeHtml(formatTime(reading?.latest_update ?? reading?.timestamp))}</em>
         </div>`;
       }).join("")}</div>`
-    : `<div class="section-meta">This physical BIM sensor is preserved but has no matching point in the new nine-channel dataset.</div>`;
+    : `<div class="section-meta">No current measurement points for this sensor.</div>`;
 
   // Related asset telemetry is not a measurement from the selected physical
   // marker: keep virtual point provenance explicit in the inspector.
@@ -320,7 +323,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
         <div class="asset-icon-box">◉</div>
         <div class="asset-title-copy">
           <div class="asset-name">${escapeHtml(sensor.sensor_name || sensorId)}</div>
-          <div class="asset-type">${escapeHtml(sensor.model || "Physical sensor")}</div>
+          <div class="asset-type">${escapeHtml(state.selectedVirtualSensorId ? "Asset-linked telemetry · no IFC marker" : sensor.model || "BIM sensor")}</div>
         </div>
         ${statusPill(sensor.status || "Unknown")}
       </div>
@@ -328,7 +331,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
       <div class="info-section">
         <div class="info-heading">Identification</div>
         <div class="info-row"><span class="info-key">Sensor ID</span><span class="info-value mono">${escapeHtml(sensorId)}</span></div>
-        <div class="info-row"><span class="info-key">BIM Element ID</span><span class="info-value mono">${escapeHtml(sensor.ifc_global_id || sensor.global_id || state.selectedBimElement?.entityId || "—")}</span></div>
+        <div class="info-row"><span class="info-key">BIM Element ID</span><span class="info-value mono">${escapeHtml(state.selectedVirtualSensorId ? "Not present in IFC asset list" : sensor.ifc_global_id || sensor.global_id || state.selectedBimElement?.entityId || "—")}</span></div>
         <div class="info-row"><span class="info-key">Linked Asset</span><span class="info-value">${escapeHtml(asset?.asset_name || assetId || "—")}</span></div>
         <div class="info-row"><span class="info-key">Location</span><span class="info-value">${escapeHtml(assetContext?.space?.space_name || "—")}</span></div>
         <div class="info-row"><span class="info-key">Floor</span><span class="info-value">${escapeHtml(assetContext?.floor?.floor_name || "—")}</span></div>
@@ -540,7 +543,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <span class="legend-item"><span class="legend-dot" style="background:#ff5154"></span>Critical</span>
         <span class="legend-item"><span class="legend-dot" style="background:#55b7ff"></span>Selected</span>
       </div>
-      <span>8 physical BIM markers · 9 active channels</span>
+      <span>9 sensor points · 8 original IFC markers</span>
     </div>
   </section>`;
 }
@@ -550,9 +553,25 @@ function bindMiniSensorOverview() {
   region?.addEventListener("click", event => {
     const button = event.target.closest("[data-sensor-mini]");
     if (!button) return;
-    const sensor = LEVEL5_SENSORS.find(item => item.sensorId === button.dataset.sensorMini);
-    if (!sensor) return;
+    const id = button.dataset.sensorMini;
+    const sensor = LEVEL5_SENSORS.find(item => item.sensorId === id);
+    const virtual = LEVEL5_UNLOCATED_POINTS.find(item => item.sensorId === id);
+    if (!sensor && !virtual) return;
     const feedback = region.querySelector("[data-sensor-feedback]");
+    if (virtual) {
+      state.selectedVirtualSensorId = virtual.sensorId;
+      state.selectedBimElement = null;
+      state.selectedAssetId = virtual.assetId;
+      const inspector = document.querySelector(".asset-inspector");
+      if (inspector) {
+        inspector.outerHTML = assetInspectorHtml({detailed:pathName() === "/bim-viewer"});
+        bindAssetInspector();
+      }
+      refreshMiniOverview(null, virtual.sensorId);
+      if (feedback) feedback.textContent = "Fan status is linked to HRU501A but has no 3D IFC marker.";
+      return;
+    }
+    state.selectedVirtualSensorId = null;
     if (!activeBimController?.viewer.scene.objects[sensor.guid]) {
       if (feedback) feedback.textContent = "BIM sensor marker is not loaded. Check the model loading status.";
       return;
@@ -567,6 +586,7 @@ function initViewer(stageId) {
     stageId,
     onSelection: (selection) => {
       state.selectedBimElement = selection;
+      state.selectedVirtualSensorId = null;
       const sensor = getSensorByBimId(selection.entityId);
       const mappedAsset = getAssetByBimId(selection.entityId);
       if (sensor) state.selectedAssetId = sensor.asset_id ?? sensor.equipment_code;
@@ -772,12 +792,12 @@ function renderBimViewer() {
   destroyActiveViewer();
   activeBimController = null;
   const html = '<div class="page bim-viewer-page ai-fullscreen-bim">' +
-    heading("BIM Viewer", "Explore all eight BIM sensor markers and the new nine-channel dataset.") +
-    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>All eight physical markers are preserved. Five have matching new channels; four other point codes are linked to HRU assets without inventing IFC geometry.</div></div>' +
+    heading("BIM Viewer", "Monitor nine sensor IDs linked to three HRU assets, with eight IFC markers.") +
+    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>The eight original IFC GlobalIds remain unchanged; sensor IDs follow the new nine-point CSV. Fan status has no IFC marker.</div></div>' +
     '<div class="bim-workspace bim-three-column" data-bim-workspace>' +
        '<aside class="bim-tree-column panel" aria-label="Level 5 sensor tree"><div class="bim-tree-heading">Sensor tree</div><div data-bim-sensor-tree></div></aside>' +
        '<div class="bim-center-column">' +
-         sensorMiniOverviewHtml(state.selectedBimElement?.entityId) +
+         sensorMiniOverviewHtml(state.selectedBimElement?.entityId, state.selectedVirtualSensorId) +
          viewerPanelHtml({stageId:"mainViewer",detailed:true}) +
        '</div>' +
        assetInspectorHtml({detailed:true}) +
@@ -1345,7 +1365,7 @@ function startLiveUpdates() {
           if (qualityNode) qualityNode.textContent = String(reading.quality || "simulated");
         });
 
-        refreshMiniOverview(state.selectedBimElement?.entityId);
+        refreshMiniOverview(state.selectedBimElement?.entityId, state.selectedVirtualSensorId);
         updateAssetDetailLiveReading(
           reading
         );
@@ -1449,6 +1469,6 @@ async function initialize() {
 }
 
 // Freshness can expire even without new MQTT events.
-setInterval(() => refreshMiniOverview(state.selectedBimElement?.entityId), 30_000);
+setInterval(() => refreshMiniOverview(state.selectedBimElement?.entityId, state.selectedVirtualSensorId), 30_000);
 window.addEventListener("popstate", render);
 initialize();
