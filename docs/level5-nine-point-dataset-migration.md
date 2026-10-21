@@ -125,6 +125,6 @@ npm run build
 npm run dev
 ```
 
-Then open `http://localhost:5173/bim-viewer`. Check that all eight sensor markers remain and that current readings show **only** the six directly mapped points plus four virtual points in their owning HRU sections (nine unique channels overall; some HRU sections repeat context on multiple selected sensors).
+Then open `http://localhost:5173/bim-viewer`. Check that all eight sensor markers remain and that current readings show **only** the five directly mapped points plus four virtual points in their owning HRU sections (nine unique channels overall; some HRU sections repeat context on multiple selected sensors).
 
 The current change has only been checked using code/static contract tests until you run it against your actual PostgreSQL and local XKT files. Neither your new Python simulator nor the new CSV bytes were supplied in this turn, so live replay is **not yet connected or validated**.
