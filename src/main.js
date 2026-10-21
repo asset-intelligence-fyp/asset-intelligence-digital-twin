@@ -60,7 +60,9 @@ const NAV_ITEMS = [
   ["/anomalies", "△", "Anomaly Detection"],
   ["/historical-data", "▤", "Historical Data"],
   ["/simulator", "▷", "Sensor Simulator"],
-  ["/settings", "⚙", "Settings"]
+  ["/settings", "⚙", "Settings"],
+  ["/assets", "◇", "Assets"],
+  ["assistant", "□", "AI Assistant"]
 ];
 const ROUTE_TITLES = {
   "/": "Overview",
