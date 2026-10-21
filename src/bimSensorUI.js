@@ -44,5 +44,29 @@ export function sensorMiniOverviewHtml(selectedGuid = null) {
 
 export function refreshMiniOverview(selectedGuid = null) {
   const grid = document.querySelector(".bim-sensor-overview .bim-mini-grid");
-  if (grid) grid.innerHTML = sensorMiniGridHtml(selectedGuid);
+  if (!grid) return;
+  // Update in place so frequent MQTT messages do not steal keyboard focus
+  // or interrupt a user clicking a sensor card.
+  const next = document.createElement("div");
+  next.innerHTML = sensorMiniGridHtml(selectedGuid);
+  const oldCards = Array.from(grid.querySelectorAll("[data-sensor-mini]"));
+  const newCards = Array.from(next.querySelectorAll("[data-sensor-mini]"));
+  if (oldCards.length !== newCards.length) {
+    grid.innerHTML = next.innerHTML;
+    return;
+  }
+  oldCards.forEach((card, i) => {
+    const updated = newCards[i];
+    if (card.dataset.sensorMini !== updated.dataset.sensorMini) return;
+    card.dataset.status = updated.dataset.status;
+    card.title = updated.title;
+    const active = updated.getAttribute("aria-pressed") === "true";
+    card.setAttribute("aria-pressed", String(active));
+    card.classList.toggle("is-selected", active);
+    const values = card.querySelector(".bim-mini-readings");
+    const nextValues = updated.querySelector(".bim-mini-readings");
+    if (values && nextValues) values.innerHTML = nextValues.innerHTML;
+    const status = card.querySelector(".bim-mini-status");
+    if (status) status.textContent = updated.querySelector(".bim-mini-status")?.textContent || "";
+  });
 }
