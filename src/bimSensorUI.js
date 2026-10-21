@@ -37,7 +37,7 @@ export function sensorMiniGridHtml(selectedGuid = null, now = Date.now(), select
     return '<button type="button" class="bim-mini-card '+(active?'is-selected':'')+
       '" data-sensor-mini="'+esc(sensor.sensorId)+'" data-status="'+esc(data.status)+
       '" data-unlocated="'+String(Boolean(sensor.virtual))+
-      '" aria-pressed="'+active+'" title="'+esc(data.statusText)+' · Click to focus sensor in BIM">' +
+      '" aria-pressed="'+active+'" title="'+esc(data.statusText)+' · '+(sensor.virtual ? 'View asset-linked point (no IFC marker)' : 'Focus existing BIM marker')+'">' +
       '<span class="bim-mini-card-top"><span class="bim-mini-dot" aria-hidden="true"></span>' +
       '<strong>'+esc(sensor.sensorId)+'</strong><span class="bim-mini-asset">'+esc(sensor.assetId)+'</span></span>' +
       '<span class="bim-mini-label">'+esc(sensor.label)+'</span>' +
