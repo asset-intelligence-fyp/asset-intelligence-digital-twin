@@ -155,10 +155,19 @@ function shell(pageHtml, { activePath = pathName(), breadcrumb = ROUTE_TITLES[pa
         <div class="breadcrumb"><strong>Digital Twin / Asset Intelligence</strong> &nbsp; / &nbsp; Building / Level 5 &nbsp; / &nbsp; ${escapeHtml(breadcrumb)}</div>
         <div class="search-wrap"><input class="global-search" id="globalSearch" placeholder="Search asset, sensor or location…" /></div>
         <div class="top-actions">
-          <span class="live-chip">Local simulation</span><span class="top-updated">PostgreSQL · ${escapeHtml(connectionState.status)}</span>
-          <button class="icon-button" data-theme-toggle aria-label="Toggle light and dark appearance" title="Change appearance">☾</button>
-          <button class="icon-button" id="notificationButton" title="Anomalies">♧</button>
-          <button class="user-button" id="userButton"><span class="avatar">FM</span><span>Facility Manager</span><span>⌄</span></button>
+          <div class="top-status-group" aria-label="Data source status">
+            <span class="live-chip">Local simulation</span>
+            <span class="top-updated">PostgreSQL · ${escapeHtml(connectionState.status)}</span>
+          </div>
+          <div class="top-icon-group">
+            <button class="icon-button" data-theme-toggle type="button" aria-label="Toggle light and dark appearance" title="Change appearance">☾</button>
+            <button class="icon-button" id="notificationButton" type="button" title="Anomalies" aria-label="View anomaly records">♧</button>
+          </div>
+          <button class="user-button" id="userButton" type="button" title="Open account options">
+            <span class="avatar">FM</span>
+            <span class="user-copy"><strong>Facility Manager</strong><small>Demo workspace</small></span>
+            <span class="user-caret" aria-hidden="true">⌄</span>
+          </button>
         </div>
       </header>
 
