@@ -19,6 +19,13 @@ import {
 } from "./data/dataStore.js";
 import { initXeokitViewer, destroyActiveViewer } from "./xeokitViewer.js";
 import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js";
+import { applyTheme, getSavedTheme, initAppearance } from "./theme.js";
+import {
+  heading, banner, metrics, overviewDetails, monitoring, forecasting,
+  historical, simulator, settings
+} from "./redesignViews.js";
+
+initAppearance();
 
 const app = document.getElementById("app");
 
@@ -46,23 +53,24 @@ const state = {
 };
 
 const NAV_ITEMS = [
-  ["/", "▦", "Dashboard"],
+  ["/", "▦", "Overview"],
   ["/bim-viewer", "◫", "BIM Viewer"],
-  ["/assets", "◇", "Assets"],
-  ["/sensor-data", "≋", "Sensor Data"],
-  ["/anomalies", "△", "Anomalies / Faults"],
-  ["/model-results", "◒", "Model Results"],
-  ["assistant", "□", "AI Assistant"],
+  ["/sensor-data", "≋", "Sensor Monitoring"],
+  ["/model-results", "⌁", "AI Forecasting"],
+  ["/anomalies", "△", "Anomaly Detection"],
+  ["/historical-data", "▤", "Historical Data"],
+  ["/simulator", "▷", "Sensor Simulator"],
   ["/settings", "⚙", "Settings"]
 ];
-
 const ROUTE_TITLES = {
-  "/": "Building Asset Monitoring",
+  "/": "Overview",
   "/bim-viewer": "BIM Viewer",
   "/assets": "Assets",
-  "/sensor-data": "Sensor Data",
-  "/anomalies": "Anomalies / Faults",
-  "/model-results": "Model Results",
+  "/sensor-data": "Sensor Monitoring",
+  "/model-results": "AI Forecasting",
+  "/anomalies": "Anomaly Detection",
+  "/historical-data": "Historical Data",
+  "/simulator": "Sensor Simulator",
   "/settings": "Settings"
 };
 
@@ -125,28 +133,29 @@ function shell(pageHtml, { activePath = pathName(), breadcrumb = ROUTE_TITLES[pa
         <div class="brand">
           <div class="brand-mark" aria-hidden="true"></div>
           <div class="brand-copy">
-            <div class="brand-title">Asset Intelligence</div>
-            <div class="brand-subtitle">AI-Driven Digital Twin</div>
+            <div class="brand-title">Digital Twin</div>
+            <div class="brand-subtitle">Asset Intelligence</div>
           </div>
         </div>
-        <div class="sidebar-label">Workspace</div>
+        <button type="button" class="sidebar-location" data-nav="/bim-viewer" title="Open Level 5 BIM Viewer">Building / Level 5 &nbsp;⌄</button>
+        <div class="sidebar-label">Asset Intelligence</div>
         <nav class="nav" aria-label="Primary navigation">${nav}</nav>
-        <div class="sidebar-divider"></div>
         <div class="system-status">
-          <div class="status-heading">System Status</div>
-          <div class="status-row-mini"><span><span class="status-dot green"></span>Digital Twin Online</span><strong>DEMO</strong></div>
-          <div class="status-row-mini"><span>Database</span><strong>${connectionState.status === "connected" ? "PostgreSQL" : "Offline"}</strong></div>
-          <div class="status-row-mini"><span>Data Stream</span><strong>Simulated</strong></div>
-          <div class="status-row-mini"><span>AI Model</span><strong>Demo</strong></div>
+          <div class="sidebar-note"><strong>Demo workspace</strong>
+            Simulated sources only. No physical building sensors connected.</div>
+          <div class="workspace-user"><span class="avatar">FM</span>
+            <div class="workspace-user-copy">Facility Manager<small>Prototype workspace</small></div>
+          </div>
         </div>
       </aside>
 
       <header class="topbar">
-        <div class="breadcrumb">Dashboard &nbsp;/&nbsp; <strong>${escapeHtml(breadcrumb)}</strong></div>
+        <div class="breadcrumb"><strong>Digital Twin / Asset Intelligence</strong> &nbsp; / &nbsp; Building / Level 5 &nbsp; / &nbsp; ${escapeHtml(breadcrumb)}</div>
         <div class="search-wrap"><input class="global-search" id="globalSearch" placeholder="Search asset, sensor or location…" /></div>
         <div class="top-actions">
-          <span class="live-chip"><span class="status-dot green"></span>Live <span class="demo-label">Demo</span></span>
-          <button class="icon-button" id="notificationButton" title="Alerts">⚠</button>
+          <span class="live-chip">Local simulation</span><span class="top-updated">PostgreSQL · ${escapeHtml(connectionState.status)}</span>
+          <button class="icon-button" data-theme-toggle aria-label="Toggle light and dark appearance" title="Change appearance">☾</button>
+          <button class="icon-button" id="notificationButton" title="Anomalies">♧</button>
           <button class="user-button" id="userButton"><span class="avatar">FM</span><span>Facility Manager</span><span>⌄</span></button>
         </div>
       </header>
@@ -157,6 +166,7 @@ function shell(pageHtml, { activePath = pathName(), breadcrumb = ROUTE_TITLES[pa
   `;
 
   bindShellEvents();
+  applyTheme(getSavedTheme());
 }
 
 function bindShellEvents() {
@@ -173,6 +183,11 @@ function bindShellEvents() {
   });
 
   document.getElementById("notificationButton")?.addEventListener("click", () => go("/anomalies"));
+  document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme;
+    applyTheme(current === "dark" ? "light" : "dark", {persist:true});
+  });
+  document.querySelectorAll("[data-route]").forEach(btn => btn.addEventListener("click", () => go(btn.dataset.route)));
   document.getElementById("userButton")?.addEventListener("click", () => go("/login"));
 
   const search = document.getElementById("globalSearch");
