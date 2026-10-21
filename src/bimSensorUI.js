@@ -22,7 +22,7 @@ export function sensorMiniGridHtml(selectedGuid = null, now = Date.now()) {
       return '<span class="bim-mini-reading" data-mini-point="'+esc(pointCode)+'">' +
         '<span title="'+esc(point?.measurement_type || pointCode)+'">'+esc(label)+'</span>' +
         '<strong>'+esc(value)+' <small>'+esc(point?.unit || "")+'</small></strong></span>';
-    }).join("");
+    }).join("") || '<span class="bim-mini-no-point">No channel in new dataset</span>';
     return '<button type="button" class="bim-mini-card '+(active?'is-selected':'')+
       '" data-sensor-mini="'+esc(sensor.sensorId)+'" data-status="'+esc(data.status)+
       '" aria-pressed="'+active+'" title="'+esc(data.statusText)+' · Click to focus sensor in BIM">' +
@@ -36,7 +36,7 @@ export function sensorMiniGridHtml(selectedGuid = null, now = Date.now()) {
 
 export function sensorMiniOverviewHtml(selectedGuid = null) {
   return '<section class="bim-sensor-overview" aria-label="Level 5 sensor overview">'+
-    '<div class="bim-sensor-overview-head"><div><strong>Sensor overview</strong><span>8 physical devices · 11 measurement channels</span></div>'+
+    '<div class="bim-sensor-overview-head"><div><strong>Sensor overview</strong><span>8 physical BIM markers · 9 active channels</span></div>'+
     '<span class="bim-sensor-note">Green = recent simulated reading, not verified equipment health</span></div>'+
     '<div class="bim-mini-grid">'+sensorMiniGridHtml(selectedGuid)+'</div>'+
     '<div class="bim-sensor-feedback" role="status" aria-live="polite" data-sensor-feedback></div></section>';
