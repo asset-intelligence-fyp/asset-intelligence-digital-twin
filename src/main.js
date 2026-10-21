@@ -660,7 +660,7 @@ function anomalyRowsHtml({ compact = false } = {}) {
     if (compact) {
       return `<tr data-anomaly-asset="${r.asset?.asset_id}" data-anomaly-id="${r.anomaly_id}"><td>${formatShortTime(r.timestamp)}</td><td class="primary">${escapeHtml(r.asset?.asset_name || "—")}</td><td>${escapeHtml(r.space?.space_name || r.floor?.floor_name || "—")}</td><td>${escapeHtml(result)}</td><td>${statusPill(r.anomaly_status)}</td><td class="accent">${score}</td></tr>`;
     }
-    return `<tr data-anomaly-asset="${r.asset?.asset_id}" data-anomaly-id="${r.anomaly_id}"><td class="primary">${formatShortTime(r.timestamp)}</td><td class="primary">${escapeHtml(r.asset?.asset_name || "—")}</td><td>${escapeHtml(r.sensor?.sensor_type || "—")}</td><td class="accent">${score}</td><td>${escapeHtml(result)}</td><td>${statusPill(r.severity)}</td><td>AE-v1.3</td><td>${statusPill(r.anomaly_status)}</td></tr>`;
+    return `<tr data-anomaly-asset="${r.asset?.asset_id}" data-anomaly-id="${r.anomaly_id}"><td class="primary">${formatShortTime(r.timestamp)}</td><td class="primary">${escapeHtml(r.asset?.asset_name || "—")}</td><td>${escapeHtml(r.sensor?.sensor_type || "—")}</td><td class="accent">${score}</td><td>${escapeHtml(result)}</td><td>${statusPill(r.severity)}</td><td>${escapeHtml(r.model_version || "Not verified")}</td><td>${statusPill(r.anomaly_status)}</td></tr>`;
   }).join("");
 }
 
@@ -678,12 +678,12 @@ function recentAnomaliesPanelHtml() {
 }
 
 function bindAnomalyRows() {
-  document.querySelectorAll("[data-anomaly-asset]").forEach((row) => {
+  document.querySelectorAll("[data-anomaly-asset]").forEach(row => {
     row.addEventListener("click", () => {
-      const id = Number(row.dataset.anomalyAsset);
-      if (id) state.selectedAssetId = id;
-      if (pathName() === "/") render();
-      else go(`/assets/${id}`);
+      const id = row.dataset.anomalyAsset;
+      if (!id || id === "undefined") return;
+      state.selectedAssetId = id;
+      go("/assets/" + encodeURIComponent(id));
     });
   });
 }
@@ -988,20 +988,43 @@ function renderSensorData() {
 }
 function renderAnomalies() {
   destroyActiveViewer();
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"AI Investigation", title:"Anomalies / Faults", subtitle:"Detection evidence and review workflow · Acknowledgement does not indicate repair", actions:'<span class="demo-label" style="border:1px solid #34454f;padding:7px 9px;border-radius:6px">DEMONSTRATION DATA</span>'})}
-    <section class="panel filters-bar six">
-      <div class="filter-group"><label class="label">Date Range</label><select class="select"><option>Today</option><option>7 Days</option><option>30 Days</option></select></div>
-      <div class="filter-group"><label class="label">Asset</label><select class="select" id="anomalyAsset"><option value="all">All Assets</option>${db.Assets.map(a=>`<option value="${a.asset_name}">${a.asset_name}</option>`).join('')}</select></div>
-      <div class="filter-group"><label class="label">Floor</label><select class="select"><option>All Floors</option></select></div>
-      <div class="filter-group"><label class="label">Status</label><select class="select" id="anomalyStatus"><option value="all">All Status</option><option>New</option><option>Review</option><option>Acknowledged</option><option>Closed</option></select></div>
-      <div class="filter-group"><label class="label">Model</label><select class="select"><option>All Models</option><option>AE-v1.3</option><option>SVM-v2.1</option></select></div>
-      <div class="filter-group"><label class="label">Severity</label><select class="select"><option>All Severities</option><option>High</option><option>Medium</option><option>Low</option></select></div>
-    </section>
-    <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>Detected</th><th>Asset</th><th>Sensor</th><th>Anomaly Score</th><th>Detection Result</th><th>Severity</th><th>Model</th><th>Status</th></tr></thead><tbody id="anomalyBody">${anomalyRowsHtml()}</tbody></table></div></section>
-    <div class="page-footer-line"><span>Click an anomaly to open the associated asset</span><span>Anomaly records are loaded from PostgreSQL demonstration data</span></div>
-  </div>`;
-  shell(html, { activePath: "/anomalies", breadcrumb: "Anomalies / Faults" });
+  const rows = getLatestAnomalyRows();
+  const active = rows.filter(r => r.anomaly_status !== "Closed");
+  const severities = active.map(r=>String(r.severity || "").toLowerCase());
+  const highest = severities.includes("critical") ? "Critical" :
+                  severities.includes("high") ? "High" :
+                  severities.includes("medium") ? "Medium" :
+                  severities.includes("low") ? "Low" : "—";
+  const affected = new Set(active.map(r=>r.asset?.asset_id).filter(Boolean));
+  const options = db.Assets.map(asset=>'<option value="' + escapeHtml(asset.asset_name) + '">' +
+    escapeHtml(asset.asset_name) + '</option>').join("");
+  const html = '<div class="page ai-page">' +
+    heading("Anomaly Detection", "Investigate deviations with context, not just alerts.") +
+    banner("Demonstration anomaly records · not verified building faults",
+      "Anomalies loaded from the database are PoC records. No evaluated production detector or fault-classification service is connected.") +
+    metrics([
+      ["Open demo anomaly records", String(active.length), "PostgreSQL demonstration data"],
+      ["Highest stored severity", highest, "From open database records"],
+      ["Affected equipment", affected.size + " / 3", "Current Level 5 pilot"],
+      ["Production detections", "—", "No trained service connected"]
+    ]) +
+    '<div class="ai-chip-row"><label class="ai-chip">Equipment <select class="select" id="anomalyAsset"><option value="all">All equipment</option>' + options + '</select></label>' +
+    '<label class="ai-chip">Status <select class="select" id="anomalyStatus"><option value="all">All statuses</option><option>New</option><option>Review</option><option>Acknowledged</option><option>Closed</option></select></label></div>' +
+    '<section class="ai-card" style="margin-bottom:14px">' +
+      '<div class="ai-card-title"><div><strong>Recorded anomaly investigations</strong><small>Click a record to view its associated asset</small></div></div>' +
+      '<div class="ai-table-wrap"><table class="ai-table"><thead><tr><th>Detected</th><th>Asset</th><th>Sensor</th><th>Score</th><th>Description</th><th>Severity</th><th>Model</th><th>Status</th></tr></thead>' +
+      '<tbody id="anomalyBody">' + anomalyRowsHtml() + '</tbody></table></div>' +
+    '</section><div class="ai-grid-two"><section class="ai-card">' +
+      '<div class="ai-card-title"><strong>Recent event timeline</strong></div>' +
+      (rows.slice(0,5).map(r=>'<div class="ai-key-value"><span>' + escapeHtml(formatTime(r.timestamp)) + ' · ' +
+      escapeHtml(r.asset?.asset_name || "Unmapped asset") + '</span><strong>' +
+      escapeHtml(r.anomaly_status || "Recorded") + '</strong></div>').join("") ||
+      '<div class="ai-empty">No anomaly events are stored in this database.</div>') +
+    '</section><section class="ai-card"><div class="ai-card-title"><strong>Historical context</strong></div>' +
+      '<p class="ai-demo-foot">The original historical simulation is fault-free. Stored anomaly demo records and any future fault injections must be distinguished from confirmed physical building faults.</p>' +
+      '<button class="btn" data-route="/historical-data">Explore historical baseline ↗</button>' +
+    '</section></div></div>';
+  shell(html,{activePath:"/anomalies",breadcrumb:"Anomaly Detection"});
   const status = document.getElementById("anomalyStatus");
   const asset = document.getElementById("anomalyAsset");
   status.value = state.anomalyStatus;
