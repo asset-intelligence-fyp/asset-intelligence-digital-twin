@@ -552,7 +552,14 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
 }
 
 function bindMiniSensorOverview() {
-  const region = document.querySelector(".bim-sensor-overview");
+  const region = document.querySelector(".bim-tree-column .bim-sensor-overview");
+  // Search remains stable while SSE refreshes row values in place.
+  region?.querySelector("[data-sensor-list-filter]")?.addEventListener("input", event => {
+    const query = event.target.value.trim().toLowerCase();
+    region.querySelectorAll("[data-sensor-mini]").forEach(row => {
+      row.hidden = Boolean(query) && !row.textContent.toLowerCase().includes(query);
+    });
+  });
   region?.addEventListener("click", event => {
     const button = event.target.closest("[data-sensor-mini]");
     if (!button) return;
@@ -623,6 +630,18 @@ function initViewer(stageId) {
       console.error("Could not expand BIM viewer:", error);
     }
   });
+  // The dedicated BIM Viewer already renders the nine live sensor rows in
+  // its left column. Do not insert a second, obsolete tree/navigation view.
+  if (stageId === "mainViewer") {
+    controller.model?.on?.("loaded", () => {
+      const {matched, total} = controller.configureSensors(LEVEL5_SENSORS);
+      const count = document.querySelector(".bim-tree-column [data-mapping-count]");
+      if (count) count.textContent = matched + "/" + total + " BIM markers";
+    });
+    return controller;
+  }
+
+  // Keep the compact xeokit sensor navigator on the dashboard-only viewer.
   const navigation = document.createElement("aside");
   navigation.className = "level5-sensor-nav";
   navigation.setAttribute("aria-label", "Level 5 physical sensors");
@@ -638,10 +657,7 @@ function initViewer(stageId) {
         '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
       '<div class="level5-unlocated">HRU-linked points (no BIM marker): ' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · ' + escapeHtml(item.assetId)).join(", ") + '</div></div>' +
     '</div></details>';
-  const treeMount = stageId === "mainViewer"
-    ? document.querySelector("[data-bim-sensor-tree]") : null;
-  (treeMount || stage).appendChild(navigation);
-  if (treeMount) navigation.querySelector("details").open = true;
+  stage.appendChild(navigation);
   navigation.querySelector("[data-sensor-filter]")?.addEventListener("input", event => {
     const value = event.target.value.trim().toLowerCase();
     navigation.querySelectorAll("[data-sensor-guid]").forEach(button => {
@@ -798,9 +814,10 @@ function renderBimViewer() {
     heading("BIM Viewer", "Monitor nine sensor IDs linked to three HRU assets, with eight IFC markers.") +
     '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>The eight original IFC GlobalIds remain unchanged; sensor IDs follow the new nine-point CSV. Fan status has no IFC marker.</div></div>' +
     '<div class="bim-workspace bim-three-column" data-bim-workspace>' +
-       '<aside class="bim-tree-column panel" aria-label="Level 5 sensor tree"><div class="bim-tree-heading">Sensor tree</div><div data-bim-sensor-tree></div></aside>' +
-       '<div class="bim-center-column">' +
+       '<aside class="bim-tree-column panel" aria-label="Level 5 live sensor list">' +
          sensorMiniOverviewHtml(state.selectedBimElement?.entityId, state.selectedVirtualSensorId) +
+       '</aside>' +
+       '<div class="bim-center-column">' +
          viewerPanelHtml({stageId:"mainViewer",detailed:true}) +
        '</div>' +
        assetInspectorHtml({detailed:true}) +

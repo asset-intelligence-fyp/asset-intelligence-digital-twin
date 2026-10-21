@@ -69,6 +69,41 @@ test("BIM cards select existing GUID; FS-501A opens a virtual inspector",()=>{
  assert.match(main,/refreshMiniOverview\(selection\.entityId\)/);
  assert.match(main,/state\.selectedVirtualSensorId = virtual\.sensorId/);
  assert.match(main,/getSensorById/);
- assert.match(main,/data-bim-sensor-tree/);
+ assert.match(main,/aria-label="Level 5 live sensor list"/);
+ assert.match(main,/data-sensor-list-filter/);
+ assert.match(css,/bim-tree-column/);
  assert.match(css,/bim-workspace\.bim-three-column/);
+});
+
+test("BIM viewer uses nine vertical status rows on left; center contains BIM only",()=>{
+ const main=fs.readFileSync("src/main.js","utf8");
+ const css=fs.readFileSync("src/ui-redesign.css","utf8");
+ const page=main.slice(main.indexOf("function renderBimViewer()"),main.indexOf("function assetsTableRows()"));
+ const left=page.indexOf('<aside class="bim-tree-column panel"');
+ const rows=page.indexOf('sensorMiniOverviewHtml(');
+ const middle=page.indexOf('<div class="bim-center-column">');
+ const viewer=page.indexOf('viewerPanelHtml({stageId:"mainViewer"');
+ const inspector=page.indexOf('assetInspectorHtml({detailed:true})');
+ assert.ok(left>=0 && rows>left && middle>rows && viewer>middle && inspector>viewer);
+ assert.equal(page.split('sensorMiniOverviewHtml(').length-1,1);
+ assert.ok(main.includes('if (stageId === "mainViewer") {'));
+ assert.ok(!page.includes("data-bim-sensor-tree"));
+ assert.ok(css.includes(".bim-tree-column .bim-mini-grid {\n  display:flex;flex:1;flex-direction:column"));
+ assert.ok(css.includes(".bim-center-column>.viewer-panel {display:flex;flex:1"));
+});
+
+test("left-side live sensor list retains search, selection, and in-place updates",()=>{
+ for(const key of Object.keys(db))db[key]=[];
+ const html=sensorMiniOverviewHtml();
+ assert.ok(html.includes("data-sensor-list-filter"));
+ assert.equal((html.match(/data-sensor-mini=/g)||[]).length,9);
+ assert.ok(html.includes("data-mapping-count"));
+ assert.ok(html.includes("data-sensor-feedback"));
+ const main=fs.readFileSync("src/main.js","utf8");
+ const css=fs.readFileSync("src/ui-redesign.css","utf8");
+ assert.ok(main.includes('region.querySelectorAll("[data-sensor-mini]")'));
+ assert.ok(main.includes("activeBimController.selectSensor(sensor.guid)"));
+ assert.ok(main.includes("state.selectedVirtualSensorId = virtual.sensorId"));
+ assert.ok(main.includes("refreshMiniOverview(state.selectedBimElement?.entityId"));
+ assert.ok(css.includes(".bim-tree-column .bim-mini-card[hidden]"));
 });

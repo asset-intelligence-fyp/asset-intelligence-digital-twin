@@ -113,9 +113,9 @@ JavaScript parsing and simulated data-template checks passed in the authoring en
 
 The BIM Viewer now uses a three-column workspace at desktop sizes:
 
-1. **Left sensor tree** — the existing searchable Level 5 xeokit sensor navigator in a separate collapsible panel, not over the BIM canvas.
-2. **Middle canvas and persistent sensor cards** — nine mini cards are always visible above the real xeokit viewer. Eight reuse the original IFC GlobalIds and the ninth fan-status card is asset-linked without a 3D marker; Unit 507 exposes its room-temperature point.
-3. **Right selected-sensor inspector** — the existing PostgreSQL inspector now displays large measurement tiles with units, quality and latest update time for every measurement channel on the selected physical sensor.
+1. **Left live sensor list** — nine status cards replace the old sensor-tree navigation, presented as one vertical searchable list of sensor ID, HRU asset, latest simulation value, status dot, and status text. Eight entries focus unchanged original IFC markers; the virtual fan-status entry is asset-linked without an IFC marker.
+2. **Middle BIM canvas only** — the real xeokit viewer occupies the full height of the center column, without a status-card strip above it.
+3. **Right selected-sensor inspector** — the existing PostgreSQL inspector continues to show selected sensor/asset metadata and live measurements.
 
 Clicking an eight-IFC-linked mini card calls the existing `controller.selectSensor(guid)` method. Clicking FS-501A opens the asset-linked telemetry inspector without focusing nonexistent geometry. It focuses/highlights the real IFC element and fires the existing selection handler, updating the inspector without reloading the BIM model. The existing floor clipping, camera controls and fullscreen viewer remain unchanged. Cards receive in-place updates from the existing MQTT→backend→SSE path; freshness is also checked periodically.
 
@@ -133,7 +133,7 @@ The top-right header now keeps data-source status, theme/notifications and Facil
 ### Review checklist
 
 - [ ] At 1440px+ desktop width, data-source status, icons and user account share one header row.
-- [ ] BIM scene, dedicated sensor tree, all 9 mini cards and right sensor inspector fit without overlapping.
+- [ ] Center contains only the full-height BIM viewer; all nine status rows are in the left scrollable/searchable sidebar, with no duplicate tree or cards above the canvas; right inspector fits without overlapping.
 - [ ] Selecting a mini card focuses the sensor BIM element and updates the inspector; selecting a BIM object highlights its corresponding mini card.
 - [ ] S-L5-008-TEMP shows room temperature; FS-501A renders ON/OFF and indicates no IFC marker.
 - [ ] New MQTT readings update mini cards and the selected inspector; stopping replay eventually turns stale cards gray.
@@ -146,3 +146,7 @@ The top-right header now keeps data-source status, theme/notifications and Facil
 ## MQTT simulator replacement
 
 The old `hru_digital_twin_simulator_v2` and eleven-point `level5_digital_twin_simulator_final` publishers were removed from this branch. Running legacy processes on the developer's machine must be stopped separately. `/api/live-status` measures **all nine** accepted current points rather than a single reading, and the Node MQTT contract rejects legacy/unapproved messages by provenance and topic. No physical measurements or AI inference are claimed.
+
+## Refined BIM layout: single vertical sensor sidebar
+
+The old left sensor navigator and separate three-column status-card strip above the canvas were consolidated into a **single searchable vertical list** on the left. Each row retains its live reading, sensor/asset label, freshness or anomaly state, and click-to-select behavior. The eight IFC-linked points still focus the actual xeokit geometry, while the virtual `FS-501A` opens the HRU-linked inspector without fabricating an IFC marker. Incoming MQTT→SSE updates modify row values in place; the search box and the BIM viewer are not reconstructed. The center column now contains only the full-height 3D BIM viewer, and the selected-sensor inspector stays on the right. Narrow viewports stack the panels with a vertically scrolling sensor list.

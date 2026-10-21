@@ -48,8 +48,11 @@ export function sensorMiniGridHtml(selectedGuid = null, now = Date.now(), select
 
 export function sensorMiniOverviewHtml(selectedGuid = null, selectedVirtualId = null) {
   return '<section class="bim-sensor-overview" aria-label="Level 5 sensor overview">'+
-    '<div class="bim-sensor-overview-head"><div><strong>Sensor overview</strong><span>9 sensor points · 8 selectable BIM markers</span></div>'+
-    '<span class="bim-sensor-note">Green = recent simulated reading, not verified equipment health</span></div>'+
+    '<div class="bim-sensor-overview-head"><strong>Level 5 sensors</strong>'+
+    '<span data-mapping-count>8 selectable BIM markers</span></div>'+
+    '<div class="bim-sensor-count">9 live sensor points · simulated telemetry</div>'+
+    '<label class="bim-sensor-search"><span class="sr-only">Filter live sensors</span>'+
+    '<input type="search" data-sensor-list-filter aria-label="Search sensors by ID, asset or name" placeholder="Search ID or asset…" /></label>'+
     '<div class="bim-mini-grid">'+sensorMiniGridHtml(selectedGuid,Date.now(),selectedVirtualId)+'</div>'+
     '<div class="bim-sensor-feedback" role="status" aria-live="polite" data-sensor-feedback></div></section>';
 }
