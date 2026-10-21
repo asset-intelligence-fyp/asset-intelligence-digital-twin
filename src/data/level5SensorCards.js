@@ -21,7 +21,7 @@ export function getSensorCardState(sensor, data, now = Date.now(), freshnessMs =
     if (["closed", "resolved", "dismissed"].includes(status)) return false;
     const ref = String(row.point_code ?? "");
     const sid = String(row.sensor_id ?? row.sensor_code ?? "");
-    return points.includes(ref) || sid === sensor.sensorId;
+    return points.includes(ref) || points.includes(sid) || sid === sensor.sensorId;
   });
   const severities = active.map(r => String(r.severity ?? r.severity_name ?? "").toLowerCase());
   const hasCritical = severities.some(s => ["critical", "high"].includes(s));
