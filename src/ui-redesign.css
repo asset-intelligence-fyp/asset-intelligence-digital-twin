@@ -310,3 +310,70 @@ details[open]>.level5-panel-summary {border-color:var(--border);}
   .ai-appearance-grid {grid-template-columns:minmax(0,1fr);}
   .ai-fullscreen-bim .bim-workspace{min-height:550px;}
 }
+
+/* Overview uses the real, interactive xeokit panel, not the mockup's illustration. */
+.ai-overview-top {grid-template-columns:minmax(0,1.45fr) minmax(280px,1fr);}
+.ai-overview-viewer,.ai-overview-inspector {min-height:370px;min-width:0;}
+.ai-overview-viewer>.viewer-panel {
+  height:405px;min-height:370px;display:flex;flex-direction:column;
+}
+.ai-overview-viewer .viewer-stage {min-height:300px;flex:1;}
+.ai-overview-inspector>.asset-inspector {min-height:405px;height:100%;}
+.ai-overview-inspector .asset-inspector-body {max-height:420px;overflow:auto;}
+.ai-overview-top .panel-header {min-height:50px;}
+.ai-overview-top .viewer-tools-row {gap:5px;}
+.ai-overview-top .viewer-floor-control {bottom:8px;}
+.ai-overview-top .level5-sensor-nav {max-height:255px;}
+.ai-overview-top .level5-sensor-body {max-height:205px;}
+/* BIM viewport must remain usable after the new heading and disclosure bar. */
+.bim-viewer-page.ai-fullscreen-bim {
+  max-width:none;width:100%;margin:0;padding:13px 16px 8px;
+  height:100%;display:flex;flex-direction:column;overflow:hidden;
+}
+.ai-fullscreen-bim .ai-heading {flex:0 0 auto;margin-bottom:8px;}
+.ai-fullscreen-bim .ai-heading h1 {font-size:20px;margin:2px 0;}
+.ai-fullscreen-bim .ai-heading p {font-size:11px;}
+.ai-fullscreen-bim .ai-banner {flex:0 0 auto;padding:8px 12px;margin-bottom:10px;}
+.ai-fullscreen-bim .bim-workspace {min-height:0;flex:1;}
+.ai-fullscreen-bim .bim-workspace>.panel {min-height:0;}
+.ai-fullscreen-bim .bim-workspace .viewer-panel {min-height:0;}
+.ai-fullscreen-bim .bim-workspace .viewer-stage {min-height:0;}
+.ai-fullscreen-bim .ai-demo-foot {margin:6px 0 0;}
+/* Avoid legacy hard-coded orange and dark styling leaking into light reference. */
+:root[data-theme="light"] .asset-inspector .asset-type,
+:root[data-theme="light"] .section-meta,
+:root[data-theme="light"] .info-key {color:var(--muted);}
+:root[data-theme="light"] .asset-inspector .info-value,
+:root[data-theme="light"] .viewer-panel .section-title,
+:root[data-theme="light"] .asset-inspector .section-title {color:var(--text);}
+:root[data-theme="light"] .viewer-panel .viewer-tools-row .btn {background:var(--panel);color:var(--text-soft);border-color:var(--border);}
+:root[data-theme="light"] .viewer-statusbar,
+:root[data-theme="light"] .viewer-floor-label {border-color:var(--border);}
+:root[data-theme="light"] .status-pill {background:var(--panel-2);color:var(--text-soft);border-color:var(--border);}
+:root[data-theme="light"] .field,
+:root[data-theme="light"] .select {background:var(--panel);color:var(--text);}
+:root[data-theme="light"] .level5-sensor-nav-list button:hover,
+:root[data-theme="light"] .level5-sensor-nav-list button.active {background:var(--blue-soft);}
+:root[data-theme="light"] .nav-item:hover {color:var(--text);}
+:root[data-theme="light"] .level5-sensor-details,
+:root[data-theme="light"] .level5-viewer-details {box-shadow:0 3px 10px #182b3c19;}
+:root[data-theme="light"] .chart-area {opacity:.35;}
+:root[data-theme="light"] .chart-line {stroke:var(--orange);}
+:root[data-theme="dark"] .page-title,:root[data-theme="dark"] .ai-heading h1{color:var(--text);}
+.ai-point-card[hidden], [data-settings-section][hidden], [data-equipment][hidden] {display:none!important;}
+.ai-tab[aria-selected="false"] {background:var(--panel);border-color:var(--border);color:var(--text-soft);}
+.ai-tab[aria-selected="true"] {background:var(--blue-soft);border-color:var(--border-strong);color:var(--orange);}
+.ai-point-card .btn,.ai-point-card .ai-link {font-size:10px;}
+@media(max-width:1150px){
+  .ai-overview-top {grid-template-columns:minmax(0,1fr);}
+  .ai-overview-viewer>.viewer-panel{height:390px;}
+  .ai-overview-inspector {min-height:unset;}
+  .ai-overview-inspector>.asset-inspector{min-height:240px;height:auto;}
+}
+@media(max-width:740px){
+  .bim-viewer-page.ai-fullscreen-bim{overflow:auto;}
+  .ai-fullscreen-bim .bim-workspace{min-height:570px;overflow:visible;}
+  .ai-fullscreen-bim .bim-workspace .viewer-panel {min-height:520px;}
+  .ai-fullscreen-bim .bim-workspace .asset-inspector{min-height:280px;}
+  .ai-overview-top .level5-sensor-nav {max-height:240px;}
+}
