@@ -690,41 +690,40 @@ function bindAnomalyRows() {
 
 function renderDashboard() {
   destroyActiveViewer();
-  const html = `<div class="page dashboard-page">
-    <div class="dashboard-heading">
-      <div><div class="eyebrow">Digital Twin Operations</div><h1 class="page-title">Building Asset Monitoring</h1><p class="page-subtitle">Live BIM-linked asset and AI status overview</p></div>
-      <div class="dashboard-controls"><span style="color:#7d909c;font-size:9px">▥</span><select class="select"><option>Snowdon Towers</option></select><select class="select"><option>All Floors</option></select><button class="btn" data-go-bim>View BIM Model ↗</button></div>
-    </div>
-    <div class="summary-strip">
-      <div class="summary-item"><div class="summary-label">Monitored Assets</div><div class="summary-value">${db.Assets.length} <small>PILOT ASSETS</small></div></div>
-      <div class="summary-item"><div class="summary-label"><span class="status-dot green"></span>Normal</div><div class="summary-value">${db.Assets.filter(a => assetAnomalyStatus(a.asset_id) === "Normal").length}</div></div>
-      <div class="summary-item alert"><div class="summary-label"><span class="status-dot orange"></span>Active Anomalies</div><div class="summary-value" style="color:#ffb25f">${db.Anomaly_Results.filter(a => a.anomaly_status !== "Closed").length}</div></div>
-      <div class="summary-item"><div class="summary-label"><span class="status-dot red"></span>Critical Faults</div><div class="summary-value">${db.Anomaly_Results.filter(a => a.severity === "Critical" && a.anomaly_status !== "Closed").length}</div></div>
-      <div class="summary-sync"><span><span class="status-dot green"></span>PostgreSQL Demo</span><span style="color:#445661">|</span><span>Last update</span><strong class="mono">${formatTime(latestReadingTimestamp())}</strong></div>
-    </div>
-    <div class="dashboard-upper">${viewerPanelHtml({stageId:"dashboardViewer"})}${assetInspectorHtml()}</div>
-    <div class="dashboard-lower">${trendPanelHtml()}${recentAnomaliesPanelHtml()}</div>
-    <div class="page-footer-line" style="margin-top:6px"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM-INTEGRATED ASSET MONITORING</span><span>Demonstration data · Not connected to a live BMS</span></div>
-  </div>`;
-  shell(html, { activePath: "/", breadcrumb: "Building Asset Monitoring", noScroll: true });
-  document.querySelector("[data-go-bim]")?.addEventListener("click", () => go("/bim-viewer"));
-  document.querySelector("[data-view-all-anomalies]")?.addEventListener("click", () => go("/anomalies"));
+  const anomalyCount = db.Anomaly_Results.filter(a => a.anomaly_status !== "Closed").length;
+  const html = '<div class="page ai-page">' +
+    heading("Overview", "A clear view of your building’s operational health.") +
+    banner("Simulated monitoring · not physical sensor measurements",
+      "The interface displays PostgreSQL demonstration data; " + anomalyCount + " stored open anomaly records. No production AI inference is connected.") +
+    metrics([
+      ["HRU assets", "3", "Level 5 pilot equipment"],
+      ["Sensor devices", "8", "Physical BIM sensor markers"],
+      ["Measurement channels", "11", "Mapped MQTT points"]
+    ]) +
+    '<div class="ai-source-row"><span class="ai-badge">Local simulation</span><strong>PostgreSQL: ' +
+    escapeHtml(connectionState.status) + '</strong><span>No live building BMS connected</span></div>' +
+    '<div class="ai-grid-two ai-overview-top">' +
+      '<section class="ai-overview-viewer">' + viewerPanelHtml({stageId:"dashboardViewer"}) + '</section>' +
+      '<section class="ai-overview-inspector">' + assetInspectorHtml() + '</section>' +
+    '</div>' + overviewDetails() +
+    '<p class="ai-demo-foot">Source: local simulation. Historical LBNL-derived inputs are not measurements collected from Snowdon Towers.</p></div>';
+  shell(html, { activePath: "/", breadcrumb:"Overview" });
   bindAssetInspector();
-  bindAnomalyRows();
   requestAnimationFrame(() => initViewer("dashboardViewer"));
 }
-
 function renderBimViewer() {
   destroyActiveViewer();
-  const html = `<div class="page bim-viewer-page">
-    <div class="bim-workspace" data-bim-workspace>${viewerPanelHtml({stageId:"mainViewer", detailed:true})}${assetInspectorHtml({detailed:true})}</div>
-    <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM VIEWER</span><span>Click a BIM element to select and inspect it</span></div>
-  </div>`;
-  shell(html, { activePath: "/bim-viewer", breadcrumb: "BIM Viewer", noScroll: true });
+  const html = '<div class="page bim-viewer-page ai-fullscreen-bim">' +
+    heading("BIM Viewer", "Explore Level 5 and the sensors behind every reading.") +
+    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>Actual Level 5 IFC/XKT geometry and sensor selection; values shown in the inspector come from PostgreSQL simulated records.</div></div>' +
+    '<div class="bim-workspace" data-bim-workspace>' +
+       viewerPanelHtml({stageId:"mainViewer",detailed:true}) +
+       assetInspectorHtml({detailed:true}) +
+    '</div><p class="ai-demo-foot">Orbit or select the model to inspect an element. Use the sensor navigator for 8 mapped devices / 11 measurement channels.</p></div>';
+  shell(html, { activePath:"/bim-viewer", breadcrumb:"BIM Viewer", noScroll:true });
   bindAssetInspector();
   requestAnimationFrame(() => initViewer("mainViewer"));
 }
-
 function assetsTableRows() {
   const q = state.assetSearch.trim().toLowerCase();
   return db.Assets.filter((asset) => {
@@ -978,43 +977,15 @@ function sensorHistoryRows() {
 
 function renderSensorData() {
   destroyActiveViewer();
-  const assets = db.Assets.map((a)=>`<option value="${a.asset_id}">${a.asset_name}</option>`).join("");
-  const sensor = db.Sensors.find((s) => s.sensor_id === Number(state.sensorId)) || getSensorsForAsset(state.sensorAssetId)[0];
-  if (sensor) state.sensorId = sensor.sensor_id;
-  const reading = sensor ? getReading(sensor.sensor_id) : null;
-  const current = reading ? Number(reading.value) : null;
-  const isTemp = sensor?.sensor_type === "Supply Air Temperature";
-  const reference = 21.0;
-  const delta = isTemp && current != null ? current - reference : null;
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"Historical Monitoring", title:"Sensor Data", subtitle:"Time-series signals · PostgreSQL demo records · Quality-controlled demonstration readings"})}
-    <section class="panel filters-bar">
-      <div class="filter-group"><label class="label">Building</label><select class="select"><option>Snowdon Towers</option></select></div>
-      <div class="filter-group"><label class="label">Floor</label><select class="select"><option>All Floors</option>${db.Building_Floors.map(f=>`<option>${f.floor_name}</option>`).join('')}</select></div>
-      <div class="filter-group"><label class="label">Asset</label><select class="select" id="sensorAsset">${assets}</select></div>
-      <div class="filter-group"><label class="label">Sensor</label><select class="select" id="sensorSelect">${sensorOptions(state.sensorAssetId)}</select></div>
-      <div class="filter-group"><label class="label">Date Range</label><select class="select"><option>24H</option><option>7D</option><option>30D</option></select></div>
-    </section>
-    <section class="panel" style="height:315px;margin-bottom:12px"><div class="panel-header"><div class="section-title">≋ Sensor Trend</div><div class="section-meta">PostgreSQL demonstration data</div></div><div class="panel-body" style="height:calc(100% - 46px);display:flex;flex-direction:column"><div style="display:flex;justify-content:space-between"><span class="section-meta">${escapeHtml(sensor?.sensor_type || 'Sensor')} ${isTemp ? '&nbsp; ··· Expected Reference' : ''}</span><div class="trend-value"><strong>${current == null ? '—' : current.toFixed(sensor?.unit === 'Pa' ? 0 : 1)} <span style="font-size:9px;color:#8798a4">${escapeHtml(sensor?.unit || '')}</span></strong><div class="trend-delta">${delta == null ? 'Latest PostgreSQL reading' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} °C from demo reference`}</div></div></div><div class="chart-wrap">${trendSvg(state.sensorId)}</div></div></section>
-    <section class="panel"><div class="panel-header"><div class="section-title">Sensor Readings</div><div class="section-meta">PostgreSQL rows for sensor ${escapeHtml(sensor?.sensor_id || '—')}</div></div><div class="table-wrap" style="max-height:330px"><table class="data-table"><thead><tr><th>Timestamp</th><th>Sensor ID</th><th>Asset</th><th>Parameter</th><th>Value</th><th>Unit</th><th>Quality</th></tr></thead><tbody id="sensorReadingsBody">${sensorHistoryRows()}</tbody></table></div></section>
-  </div>`;
-  shell(html, { activePath: "/sensor-data", breadcrumb: "Sensor Data" });
-  const assetSel = document.getElementById("sensorAsset");
-  const sensorSel = document.getElementById("sensorSelect");
-  assetSel.value = String(state.sensorAssetId);
-  sensorSel.value = String(state.sensorId);
-  assetSel.addEventListener("change", () => {
-    state.sensorAssetId = assetSel.value;
-    const sensors = getSensorsForAsset(state.sensorAssetId);
-    state.sensorId = sensors[0]?.sensor_id || state.sensorId;
-    renderSensorData();
-  });
-  sensorSel.addEventListener("change", () => {
-    state.sensorId = sensorSel.value;
-    renderSensorData();
+  shell(monitoring(), { activePath:"/sensor-data", breadcrumb:"Sensor Monitoring" });
+  const search = document.getElementById("channelSearch");
+  search?.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    document.querySelectorAll("[data-equipment]").forEach(card => {
+      card.hidden = q && !card.textContent.toLowerCase().includes(q);
+    });
   });
 }
-
 function renderAnomalies() {
   destroyActiveViewer();
   const html = `<div class="page">
@@ -1043,37 +1014,41 @@ function renderAnomalies() {
 
 function renderModelResults() {
   destroyActiveViewer();
-  const m = modelEvaluationDemo;
-  const metrics = m.metrics.map(x=>`<div class="metric-cell"><div class="metric-label">${x.label}</div><div class="metric-value">${x.value}</div><div class="metric-note">${x.note}</div></div>`).join('');
-  const rows = m.comparison.map(x=>`<tr><td class="primary">${x.model}</td><td>${x.purpose}</td><td>${x.version}</td><td>${x.precision}</td><td>${x.recall}</td><td>${x.f1}</td><td>${x.deployment}</td></tr>`).join('');
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"Model Evaluation", title:"Model Results", subtitle:"Evaluation workspace · Validation metrics are intentionally not fabricated", actions:'<span class="demo-label" style="border:1px solid #34454f;padding:7px 9px;border-radius:6px">DEMONSTRATION CONFIGURATION</span>'})}
-    <section class="panel">
-      <div class="model-hero"><div class="model-id"><div class="model-icon">⌘</div><div><div class="model-name">${m.deployed.name}</div><div class="model-sub">${m.deployed.version} &nbsp;·&nbsp; ${m.deployed.purpose}</div></div></div>${statusPill('normal','Demo Active')}</div>
-      <div class="metrics-grid">${metrics}</div>
-    </section>
-    <section class="panel" style="margin-top:12px"><div class="panel-header"><div class="section-title">Model Comparison</div><div class="section-meta">No fabricated performance metrics</div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Model</th><th>Purpose</th><th>Version</th><th>Precision</th><th>Recall</th><th>F1</th><th>Deployment</th></tr></thead><tbody>${rows}</tbody></table></div><div class="table-foot">Metrics should be supplied from a labelled evaluation dataset before operational use.</div></section>
-  </div>`;
-  shell(html, { activePath: "/model-results", breadcrumb: "Model Results" });
+  const horizon = state.forecastHorizon || 15;
+  const pointCode = state.forecastPoint || "SAT-507";
+  shell(forecasting(horizon, pointCode), {activePath:"/model-results", breadcrumb:"AI Forecasting"});
+  document.querySelectorAll("[data-horizon]").forEach(button => button.addEventListener("click", () => {
+    state.forecastHorizon = Number(button.dataset.horizon);
+    renderModelResults();
+  }));
+  document.querySelector("[data-forecast-point]")?.addEventListener("change", event => {
+    state.forecastPoint = event.target.value;
+    renderModelResults();
+  });
 }
-
 function renderSettings() {
   destroyActiveViewer();
-  const cards = [
-    ["▱ Data Sources", [["Current source","BMS Simulation"],["Mode","Demonstration · static snapshots"]]],
-    ["⌁ MQTT Connection", [["Connection","Not configured"],["Credentials","Managed securely outside this interface"]]],
-    ["▤ Database Connection", [["Engine", connectionState.status === "connected" ? "PostgreSQL · Connected" : "PostgreSQL · Offline"],["Database", connectionState.database],["Pilot data","Temporary records loaded through REST API"]]],
-    ["▥ Digital Twin Configuration", [["Building","Snowdon Towers"],["Floors","18"],["Viewer","xeokit integration active"],["Model","Snowdon Towers Sample Architectural.xkt"]]],
-    ["⌘ AI Model Configuration", [["Detector","Multivariate Autoencoder · AE-v1.3"],["Classifier","Not connected"],["Assistant","Explanations grounded in PostgreSQL demo context"]]],
-    ["⬡ User / Security", [["Access","Prototype workspace"],["Secrets","Never displayed in this interface"]]],
-    ["ⓘ System Information", [["Application","Asset Intelligence — AI-Driven Building Digital Twin"],["Version","PoC v1.2 · PostgreSQL API"],["Operational readiness","Demonstration only"]]]
-  ];
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"Workspace Configuration", title:"Settings", subtitle:"Read-only connection overview · No credentials are exposed"})}
-    <div class="settings-grid">${cards.map(([title, rows])=>`<section class="panel settings-card"><div class="panel-header"><div class="section-title">${title}</div></div><div class="setting-list">${rows.map(([k,v])=>`<div class="setting-row"><span class="setting-key">${k}</span><span class="setting-value">${v}</span></div>`).join('')}</div></section>`).join('')}</div>
-    <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM-INTEGRATED ASSET MONITORING</span><span>Demonstration data · Not connected to a live BMS</span></div>
-  </div>`;
-  shell(html, { activePath: "/settings", breadcrumb: "Settings" });
+  shell(settings(getSavedTheme(), connectionState), {activePath:"/settings",breadcrumb:"Settings"});
+  const sections = document.querySelectorAll("[data-settings-section]");
+  const tabs = document.querySelectorAll("[data-settings-tab]");
+  const openTab = name => {
+    sections.forEach(section => { section.hidden = section.dataset.settingsSection !== name; });
+    tabs.forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.settingsTab === name)));
+  };
+  tabs.forEach(tab => tab.addEventListener("click", () => openTab(tab.dataset.settingsTab)));
+  document.querySelectorAll("[data-appearance-option]").forEach(button => button.addEventListener("click", () => {
+    applyTheme(button.dataset.appearanceOption, {persist:true});
+  }));
+  openTab("sources");
+}
+function renderHistoricalData() {
+  destroyActiveViewer();
+  shell(historical(), {activePath:"/historical-data",breadcrumb:"Historical Data"});
+}
+
+function renderSimulator() {
+  destroyActiveViewer();
+  shell(simulator(), {activePath:"/simulator",breadcrumb:"Sensor Simulator"});
 }
 
 function assistantDrawerHtml() {
@@ -1186,6 +1161,8 @@ function render() {
   if (path === "/assets") return renderAssets();
   if (path.startsWith("/assets/")) return renderAssetDetail(path.split("/")[2]);
   if (path === "/sensor-data") return renderSensorData();
+  if (path === "/historical-data") return renderHistoricalData();
+  if (path === "/simulator") return renderSimulator();
   if (path === "/anomalies") return renderAnomalies();
   if (path === "/model-results") return renderModelResults();
   if (path === "/settings") return renderSettings();
