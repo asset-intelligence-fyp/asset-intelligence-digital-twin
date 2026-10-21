@@ -283,7 +283,26 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
           <em>${escapeHtml(reading?.quality || "No data")} · ${escapeHtml(formatTime(reading?.latest_update ?? reading?.timestamp))}</em>
         </div>`;
       }).join("")}</div>`
-    : `<div class="section-meta">No measurement points or current readings are stored for this sensor.</div>`;
+    : `<div class="section-meta">This physical BIM sensor is preserved but has no matching point in the new nine-channel dataset.</div>`;
+
+  // Related asset telemetry is not a measurement from the selected physical
+  // marker: keep virtual point provenance explicit in the inspector.
+  const relatedUnlocated = LEVEL5_UNLOCATED_POINTS.filter(point => point.assetId === assetId);
+  const relatedHtml = relatedUnlocated.length
+    ? `<div class="info-section">
+        <div class="info-heading">Related HRU telemetry · no physical BIM marker</div>
+        ${relatedUnlocated.map(point => {
+          const reading = getReading(point.pointCode);
+          const parsed = reading?.value == null ? null : Number(reading.value);
+          const value = parsed == null || !Number.isFinite(parsed)
+            ? "—" : point.pointCode === "FS-501A"
+              ? (parsed === 1 ? "ON" : parsed === 0 ? "OFF" : "—")
+              : parsed.toLocaleString(undefined,{maximumFractionDigits:2});
+          return `<div class="info-row"><span class="info-key">${escapeHtml(point.pointCode)} · ${escapeHtml(point.label)}</span>
+            <span class="info-value">${escapeHtml(value)} ${point.pointCode === "FS-501A" ? "" : escapeHtml(point.unit)}</span></div>`;
+        }).join("")}
+      </div>`
+    : "";
 
   const qualityRows = points
     .filter((point) => point.reading?.quality)
@@ -326,6 +345,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
         <div class="info-heading">Sensor measurements · stored simulation data</div>
         ${readingsHtml}
       </div>
+      ${relatedHtml}
 
       ${detailed ? `<div class="info-section">
         <div class="info-heading">Reading Status</div>
@@ -593,7 +613,7 @@ function initViewer(stageId) {
       '<div class="level5-sensor-nav-list">' +
       LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
         '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
-      '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>' +
+      '<div class="level5-unlocated">HRU-linked points (no BIM marker): ' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · ' + escapeHtml(item.assetId)).join(", ") + '</div></div>' +
     '</div></details>';
   const treeMount = stageId === "mainViewer"
     ? document.querySelector("[data-bim-sensor-tree]") : null;
@@ -735,7 +755,7 @@ function renderDashboard() {
     metrics([
       ["HRU assets", "3", "Level 5 pilot equipment"],
       ["Sensor devices", "8", "Physical BIM sensor markers"],
-      ["Measurement channels", "11", "Mapped MQTT points"]
+      ["Measurement channels", "9", "Current dataset point codes"]
     ]) +
     '<div class="ai-source-row"><span class="ai-badge">Local simulation</span><strong>PostgreSQL: ' +
     escapeHtml(connectionState.status) + '</strong><span>No live building BMS connected</span></div>' +
@@ -752,8 +772,8 @@ function renderBimViewer() {
   destroyActiveViewer();
   activeBimController = null;
   const html = '<div class="page bim-viewer-page ai-fullscreen-bim">' +
-    heading("BIM Viewer", "Explore Level 5 and monitor all eight physical sensor devices.") +
-    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>Click any sensor card or BIM element to inspect real recorded simulation values. Status colors use reading freshness and stored anomaly records.</div></div>' +
+    heading("BIM Viewer", "Explore all eight BIM sensor markers and the new nine-channel dataset.") +
+    '<div class="ai-banner"><strong>Interactive xeokit BIM model</strong><div>All eight physical markers are preserved. Five have matching new channels; four other point codes are linked to HRU assets without inventing IFC geometry.</div></div>' +
     '<div class="bim-workspace bim-three-column" data-bim-workspace>' +
        '<aside class="bim-tree-column panel" aria-label="Level 5 sensor tree"><div class="bim-tree-heading">Sensor tree</div><div data-bim-sensor-tree></div></aside>' +
        '<div class="bim-center-column">' +
