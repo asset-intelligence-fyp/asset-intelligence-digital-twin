@@ -123,7 +123,11 @@ A healthy response looks similar to:
 {"ok":true,"database":"digital_twin","server_time":"..."}
 ```
 
-## Level 5 live simulator → BIM viewer
+## Current nine-point independent MQTT live simulator
+
+The supplied independent, LBNL-informed **stateful synthetic** three-HRU Python simulator is now connected through MQTT → Node.js → PostgreSQL → SSE → website. See [the independent simulator setup](tools/independent_3hru_live/README.md). The older eleven-point historical simulator below is **legacy**; do not run it with the current nine-point PostgreSQL mapping.
+
+## Level 5 live simulator → BIM viewer (legacy 11-point instructions)
 
 The integrated 11-point historical replay simulator lives at
 [`tools/level5_digital_twin_simulator_final/`](tools/level5_digital_twin_simulator_final/README.md).

@@ -131,25 +131,26 @@ export function historical(){
 export function simulator(){
  const timestamp=db.Sensor_Readings.map(r=>r.latest_update||r.timestamp).filter(Boolean).sort().at(-1);
  const summary=['SAT-501A','MAT-501A','FS-501A','SAT-504','DP-504','DPCMD-504','SAT-507','CV-507','S-L5-008-TEMP'].map(code=>
-  '<div class="ai-key-value"><span>'+esc(code)+'</span><strong>'+esc(display(code))+' '+esc(info(code)?.unit||'')+'</strong></div>').join('');
- return '<div class="page ai-page">'+heading('Sensor Simulator','Prepare to connect the new nine-channel Python replay.')+
- banner('New nine-point simulator not connected yet','The repository Python replay publishes the old 11-channel profile and is not compatible with this nine-point setup. Upload the new Python script to connect it next; no physical equipment is controlled.')+
- '<div class="ai-chip-row"><span class="ai-badge">9 expected MQTT measurement channels · connection pending</span><span class="ai-chip">Last cached reading: '+esc(timestamp?when(timestamp):'Unavailable')+'</span></div>'+
- '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Historical MQTT replay','Controlled by the final Python simulator')+
- '<span class="ai-badge">Awaiting updated nine-point Python script</span>'+
- '<div class="ai-demo-foot">Do not run the older 11-point app against the new active profile. The updated MQTT point codes are defined in the nine-point registry.</div>'+
- '<div class="ai-key-value"><span>Replay mode</span><strong>Awaiting updated script</strong></div>'+
- '<div class="ai-key-value"><span>Transport</span><strong>MQTT · dt/+/+</strong></div>'+
+  '<div class="ai-key-value"><span>'+esc(code)+'</span><strong>'+esc(display(code))+' '+esc(code==='FS-501A'?'':info(code)?.unit||'')+'</strong></div>').join('');
+ return '<div class="page ai-page">'+heading('Sensor Simulator','Independent synthetic three-HRU telemetry via MQTT.')+
+ banner('Simulated data only · no physical HRU control','The new Python generator publishes independent stateful measurements to MQTT. Source values are synthetic and LBNL-informed; no trained AI inference or physical BMS is connected.')+
+ '<div class="ai-chip-row"><span class="ai-badge">Nine MQTT sensor channels</span><span class="ai-chip">Last cached reading: '+esc(timestamp?when(timestamp):'Unavailable')+'</span></div>'+
+ '<div class="ai-grid-forecast"><section class="ai-card">'+titleCard('Live MQTT feed','Run the independent Python simulator locally')+
+ '<div data-live-status role="status" aria-live="polite" class="ai-badge">Checking broker and incoming readings…</div>'+
+ '<div class="ai-demo-foot">From project root: <code>python tools/independent_3hru_live/scripts/simulate_live.py --mqtt --interval-seconds 5</code>. Start Mosquitto and the Node API first; see tools/independent_3hru_live/README.md for setup.</div>'+
+ '<div class="ai-key-value"><span>Source</span><strong>Independent stateful synthetic</strong></div>'+
+ '<div class="ai-key-value"><span>Transport</span><strong>MQTT · dt/+/+ → PostgreSQL → SSE</strong></div>'+
+ '<div class="ai-key-value"><span>Last accepted reading</span><strong data-live-last>Not yet received</strong></div>'+
  '<div class="ai-key-value"><span>Physical sensors</span><strong>Not connected</strong></div>'+
- '<div class="ai-key-value"><span>Fault injection</span><strong>Not available in current replay</strong></div></section>'+
- '<section class="ai-card">'+titleCard('Latest stored values','PostgreSQL · not simulator running state')+summary+'</section></div>'+
- '<section class="ai-card"><strong>Next integration step</strong><p class="ai-demo-foot">Provide the new Python simulator source. Then validate its payloads against PostgreSQL and test MQTT → Node.js → PostgreSQL → SSE → BIM.</p><button class="btn" data-route="/sensor-data">Open Sensor Monitoring ↗</button></section></div>';
+ '<div class="ai-key-value"><span>AI predictions</span><strong>Not connected</strong></div></section>'+
+ '<section class="ai-card">'+titleCard('Latest stored values','Nine current PostgreSQL points')+summary+'</section></div>'+
+ '<p class="ai-demo-foot">Do not run the previous 11-channel simulator simultaneously. Fault ground-truth labels remain separate from published telemetry.</p></div>';
 }
 
 export function settings(theme,connectionState){
  const sources=[
  ['LBNL-derived CSV','Historical simulation','External local file'],
- ['Nine-point Python simulator','MQTT replay','Awaiting new script'],
+ ['Independent three-HRU simulator','Synthetic MQTT','Available · external Python process'],
  ['MQTT broker','Messaging','Backend configuration'],
  ['PostgreSQL','Database',connectionState.status==='connected'?'Connected':'Unavailable'],
  ['Smart Citizen','Public IoT','Under investigation'],

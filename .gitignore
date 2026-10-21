@@ -26,3 +26,6 @@ __pycache__/
 # Generated simulator data
 tools/hru_digital_twin_simulator_v2/historical/output/
 tools/hru_digital_twin_simulator_v2/historical/*.csv
+# Independent synthetic live simulator outputs (includes test-only fault truth)
+tools/independent_3hru_live/outputs/
+tools/independent_3hru_live/.venv/

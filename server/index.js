@@ -75,10 +75,41 @@ const MQTT_TOPIC =
   process.env.MQTT_TOPIC ||
   "dt/+/+";
 
-const mqttClient = mqtt.connect(MQTT_URL);
+const mqttClient = mqtt.connect(MQTT_URL, {
+  ...(process.env.MQTT_USERNAME ? { username: process.env.MQTT_USERNAME } : {}),
+  ...(process.env.MQTT_PASSWORD ? { password: process.env.MQTT_PASSWORD } : {})
+});
+const mqttLiveStatus = {
+  connected: false,
+  last_received_at: null,
+  last_point_code: null,
+  last_source_timestamp: null,
+  received_count: 0
+};
 
 const liveClients = new Set();
 
+
+// MQTT transport state and last persisted simulated reading; no assumption
+// that the external Python process itself is still running.
+app.get("/api/live-status", (_req, res) => {
+  const age = mqttLiveStatus.last_received_at
+    ? Date.now() - Date.parse(mqttLiveStatus.last_received_at) : null;
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    mqtt_connected: mqttLiveStatus.connected,
+    last_received_at: mqttLiveStatus.last_received_at,
+    last_point_code: mqttLiveStatus.last_point_code,
+    last_source_timestamp: mqttLiveStatus.last_source_timestamp,
+    accepted_readings: mqttLiveStatus.received_count,
+    age_seconds: age === null ? null : Math.max(0, Math.round(age / 1000)),
+    recent: mqttLiveStatus.connected && age !== null && age < 90000,
+    source: "independent_synthetic_simulator",
+    note: "Simulated telemetry, not a physical sensor or AI inference feed"
+  });
+});
+
+mqttClient.on("close", () => { mqttLiveStatus.connected = false; });
 
 // =========================================================
 // DATABASE HELPER
@@ -176,6 +207,7 @@ function broadcastLiveEvent(
 // =========================================================
 
 mqttClient.on("connect", () => {
+  mqttLiveStatus.connected = true;
 
   console.log(
     `MQTT connected: ${MQTT_URL}`
@@ -452,6 +484,9 @@ mqttClient.on(
         source_sequence:
           sequence ?? null,
 
+        source_timestamp:
+          message.source_timestamp ?? null,
+
         source:
           "MQTT"
       };
@@ -465,6 +500,11 @@ mqttClient.on(
       // -----------------------------------------------------
       // PUSH UPDATE TO BROWSER
       // -----------------------------------------------------
+
+      mqttLiveStatus.last_received_at = new Date().toISOString();
+      mqttLiveStatus.last_point_code = point_code;
+      mqttLiveStatus.last_source_timestamp = message.source_timestamp || null;
+      mqttLiveStatus.received_count += 1;
 
       broadcastLiveEvent(
         "sensor-reading",

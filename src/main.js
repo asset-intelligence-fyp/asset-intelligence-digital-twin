@@ -22,6 +22,7 @@ import { initXeokitViewer, destroyActiveViewer } from "./xeokitViewer.js";
 import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js";
 import { sensorMiniOverviewHtml, refreshMiniOverview } from "./bimSensorUI.js";
 import { applyTheme, getSavedTheme, initAppearance } from "./theme.js";
+import { startLiveStatusMonitoring } from "./liveStatus.js";
 import {
   heading, banner, metrics, overviewDetails, monitoring, forecasting,
   historical, simulator, settings
@@ -160,7 +161,7 @@ function shell(pageHtml, { activePath = pathName(), breadcrumb = ROUTE_TITLES[pa
         <div class="search-wrap"><input class="global-search" id="globalSearch" placeholder="Search asset, sensor or location…" /></div>
         <div class="top-actions">
           <div class="top-status-group" aria-label="Data source status">
-            <span class="live-chip">Local simulation</span>
+            <span class="live-chip" data-live-chip>Simulation · checking</span>
             <span class="top-updated">PostgreSQL · ${escapeHtml(connectionState.status)}</span>
           </div>
           <div class="top-icon-group">
@@ -1444,6 +1445,7 @@ async function initialize() {
   app.innerHTML = `<div class="database-loading"><div class="database-loading-mark"></div><h1>Connecting to Digital Twin data</h1><p>Loading Snowdon Towers assets, sensors, readings and anomalies from PostgreSQL…</p></div>`;
   try {
     await loadDatabaseFromApi();
+    startLiveStatusMonitoring();
 
     if (!db.Assets.length) {
       throw new Error(
