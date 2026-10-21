@@ -12,13 +12,14 @@ const dataFor = (readings=[], anomalies=[]) => ({
  readings, anomalies, points:[{point_code:sample.pointCodes[0],unit:"°C",measurement_type:"Temperature"}]
 });
 
-test("eight physical BIM cards are shown, including ABB's three channels", () => {
+test("eight original BIM cards remain while the new room sensor has one active channel", () => {
  for(const key of Object.keys(db))db[key]=[];
  const markup = sensorMiniOverviewHtml();
  assert.equal((markup.match(/data-sensor-mini=/g)||[]).length,8);
  for(const sensor of LEVEL5_SENSORS)assert.match(markup,new RegExp(sensor.sensorId));
- for(const code of ["S-L5-008-TEMP","S-L5-008-HUM","S-L5-008-CO2"])
-   assert.ok(markup.includes(code),code);
+ assert.ok(markup.includes("S-L5-008-TEMP"));
+ assert.ok(!markup.includes('data-mini-point="S-L5-008-HUM"'));
+ assert.ok(!markup.includes('data-mini-point="S-L5-008-CO2"'));
  assert.match(markup,/not verified equipment health/);
 });
 test("green indicates RECENT telemetry only, not confirmed healthy equipment", () => {
@@ -41,23 +42,30 @@ test("stored high severity anomaly gives red, unrelated anomaly does not", () =>
  assert.equal(getSensorCardState(sample,dataFor([reading],[{...alert,point_code:"SAT-507"}]),now).status,"recent");
  assert.equal(getSensorCardState(sample,dataFor([reading],[{...alert,anomaly_status:"Closed"}]),now).status,"recent");
 });
-test("ABB requires all three readings to be recent before green", () => {
- const abb=LEVEL5_SENSORS.find(s=>s.sensorId==="S-L5-008");
- const one=[{point_code:abb.pointCodes[0],value:22,timestamp:"2026-10-21T01:59:00Z"}];
- assert.equal(getSensorCardState(abb,{readings:one,anomalies:[],points:[]},now).status,"offline");
- const all=abb.pointCodes.map(point_code=>({point_code,value:22,timestamp:"2026-10-21T01:59:00Z"}));
- assert.equal(getSensorCardState(abb,{readings:all,anomalies:[],points:[]},now).status,"recent");
+test("unchanged air-velocity BIM markers correctly show no new dataset point", () => {
+ for (const id of ["S-L5-002","S-L5-004","S-L5-007"]) {
+   const sensor=LEVEL5_SENSORS.find(s=>s.sensorId===id);
+   assert.deepEqual(sensor.pointCodes,[]);
+   assert.equal(getSensorCardState(sensor,{readings:[],points:[],anomalies:[]},now).status,"offline");
+ }
+ const html=sensorMiniGridHtml(null,now);
+ assert.match(html,/No channel in new dataset/);
 });
-test("ABB multi-channel values and selected state use physical sensor identity", () => {
+
+test("room temperature retains S-L5-008 GUID and the new room point", () => {
+ const room=LEVEL5_SENSORS.find(s=>s.sensorId==="S-L5-008");
+ assert.deepEqual(room.pointCodes,["S-L5-008-TEMP"]);
  for(const key of Object.keys(db))db[key]=[];
- const abb=LEVEL5_SENSORS.find(s=>s.sensorId==="S-L5-008");
- db.Sensor_Points=abb.pointCodes.map(point_code=>({point_code,unit:point_code.endsWith("CO2")?"ppm":"°C"}));
- db.Sensor_Readings=abb.pointCodes.map((point_code,i)=>({point_code,value:[22.1,51,680][i],timestamp:"2026-10-21T01:59:00Z"}));
- const html=sensorMiniGridHtml(abb.guid,now);
- assert.match(html,/22.1/);
- assert.match(html,/680/);
- assert.match(html,/aria-pressed="true"/);
+ db.Sensor_Points=[{point_code:"S-L5-008-TEMP",unit:"°C"}];
+ db.Sensor_Readings=[{point_code:"S-L5-008-TEMP",value:22.1,timestamp:"2026-10-21T01:59:00Z"}];
+ const markup=sensorMiniGridHtml(room.guid,now);
+ assert.match(markup,/22.1/);
+ assert.match(markup,/aria-pressed="true"/);
+ assert.equal(getSensorCardState(room,{
+   points:db.Sensor_Points, readings:db.Sensor_Readings, anomalies:[]
+ },now).status,"recent");
 });
+
 test("actual xeokit selection, and live incremental UI updates remain wired", () => {
  const main=fs.readFileSync("src/main.js","utf8");
  const css=fs.readFileSync("src/ui-redesign.css","utf8");
