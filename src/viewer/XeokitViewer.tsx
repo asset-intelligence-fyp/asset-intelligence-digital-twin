@@ -19,6 +19,14 @@ export function XeokitViewer({selectedCode,onSensorSelect}:{selectedCode?:string
  const callback=useRef(onSensorSelect);
  callback.current=onSensorSelect;
  useEffect(()=>{
+  const stage=document.getElementById(stageId);
+  // The existing xeokit adapter removes its loading node when the model
+  // loads. Create it outside React ownership to avoid unmount errors.
+  const loading=document.createElement('div');
+  loading.setAttribute('data-viewer-loading','');
+  loading.className='viewer-loading';
+  loading.innerHTML='<div class="xeokit-feedback"><strong class="viewer-loading-title">Loading BIM model</strong><p class="viewer-loading-sub">Snowdon Towers · Level 5</p></div>';
+  stage?.appendChild(loading);
   const instance=(initXeokitViewer as any)({stageId,onSelection:(selected:{entityId?:string})=>{
    const code=POINTS.find(p=>p.guid&&(p.guid===selected.entityId||selected.entityId?.endsWith("#"+p.guid)||selected.entityId?.endsWith("."+p.guid)))?.code;
    if(code)callback.current(code);
@@ -31,7 +39,7 @@ export function XeokitViewer({selectedCode,onSensorSelect}:{selectedCode?:string
    };
    instance.model?.on?.('loaded',configure);
   }
-  return()=>{controller.current=null;destroyActiveViewer();};
+  return()=>{controller.current=null;destroyActiveViewer();loading.remove();};
  },[stageId]);
  useEffect(()=>{
   const guid=POINTS.find(x=>x.code===selectedCode)?.guid;
@@ -51,7 +59,6 @@ export function XeokitViewer({selectedCode,onSensorSelect}:{selectedCode?:string
    <div className="twinlabs-bim-floor" data-floor-label>Level 5</div>
    <span className="twinlabs-bim-selected" data-selected-element>—</span>
    <div data-architecture-status className="twinlabs-arch-status"/>
-   <div className="viewer-loading" data-viewer-loading><div className="xeokit-feedback"><strong className="viewer-loading-title">Loading BIM model</strong><p className="viewer-loading-sub">Snowdon Towers · Level 5</p></div></div>
   </div>
  </div>;
 }
