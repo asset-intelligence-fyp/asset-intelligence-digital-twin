@@ -72,3 +72,40 @@
 .twin-arch-toggle input{accent-color:#299da5}
 .twinlabs-legacy-stage .viewer-loading{position:absolute;inset:0;z-index:4;pointer-events:none}
 .twinlabs-legacy-stage .viewer-loading>.xeokit-feedback{position:absolute;left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);min-width:180px}
+
+
+/* Global TwinLabs assistant launcher — UI placeholder only, no AI service. */
+.twinlabs-assistant {
+  bottom: 104px;
+  right: 23px;
+  width: min(392px, calc(100vw - 36px));
+  height: min(440px, calc(100dvh - 174px));
+  min-height: 240px;
+}
+.twinlabs-assistant .assistant-messages { background: #fcfdfc; }
+.twinlabs-assistant .message-assistant { max-width: 100%; }
+.twinlabs-assistant .message-assistant strong { display: block; color: #203a40; font-size: 13px; margin-bottom: 8px; }
+.twinlabs-assistant .message-assistant p + p { margin-top: 10px; }
+.twinlabs-assistant .assistant-unavailable { font-size: 11px; color: #7a8d91; }
+.twinlabs-assistant .assistant-preview { white-space: nowrap; }
+.twinlabs-assistant .assistant-composer input:disabled {
+  background: transparent;
+  color: #8b999e;
+  cursor: not-allowed;
+}
+.twinlabs-assistant .assistant-composer button:disabled { cursor: not-allowed; }
+.twinlabs-assistant .close-icon:hover { color: #245960; background: #edf7f5; border-radius: 8px; }
+@media (max-width:700px) {
+  .ask-floating { right: 12px; bottom: 44px; }
+  .twinlabs-assistant {
+    left: 62px;
+    right: 9px;
+    width: auto;
+    bottom: 102px;
+    height: min(440px, calc(100dvh - 190px));
+    min-height: 200px;
+  }
+}
+@media (max-height:410px) {
+  .twinlabs-assistant { bottom: 92px; height: calc(100dvh - 115px); min-height: 0; }
+}

@@ -26,7 +26,7 @@ The new TwinLabs frontend is already committed to that branch. Run `npm install`
 - Simulator page with start/pause/reset, update interval, source selection and test alert generation.
 - Header switch from local random data to persisted MQTT ingestion. Random local values do not overwrite PostgreSQL.
 
-The **AI assistant is intentionally excluded**. The starter's fictional predictive failures, energy/CO₂ statistics, confidence levels and false building metadata are removed because the nine-point dataset does not provide those inputs.
+The **AI assistant has a visual placeholder only**: a bottom-right launcher opens a panel with a clear “Coming soon” state and disabled message input. It does not connect to an AI service or generate responses. The starter's fictional predictive failures, energy/CO₂ statistics, confidence levels and false building metadata are removed because the nine-point dataset does not provide those inputs.
 
 ## Optional: random readings through the real MQTT pipeline
 
@@ -41,7 +41,7 @@ Then select *Use MQTT* in the website header. MQTT topics are `dt/<asset>/<point
 
 ## Limitations / verification
 
-- **No actual AI forecast, trained anomaly detector or AI assistant.** The Event log displays stored anomalies and explicitly generated test records, not model predictions.
+- **No actual AI forecast, trained anomaly detector or active AI assistant.** The Event log displays stored anomalies and explicitly generated test records, not model predictions.
 - Only the original eight IFC GlobalIds map to selectable BIM objects; `FS-501A` is asset-linked but has no BIM geometry.
 - The downloaded frontend overlay does not contain the private/large original BIM model or PostgreSQL database, which are retained from your existing repository.
 - This assembly environment cannot access your Mac's database or broker, so validate the XKT rendering and live SSE on your laptop.
@@ -53,3 +53,6 @@ Then select *Use MQTT* in the website header. MQTT topics are `dt/<asset>/<point
 node --test tests/twinlabs_contract.test.mjs
 npm run build
 ```
+## AI Assistant placeholder
+
+A persistent bottom-right **AI Assistant** button is available across all TwinLabs pages. It opens and closes a small non-modal preview panel, with keyboard **Escape** dismissal and a disabled message box. It does not make network requests, accept user prompts, or fabricate AI replies. The existing MQTT, PostgreSQL, sensor simulation and BIM model are unchanged. 
