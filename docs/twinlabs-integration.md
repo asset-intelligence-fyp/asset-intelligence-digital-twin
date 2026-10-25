@@ -47,6 +47,19 @@ Then select *Use MQTT* in the website header. MQTT topics are `dt/<asset>/<point
 - This assembly environment cannot access your Mac's database or broker, so validate the XKT rendering and live SSE on your laptop.
 - The Node API's `/api/bootstrap` currently queries all historical sensor readings. Long-running deployments should paginate its history endpoint and use limited windows.
 
+## Dependency installation and TypeScript build
+
+The initial TwinLabs UI commit changed `package.json` from the previous Vite 8 site to React 18 / TypeScript / Vite 6, but its committed `package-lock.json` was still based on the earlier site. **Do not run `npm ci` until the lockfile is regenerated and committed.** With npm registry access, from the project root:
+
+```bash
+npm install
+npm run build
+git add package-lock.json
+git commit -m "chore: synchronize TwinLabs package lock"
+```
+
+After this updated lockfile is committed, `npm ci` will work again. The simulator's synthetic test-alert record must be explicitly typed as `EventRecord` so `level: 'Warning'` remains within the `Critical | Warning | Info` union.
+
 ## Run checks
 
 ```bash
