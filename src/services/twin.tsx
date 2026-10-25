@@ -143,7 +143,18 @@ export function TwinProvider({children}:{children:ReactNode}){
  },[events]);
  const addTestEvent=useCallback(()=>{
   const point=POINTS[Math.floor(Math.random()*POINTS.length)];
-  setEvents(prev=>[{id:randomEventId.current--,title:`${point.code} · simulated threshold alert`,level:'Warning',description:`Synthetic test alert for ${point.label}. No fault diagnosis is implied.`,source:point.assetId,zone:'Level 5',time:nowIso(),acknowledged:false,synthetic:true},...prev].slice(0,100));
+  const event: EventRecord = {
+    id: randomEventId.current--,
+    title: `${point.code} · simulated threshold alert`,
+    level: 'Warning',
+    description: `Synthetic test alert for ${point.label}. No fault diagnosis is implied.`,
+    source: point.assetId,
+    zone: 'Level 5',
+    time: nowIso(),
+    acknowledged: false,
+    synthetic: true
+  };
+  setEvents(prev => [event, ...prev].slice(0, 100));
  },[]);
  const resetSimulator=useCallback(()=>{generator.current={...initial};setReadings({});setHistory([]);setEvents(prev=>prev.filter(e=>!e.synthetic));},[]);
  const value=useMemo(()=>({mode,setMode,running,setRunning,intervalMs,setIntervalMs,readings,history,events,acknowledge,addTestEvent,assets,maintenance,backendConnected,mqttCoverage,resetSimulator}),
