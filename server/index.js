@@ -86,6 +86,7 @@ const mqttLiveStatus = {
   last_point_code: null,
   last_source_timestamp: null,
   received_count: 0,
+  last_provenance: null,
   by_point: Object.fromEntries(Object.keys(LIVE_POINT_ASSETS).map(code => [code, null]))
 };
 const ignoredLegacyWarnings = new Map();
@@ -115,7 +116,7 @@ app.get("/api/live-status", (_req, res) => {
     received_points,
     points,
     recent: mqttLiveStatus.connected && received_points === points.length,
-    source: "independent_synthetic_simulator",
+    source: mqttLiveStatus.last_provenance === "SYNTHETIC_RANDOM_WALK_NINE_POINT" ? "random_walk_simulator" : "independent_synthetic_simulator",
     note: "Coverage counts persisted synthetic MQTT readings; no physical HRUs or AI inference"
   });
 });
@@ -528,6 +529,7 @@ mqttClient.on(
       mqttLiveStatus.last_point_code = point_code;
       mqttLiveStatus.by_point[point_code] = mqttLiveStatus.last_received_at;
       mqttLiveStatus.last_source_timestamp = message.source_timestamp || null;
+      mqttLiveStatus.last_provenance = message.provenance || null;
       mqttLiveStatus.received_count += 1;
 
       broadcastLiveEvent(

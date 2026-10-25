@@ -1,29 +1,33 @@
 {
-  "name": "asset-intelligence-digital-twin",
-  "version": "1.2.0",
+  "name": "twinlabs-digital-twin-integrated",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n API,WEB \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "node --watch server/index.js",
     "dev:web": "vite",
-    "build": "vite build",
-    "start": "node server/index.js",
+    "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "convert:model": "node scripts/convert-model.mjs"
+    "start": "node server/index.js"
   },
   "dependencies": {
-    "@xeokit/xeokit-sdk": "latest",
+    "@xeokit/xeokit-sdk": "^2.6.114",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "mqtt": "^5.16.0",
-    "pg": "^8.13.1",
-    "web-ifc": "latest"
+    "pg": "^8.13.1"
   },
   "devDependencies": {
-    "@xeokit/xeokit-convert": "^1.3.2",
-    "concurrently": "^9.1.2",
-    "vite": "latest"
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.5",
+    "concurrently": "^9.1.2"
   }
 }
