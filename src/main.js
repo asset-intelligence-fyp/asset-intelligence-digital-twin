@@ -1,6 +1,5 @@
 import {
   db,
-  modelEvaluationDemo,
   connectionState,
   loadDatabaseFromApi,
   updateAnomalyStatus,
@@ -9,6 +8,7 @@ import {
   getAssetContext,
   getLatestAnomalyRows,
   getSensorsForAsset,
+  getSensorById,
   getSensorByBimId,
   getAssetByBimId,
   getSensorCurrentValues,
@@ -19,6 +19,15 @@ import {
 } from "./data/dataStore.js";
 import { initXeokitViewer, destroyActiveViewer } from "./xeokitViewer.js";
 import { LEVEL5_SENSORS, LEVEL5_UNLOCATED_POINTS } from "./data/level5Sensors.js";
+import { sensorMiniOverviewHtml, refreshMiniOverview } from "./bimSensorUI.js";
+import { applyTheme, getSavedTheme, initAppearance } from "./theme.js";
+import { startLiveStatusMonitoring } from "./liveStatus.js";
+import {
+  heading, metrics, overviewDetails, monitoring, forecasting,
+  historical, simulator, settings, refreshLiveCharts
+} from "./redesignViews.js";
+
+initAppearance();
 
 const app = document.getElementById("app");
 
@@ -31,10 +40,24 @@ document.addEventListener("fullscreenchange", () => {
 });
 
 let liveEventSource = null;
+let chartRefreshTimer = null;
+
+// One render per incoming MQTT burst (nine point messages) rather than
+// rebuilding a page or xeokit on every point.
+function scheduleLiveChartRefresh() {
+  if (chartRefreshTimer !== null) return;
+  if (!document.querySelector("[data-chart-codes], [data-live-current-code], [data-live-asset-summary], [data-live-plot-caption]")) return;
+  chartRefreshTimer = window.setTimeout(() => {
+    chartRefreshTimer = null;
+    refreshLiveCharts(document);
+  }, 200);
+}
+let activeBimController = null;
 
 const state = {
   selectedAssetId: "HRU501A",
   selectedBimElement: null,
+  selectedVirtualSensorId: null,
   aiDrawerOpen: false,
   aiResponse: "",
   sensorAssetId: "HRU501A",
@@ -46,23 +69,26 @@ const state = {
 };
 
 const NAV_ITEMS = [
-  ["/", "▦", "Dashboard"],
+  ["/", "▦", "Overview"],
   ["/bim-viewer", "◫", "BIM Viewer"],
+  ["/sensor-data", "≋", "Sensor Monitoring"],
+  ["/model-results", "⌁", "AI Forecasting"],
+  ["/anomalies", "△", "Anomaly Detection"],
+  ["/historical-data", "▤", "Historical Data"],
+  ["/simulator", "▷", "Sensor Simulator"],
+  ["/settings", "⚙", "Settings"],
   ["/assets", "◇", "Assets"],
-  ["/sensor-data", "≋", "Sensor Data"],
-  ["/anomalies", "△", "Anomalies / Faults"],
-  ["/model-results", "◒", "Model Results"],
-  ["assistant", "□", "AI Assistant"],
-  ["/settings", "⚙", "Settings"]
+  ["assistant", "□", "AI Assistant"]
 ];
-
 const ROUTE_TITLES = {
-  "/": "Building Asset Monitoring",
+  "/": "Overview",
   "/bim-viewer": "BIM Viewer",
   "/assets": "Assets",
-  "/sensor-data": "Sensor Data",
-  "/anomalies": "Anomalies / Faults",
-  "/model-results": "Model Results",
+  "/sensor-data": "Sensor Monitoring",
+  "/model-results": "AI Forecasting",
+  "/anomalies": "Anomaly Detection",
+  "/historical-data": "Historical Data",
+  "/simulator": "Sensor Simulator",
   "/settings": "Settings"
 };
 
@@ -125,29 +151,37 @@ function shell(pageHtml, { activePath = pathName(), breadcrumb = ROUTE_TITLES[pa
         <div class="brand">
           <div class="brand-mark" aria-hidden="true"></div>
           <div class="brand-copy">
-            <div class="brand-title">Asset Intelligence</div>
-            <div class="brand-subtitle">AI-Driven Digital Twin</div>
+            <div class="brand-title">Digital Twin</div>
+            <div class="brand-subtitle">Asset Intelligence</div>
           </div>
         </div>
-        <div class="sidebar-label">Workspace</div>
+        <button type="button" class="sidebar-location" data-nav="/bim-viewer" title="Open Level 5 BIM Viewer">Building / Level 5 &nbsp;⌄</button>
+        <div class="sidebar-label">Asset Intelligence</div>
         <nav class="nav" aria-label="Primary navigation">${nav}</nav>
-        <div class="sidebar-divider"></div>
         <div class="system-status">
-          <div class="status-heading">System Status</div>
-          <div class="status-row-mini"><span><span class="status-dot green"></span>Digital Twin Online</span><strong>DEMO</strong></div>
-          <div class="status-row-mini"><span>Database</span><strong>${connectionState.status === "connected" ? "PostgreSQL" : "Offline"}</strong></div>
-          <div class="status-row-mini"><span>Data Stream</span><strong>Simulated</strong></div>
-          <div class="status-row-mini"><span>AI Model</span><strong>Demo</strong></div>
+          <div class="workspace-user"><span class="avatar">FM</span>
+            <div class="workspace-user-copy">Facility Manager</div>
+          </div>
         </div>
       </aside>
 
       <header class="topbar">
-        <div class="breadcrumb">Dashboard &nbsp;/&nbsp; <strong>${escapeHtml(breadcrumb)}</strong></div>
+        <div class="breadcrumb"><strong>Digital Twin / Asset Intelligence</strong> &nbsp; / &nbsp; Building / Level 5 &nbsp; / &nbsp; ${escapeHtml(breadcrumb)}</div>
         <div class="search-wrap"><input class="global-search" id="globalSearch" placeholder="Search asset, sensor or location…" /></div>
         <div class="top-actions">
-          <span class="live-chip"><span class="status-dot green"></span>Live <span class="demo-label">Demo</span></span>
-          <button class="icon-button" id="notificationButton" title="Alerts">⚠</button>
-          <button class="user-button" id="userButton"><span class="avatar">FM</span><span>Facility Manager</span><span>⌄</span></button>
+          <div class="top-status-group" aria-label="Data source status">
+            <span class="live-chip" data-live-chip>Synthetic MQTT · checking</span>
+            <span class="top-updated">PostgreSQL · ${escapeHtml(connectionState.status)}</span>
+          </div>
+          <div class="top-icon-group">
+            <button class="icon-button" data-theme-toggle type="button" aria-label="Toggle light and dark appearance" title="Change appearance">☾</button>
+            <button class="icon-button" id="notificationButton" type="button" title="Anomalies" aria-label="View anomaly records">♧</button>
+          </div>
+          <button class="user-button" id="userButton" type="button" title="Open account options">
+            <span class="avatar">FM</span>
+            <span class="user-copy"><strong>Facility Manager</strong></span>
+            <span class="user-caret" aria-hidden="true">⌄</span>
+          </button>
         </div>
       </header>
 
@@ -157,6 +191,7 @@ function shell(pageHtml, { activePath = pathName(), breadcrumb = ROUTE_TITLES[pa
   `;
 
   bindShellEvents();
+  applyTheme(getSavedTheme());
 }
 
 function bindShellEvents() {
@@ -173,6 +208,11 @@ function bindShellEvents() {
   });
 
   document.getElementById("notificationButton")?.addEventListener("click", () => go("/anomalies"));
+  document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
+    const current = document.documentElement.dataset.theme;
+    applyTheme(current === "dark" ? "light" : "dark", {persist:true});
+  });
+  document.querySelectorAll("[data-route]").forEach(btn => btn.addEventListener("click", () => go(btn.dataset.route)));
   document.getElementById("userButton")?.addEventListener("click", () => go("/login"));
 
   const search = document.getElementById("globalSearch");
@@ -227,6 +267,7 @@ function latestReadingTimestamp(context = null) {
 }
 
 function selectedSensor() {
+  if (state.selectedVirtualSensorId) return getSensorById(state.selectedVirtualSensorId);
   const entityId = state.selectedBimElement?.entityId;
   return entityId ? getSensorByBimId(entityId) : null;
 }
@@ -244,16 +285,39 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
     .at(-1) || null;
 
   const readingsHtml = points.length
-    ? points.map((point) => {
+    ? `<div class="bim-selected-reading-grid">${points.map((point) => {
         const reading = point.reading;
-        const value = reading?.value ?? "—";
-        const unit = point.unit || "";
-        return `<div class="info-row">
-          <span class="info-key">${escapeHtml(point.measurement_type ?? point.sensor_type ?? point.point_code)}</span>
-          <span class="info-value">${escapeHtml(value)} ${escapeHtml(unit)}</span>
+        const number = reading?.value == null ? null : Number(reading.value);
+        const fanPoint = (point.point_code ?? point.sensor_id) === "FS-501A";
+        const value = number == null || !Number.isFinite(number) ? "—"
+          : fanPoint ? (number === 1 ? "ON" : number === 0 ? "OFF" : "—")
+          : number.toLocaleString(undefined, {maximumFractionDigits:2});
+        return `<div class="bim-selected-reading">
+          <span>${escapeHtml(point.measurement_type ?? point.sensor_type ?? point.point_code)}</span>
+          <strong>${escapeHtml(value)} <small>${escapeHtml(fanPoint ? "" : point.unit || "")}</small></strong>
+          <em>${escapeHtml(reading?.quality || "No data")} · ${escapeHtml(formatTime(reading?.latest_update ?? reading?.timestamp))}</em>
         </div>`;
-      }).join("")
-    : `<div class="section-meta">No measurement points or current readings are stored for this sensor.</div>`;
+      }).join("")}</div>`
+    : `<div class="section-meta">No current measurement points for this sensor.</div>`;
+
+  // Related asset telemetry is not a measurement from the selected physical
+  // marker: keep virtual point provenance explicit in the inspector.
+  const relatedUnlocated = LEVEL5_UNLOCATED_POINTS.filter(point => point.assetId === assetId && point.sensorId !== sensorId);
+  const relatedHtml = relatedUnlocated.length
+    ? `<div class="info-section">
+        <div class="info-heading">Related HRU telemetry · no physical BIM marker</div>
+        ${relatedUnlocated.map(point => {
+          const reading = getReading(point.pointCode);
+          const parsed = reading?.value == null ? null : Number(reading.value);
+          const value = parsed == null || !Number.isFinite(parsed)
+            ? "—" : point.pointCode === "FS-501A"
+              ? (parsed === 1 ? "ON" : parsed === 0 ? "OFF" : "—")
+              : parsed.toLocaleString(undefined,{maximumFractionDigits:2});
+          return `<div class="info-row"><span class="info-key">${escapeHtml(point.pointCode)} · ${escapeHtml(point.label)}</span>
+            <span class="info-value">${escapeHtml(value)} ${point.pointCode === "FS-501A" ? "" : escapeHtml(point.unit)}</span></div>`;
+        }).join("")}
+      </div>`
+    : "";
 
   const qualityRows = points
     .filter((point) => point.reading?.quality)
@@ -271,7 +335,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
         <div class="asset-icon-box">◉</div>
         <div class="asset-title-copy">
           <div class="asset-name">${escapeHtml(sensor.sensor_name || sensorId)}</div>
-          <div class="asset-type">${escapeHtml(sensor.model || "Physical sensor")}</div>
+          <div class="asset-type">${escapeHtml(state.selectedVirtualSensorId ? "Asset-linked telemetry · no IFC marker" : sensor.model || "BIM sensor")}</div>
         </div>
         ${statusPill(sensor.status || "Unknown")}
       </div>
@@ -279,7 +343,7 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
       <div class="info-section">
         <div class="info-heading">Identification</div>
         <div class="info-row"><span class="info-key">Sensor ID</span><span class="info-value mono">${escapeHtml(sensorId)}</span></div>
-        <div class="info-row"><span class="info-key">BIM Element ID</span><span class="info-value mono">${escapeHtml(sensor.ifc_global_id || sensor.global_id || state.selectedBimElement?.entityId || "—")}</span></div>
+        <div class="info-row"><span class="info-key">BIM Element ID</span><span class="info-value mono">${escapeHtml(state.selectedVirtualSensorId ? "Not present in IFC asset list" : sensor.ifc_global_id || sensor.global_id || state.selectedBimElement?.entityId || "—")}</span></div>
         <div class="info-row"><span class="info-key">Linked Asset</span><span class="info-value">${escapeHtml(asset?.asset_name || assetId || "—")}</span></div>
         <div class="info-row"><span class="info-key">Location</span><span class="info-value">${escapeHtml(assetContext?.space?.space_name || "—")}</span></div>
         <div class="info-row"><span class="info-key">Floor</span><span class="info-value">${escapeHtml(assetContext?.floor?.floor_name || "—")}</span></div>
@@ -293,9 +357,10 @@ function sensorInspectorHtml(sensor, { detailed = false } = {}) {
       </div>
 
       <div class="info-section">
-        <div class="info-heading">Live Readings</div>
+        <div class="info-heading">Sensor measurements</div>
         ${readingsHtml}
       </div>
+      ${relatedHtml}
 
       ${detailed ? `<div class="info-section">
         <div class="info-heading">Reading Status</div>
@@ -439,7 +504,7 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
     <div class="panel-header">
       <div>
         <div class="section-title">◫ Digital Twin BIM Viewer</div>
-        <div class="section-meta" style="margin-top:4px">Level 5 pilot &nbsp;•&nbsp; Simulated telemetry &nbsp; <span class="demo-label">SIMULATION</span></div>
+        <div class="section-meta" style="margin-top:4px">Level 5 · BIM-linked sensors</div>
       </div>
       <div class="viewer-tools-row">
         <span class="viewer-level-tag">Level 5 only</span>
@@ -490,9 +555,49 @@ function viewerPanelHtml({ stageId, detailed = false } = {}) {
         <span class="legend-item"><span class="legend-dot" style="background:#ff5154"></span>Critical</span>
         <span class="legend-item"><span class="legend-dot" style="background:#55b7ff"></span>Selected</span>
       </div>
-      <span>8 mapped devices · 11 channels</span>
+      <span>9 sensor points · 8 original IFC markers</span>
     </div>
   </section>`;
+}
+
+function bindMiniSensorOverview() {
+  const region = document.querySelector(".bim-tree-column .bim-sensor-overview");
+  // Search remains stable while SSE refreshes row values in place.
+  region?.querySelector("[data-sensor-list-filter]")?.addEventListener("input", event => {
+    const query = event.target.value.trim().toLowerCase();
+    region.querySelectorAll("[data-sensor-mini]").forEach(row => {
+      row.hidden = Boolean(query) && !row.textContent.toLowerCase().includes(query);
+    });
+  });
+  region?.addEventListener("click", event => {
+    const button = event.target.closest("[data-sensor-mini]");
+    if (!button) return;
+    const id = button.dataset.sensorMini;
+    const sensor = LEVEL5_SENSORS.find(item => item.sensorId === id);
+    const virtual = LEVEL5_UNLOCATED_POINTS.find(item => item.sensorId === id);
+    if (!sensor && !virtual) return;
+    const feedback = region.querySelector("[data-sensor-feedback]");
+    if (virtual) {
+      state.selectedVirtualSensorId = virtual.sensorId;
+      state.selectedBimElement = null;
+      state.selectedAssetId = virtual.assetId;
+      const inspector = document.querySelector(".asset-inspector");
+      if (inspector) {
+        inspector.outerHTML = assetInspectorHtml({detailed:pathName() === "/bim-viewer"});
+        bindAssetInspector();
+      }
+      refreshMiniOverview(null, virtual.sensorId);
+      if (feedback) feedback.textContent = "Fan status is linked to HRU501A but has no 3D IFC marker.";
+      return;
+    }
+    state.selectedVirtualSensorId = null;
+    if (!activeBimController?.viewer.scene.objects[sensor.guid]) {
+      if (feedback) feedback.textContent = "BIM sensor marker is not loaded. Check the model loading status.";
+      return;
+    }
+    if (feedback) feedback.textContent = "";
+    activeBimController.selectSensor(sensor.guid);
+  });
 }
 
 function initViewer(stageId) {
@@ -500,6 +605,7 @@ function initViewer(stageId) {
     stageId,
     onSelection: (selection) => {
       state.selectedBimElement = selection;
+      state.selectedVirtualSensorId = null;
       const sensor = getSensorByBimId(selection.entityId);
       const mappedAsset = getAssetByBimId(selection.entityId);
       if (sensor) state.selectedAssetId = sensor.asset_id ?? sensor.equipment_code;
@@ -514,9 +620,11 @@ function initViewer(stageId) {
       document.querySelectorAll("[data-sensor-guid]").forEach(button => {
         button.classList.toggle("active", button.dataset.sensorGuid === selection.entityId);
       });
+      refreshMiniOverview(selection.entityId);
     }
   });
   if (!controller) return null;
+  if (stageId === "mainViewer") activeBimController = controller;
   const stage = document.getElementById(stageId);
   const panel = stage?.closest(".viewer-panel");
   if (!panel) return controller;
@@ -531,6 +639,18 @@ function initViewer(stageId) {
       console.error("Could not expand BIM viewer:", error);
     }
   });
+  // The dedicated BIM Viewer already renders the nine live sensor rows in
+  // its left column. Do not insert a second, obsolete tree/navigation view.
+  if (stageId === "mainViewer") {
+    controller.model?.on?.("loaded", () => {
+      const {matched, total} = controller.configureSensors(LEVEL5_SENSORS);
+      const count = document.querySelector(".bim-tree-column [data-mapping-count]");
+      if (count) count.textContent = matched + "/" + total + " BIM markers";
+    });
+    return controller;
+  }
+
+  // Keep the compact xeokit sensor navigator on the dashboard-only viewer.
   const navigation = document.createElement("aside");
   navigation.className = "level5-sensor-nav";
   navigation.setAttribute("aria-label", "Level 5 physical sensors");
@@ -544,7 +664,7 @@ function initViewer(stageId) {
       '<div class="level5-sensor-nav-list">' +
       LEVEL5_SENSORS.map(item => '<button type="button" data-sensor-guid="' + escapeHtml(item.guid) + '" title="' + escapeHtml(item.label) + '">' +
         '<strong>' + escapeHtml(item.sensorId) + '</strong><span>' + escapeHtml(item.assetId) + ' · ' + escapeHtml(item.label) + '</span></button>').join("") +
-      '<div class="level5-unlocated">' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · No BIM marker').join("") + '</div></div>' +
+      '<div class="level5-unlocated">HRU-linked points (no BIM marker): ' + LEVEL5_UNLOCATED_POINTS.map(item => escapeHtml(item.pointCode) + ' · ' + escapeHtml(item.assetId)).join(", ") + '</div></div>' +
     '</div></details>';
   stage.appendChild(navigation);
   navigation.querySelector("[data-sensor-filter]")?.addEventListener("input", event => {
@@ -624,11 +744,11 @@ function trendPanelHtml() {
   const expected = 21.0;
   const delta = current == null ? null : current - expected;
   return `<section class="panel trend-panel">
-    <div class="panel-header compact-header"><div class="section-title">≋ Sensor Trend</div><div class="section-meta">${escapeHtml(asset?.asset_name || "Asset")} · POSTGRESQL DEMO</div></div>
+    <div class="panel-header compact-header"><div class="section-title">≋ Sensor Trend</div><div class="section-meta">${escapeHtml(asset?.asset_name || "Asset")} · PostgreSQL</div></div>
     <div class="trend-body">
       <div class="trend-controls">
         <select class="select" style="height:26px"><option>Supply Air Temperature</option><option>Airflow</option><option>Static Pressure</option></select>
-        <div style="display:flex;align-items:center;gap:12px"><div class="segmented"><button>1H</button><button>6H</button><button class="active">24H</button><button>7D</button></div><div class="trend-value"><strong>${current == null ? "—" : current.toFixed(1)} <span style="font-size:9px;color:#8798a4">${escapeHtml(sensor?.unit || "")}</span></strong><div class="trend-delta">${delta == null ? "No reading" : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)} °C from demo reference`}</div></div></div>
+        <div style="display:flex;align-items:center;gap:12px"><div class="segmented"><button>1H</button><button>6H</button><button class="active">24H</button><button>7D</button></div><div class="trend-value"><strong>${current == null ? "—" : current.toFixed(1)} <span style="font-size:9px;color:#8798a4">${escapeHtml(sensor?.unit || "")}</span></strong><div class="trend-delta">${delta == null ? "No reading" : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)} °C from reference`}</div></div></div>
       </div>
       <div class="chart-wrap">${trendSvg()}</div>
     </div>
@@ -645,7 +765,7 @@ function anomalyRowsHtml({ compact = false } = {}) {
     if (compact) {
       return `<tr data-anomaly-asset="${r.asset?.asset_id}" data-anomaly-id="${r.anomaly_id}"><td>${formatShortTime(r.timestamp)}</td><td class="primary">${escapeHtml(r.asset?.asset_name || "—")}</td><td>${escapeHtml(r.space?.space_name || r.floor?.floor_name || "—")}</td><td>${escapeHtml(result)}</td><td>${statusPill(r.anomaly_status)}</td><td class="accent">${score}</td></tr>`;
     }
-    return `<tr data-anomaly-asset="${r.asset?.asset_id}" data-anomaly-id="${r.anomaly_id}"><td class="primary">${formatShortTime(r.timestamp)}</td><td class="primary">${escapeHtml(r.asset?.asset_name || "—")}</td><td>${escapeHtml(r.sensor?.sensor_type || "—")}</td><td class="accent">${score}</td><td>${escapeHtml(result)}</td><td>${statusPill(r.severity)}</td><td>AE-v1.3</td><td>${statusPill(r.anomaly_status)}</td></tr>`;
+    return `<tr data-anomaly-asset="${r.asset?.asset_id}" data-anomaly-id="${r.anomaly_id}"><td class="primary">${formatShortTime(r.timestamp)}</td><td class="primary">${escapeHtml(r.asset?.asset_name || "—")}</td><td>${escapeHtml(r.sensor?.sensor_type || "—")}</td><td class="accent">${score}</td><td>${escapeHtml(result)}</td><td>${statusPill(r.severity)}</td><td>${escapeHtml(r.model_version || "Not verified")}</td><td>${statusPill(r.anomaly_status)}</td></tr>`;
   }).join("");
 }
 
@@ -663,50 +783,51 @@ function recentAnomaliesPanelHtml() {
 }
 
 function bindAnomalyRows() {
-  document.querySelectorAll("[data-anomaly-asset]").forEach((row) => {
+  document.querySelectorAll("[data-anomaly-asset]").forEach(row => {
     row.addEventListener("click", () => {
-      const id = Number(row.dataset.anomalyAsset);
-      if (id) state.selectedAssetId = id;
-      if (pathName() === "/") render();
-      else go(`/assets/${id}`);
+      const id = row.dataset.anomalyAsset;
+      if (!id || id === "undefined") return;
+      state.selectedAssetId = id;
+      go("/assets/" + encodeURIComponent(id));
     });
   });
 }
 
 function renderDashboard() {
   destroyActiveViewer();
-  const html = `<div class="page dashboard-page">
-    <div class="dashboard-heading">
-      <div><div class="eyebrow">Digital Twin Operations</div><h1 class="page-title">Building Asset Monitoring</h1><p class="page-subtitle">Live BIM-linked asset and AI status overview</p></div>
-      <div class="dashboard-controls"><span style="color:#7d909c;font-size:9px">▥</span><select class="select"><option>Snowdon Towers</option></select><select class="select"><option>All Floors</option></select><button class="btn" data-go-bim>View BIM Model ↗</button></div>
-    </div>
-    <div class="summary-strip">
-      <div class="summary-item"><div class="summary-label">Monitored Assets</div><div class="summary-value">${db.Assets.length} <small>PILOT ASSETS</small></div></div>
-      <div class="summary-item"><div class="summary-label"><span class="status-dot green"></span>Normal</div><div class="summary-value">${db.Assets.filter(a => assetAnomalyStatus(a.asset_id) === "Normal").length}</div></div>
-      <div class="summary-item alert"><div class="summary-label"><span class="status-dot orange"></span>Active Anomalies</div><div class="summary-value" style="color:#ffb25f">${db.Anomaly_Results.filter(a => a.anomaly_status !== "Closed").length}</div></div>
-      <div class="summary-item"><div class="summary-label"><span class="status-dot red"></span>Critical Faults</div><div class="summary-value">${db.Anomaly_Results.filter(a => a.severity === "Critical" && a.anomaly_status !== "Closed").length}</div></div>
-      <div class="summary-sync"><span><span class="status-dot green"></span>PostgreSQL Demo</span><span style="color:#445661">|</span><span>Last update</span><strong class="mono">${formatTime(latestReadingTimestamp())}</strong></div>
-    </div>
-    <div class="dashboard-upper">${viewerPanelHtml({stageId:"dashboardViewer"})}${assetInspectorHtml()}</div>
-    <div class="dashboard-lower">${trendPanelHtml()}${recentAnomaliesPanelHtml()}</div>
-    <div class="page-footer-line" style="margin-top:6px"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM-INTEGRATED ASSET MONITORING</span><span>Demonstration data · Not connected to a live BMS</span></div>
-  </div>`;
-  shell(html, { activePath: "/", breadcrumb: "Building Asset Monitoring", noScroll: true });
-  document.querySelector("[data-go-bim]")?.addEventListener("click", () => go("/bim-viewer"));
-  document.querySelector("[data-view-all-anomalies]")?.addEventListener("click", () => go("/anomalies"));
+  const html = '<div class="page ai-page">' +
+    heading("Overview", "A clear view of your building’s operational health.") +
+    metrics([
+      ["HRU assets", "3", "Level 5 equipment"],
+      ["Sensor devices", "8", "Physical BIM sensor markers"],
+      ["Measurement channels", "9", "Active MQTT points"]
+    ]) +
+    '<div class="ai-grid-two ai-overview-top">' +
+      '<section class="ai-overview-viewer">' + viewerPanelHtml({stageId:"dashboardViewer"}) + '</section>' +
+      '<section class="ai-overview-inspector">' + assetInspectorHtml() + '</section>' +
+    '</div>' + overviewDetails() +
+    '</div>';
+  shell(html, { activePath: "/", breadcrumb:"Overview" });
   bindAssetInspector();
-  bindAnomalyRows();
   requestAnimationFrame(() => initViewer("dashboardViewer"));
 }
-
 function renderBimViewer() {
   destroyActiveViewer();
-  const html = `<div class="page bim-viewer-page">
-    <div class="bim-workspace" data-bim-workspace>${viewerPanelHtml({stageId:"mainViewer", detailed:true})}${assetInspectorHtml({detailed:true})}</div>
-    <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM VIEWER</span><span>Click a BIM element to select and inspect it</span></div>
-  </div>`;
-  shell(html, { activePath: "/bim-viewer", breadcrumb: "BIM Viewer", noScroll: true });
+  activeBimController = null;
+  const html = '<div class="page bim-viewer-page ai-fullscreen-bim">' +
+    heading("BIM Viewer", "Monitor nine sensor IDs linked to three HRU assets, with eight IFC markers.") +
+    '<div class="bim-workspace bim-three-column" data-bim-workspace>' +
+       '<aside class="bim-tree-column panel" aria-label="Level 5 live sensor list">' +
+         sensorMiniOverviewHtml(state.selectedBimElement?.entityId, state.selectedVirtualSensorId) +
+       '</aside>' +
+       '<div class="bim-center-column">' +
+         viewerPanelHtml({stageId:"mainViewer",detailed:true}) +
+       '</div>' +
+       assetInspectorHtml({detailed:true}) +
+    '</div></div>';
+  shell(html, {activePath:"/bim-viewer",breadcrumb:"BIM Viewer",noScroll:true});
   bindAssetInspector();
+  bindMiniSensorOverview();
   requestAnimationFrame(() => initViewer("mainViewer"));
 }
 
@@ -729,13 +850,13 @@ function renderAssets() {
   destroyActiveViewer();
   const floorOptions = db.Building_Floors.map(f=>`<option value="${f.floor_id}">${f.floor_name}</option>`).join("");
   const html = `<div class="page">
-    ${pageHeading({eyebrow:"Asset Register", title:"Assets", subtitle:"Snowdon Towers · BIM-linked HVAC pilot assets", actions:'<span class="demo-label" style="border:1px solid #34454f;padding:7px 9px;border-radius:6px">DEMONSTRATION DATA</span>'})}
+    ${pageHeading({eyebrow:"Asset Register", title:"Assets", subtitle:"Snowdon Towers · BIM-linked HVAC assets", actions:''})}
     <section class="panel">
       <div class="search-panel"><input id="assetSearch" class="field" placeholder="⌕  Search assets…" value="${escapeHtml(state.assetSearch)}"><select id="assetFloor" class="select"><option value="all">All Floors</option>${floorOptions}</select></div>
       <div class="table-wrap"><table class="data-table"><thead><tr><th>Asset</th><th>Type</th><th>Floor</th><th>System</th><th>Live Status</th><th>Anomaly Status</th><th>Last Update</th><th></th></tr></thead><tbody id="assetsBody">${assetsTableRows()}</tbody></table></div>
-      <div class="table-foot">4 pilot assets · BMS simulation</div>
+      <div class="table-foot">Asset register</div>
     </section>
-    <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM-INTEGRATED ASSET MONITORING</span><span>Demonstration data · Not connected to a live BMS</span></div>
+    <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM-INTEGRATED ASSET MONITORING</span><span>Synthetic MQTT telemetry</span></div>
   </div>`;
   shell(html, { activePath: "/assets", breadcrumb: "Assets" });
   const search = document.getElementById("assetSearch");
@@ -939,7 +1060,7 @@ function renderAssetDetail(assetId) {
       </div></section>
     </div>
     <section class="panel" style="margin-top:12px"><div class="panel-header"><div class="section-title">Current Sensor Values</div><div class="section-meta"><span class="status-dot green"></span>Live MQTT readings</div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Quality</th><th>Updated</th></tr></thead><tbody>${rows}</tbody></table></div></section>
-    <section class="panel" style="margin-top:12px"><div class="panel-header"><div class="section-title">Maintenance Events</div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Description</th></tr></thead><tbody>${maintenance.length ? maintenance.map(m=>`<tr><td>${m.event_date}</td><td class="primary">${m.event_type}</td><td>${statusPill(m.maintenance_status)}</td><td>${m.description}</td></tr>`).join('') : '<tr><td colspan="4">No maintenance records in demo data.</td></tr>'}</tbody></table></div></section>
+    <section class="panel" style="margin-top:12px"><div class="panel-header"><div class="section-title">Maintenance Events</div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Date</th><th>Type</th><th>Status</th><th>Description</th></tr></thead><tbody>${maintenance.length ? maintenance.map(m=>`<tr><td>${m.event_date}</td><td class="primary">${m.event_type}</td><td>${statusPill(m.maintenance_status)}</td><td>${m.description}</td></tr>`).join('') : '<tr><td colspan="4">No maintenance records.</td></tr>'}</tbody></table></div></section>
   </div>`;
   shell(html, { activePath: "/assets", breadcrumb: `Assets / ${asset.asset_name}` });
   document.querySelector("[data-locate-bim]")?.addEventListener("click", () => go("/bim-viewer"));
@@ -963,59 +1084,51 @@ function sensorHistoryRows() {
 
 function renderSensorData() {
   destroyActiveViewer();
-  const assets = db.Assets.map((a)=>`<option value="${a.asset_id}">${a.asset_name}</option>`).join("");
-  const sensor = db.Sensors.find((s) => s.sensor_id === Number(state.sensorId)) || getSensorsForAsset(state.sensorAssetId)[0];
-  if (sensor) state.sensorId = sensor.sensor_id;
-  const reading = sensor ? getReading(sensor.sensor_id) : null;
-  const current = reading ? Number(reading.value) : null;
-  const isTemp = sensor?.sensor_type === "Supply Air Temperature";
-  const reference = 21.0;
-  const delta = isTemp && current != null ? current - reference : null;
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"Historical Monitoring", title:"Sensor Data", subtitle:"Time-series signals · PostgreSQL demo records · Quality-controlled demonstration readings"})}
-    <section class="panel filters-bar">
-      <div class="filter-group"><label class="label">Building</label><select class="select"><option>Snowdon Towers</option></select></div>
-      <div class="filter-group"><label class="label">Floor</label><select class="select"><option>All Floors</option>${db.Building_Floors.map(f=>`<option>${f.floor_name}</option>`).join('')}</select></div>
-      <div class="filter-group"><label class="label">Asset</label><select class="select" id="sensorAsset">${assets}</select></div>
-      <div class="filter-group"><label class="label">Sensor</label><select class="select" id="sensorSelect">${sensorOptions(state.sensorAssetId)}</select></div>
-      <div class="filter-group"><label class="label">Date Range</label><select class="select"><option>24H</option><option>7D</option><option>30D</option></select></div>
-    </section>
-    <section class="panel" style="height:315px;margin-bottom:12px"><div class="panel-header"><div class="section-title">≋ Sensor Trend</div><div class="section-meta">PostgreSQL demonstration data</div></div><div class="panel-body" style="height:calc(100% - 46px);display:flex;flex-direction:column"><div style="display:flex;justify-content:space-between"><span class="section-meta">${escapeHtml(sensor?.sensor_type || 'Sensor')} ${isTemp ? '&nbsp; ··· Expected Reference' : ''}</span><div class="trend-value"><strong>${current == null ? '—' : current.toFixed(sensor?.unit === 'Pa' ? 0 : 1)} <span style="font-size:9px;color:#8798a4">${escapeHtml(sensor?.unit || '')}</span></strong><div class="trend-delta">${delta == null ? 'Latest PostgreSQL reading' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} °C from demo reference`}</div></div></div><div class="chart-wrap">${trendSvg(state.sensorId)}</div></div></section>
-    <section class="panel"><div class="panel-header"><div class="section-title">Sensor Readings</div><div class="section-meta">PostgreSQL rows for sensor ${escapeHtml(sensor?.sensor_id || '—')}</div></div><div class="table-wrap" style="max-height:330px"><table class="data-table"><thead><tr><th>Timestamp</th><th>Sensor ID</th><th>Asset</th><th>Parameter</th><th>Value</th><th>Unit</th><th>Quality</th></tr></thead><tbody id="sensorReadingsBody">${sensorHistoryRows()}</tbody></table></div></section>
-  </div>`;
-  shell(html, { activePath: "/sensor-data", breadcrumb: "Sensor Data" });
-  const assetSel = document.getElementById("sensorAsset");
-  const sensorSel = document.getElementById("sensorSelect");
-  assetSel.value = String(state.sensorAssetId);
-  sensorSel.value = String(state.sensorId);
-  assetSel.addEventListener("change", () => {
-    state.sensorAssetId = assetSel.value;
-    const sensors = getSensorsForAsset(state.sensorAssetId);
-    state.sensorId = sensors[0]?.sensor_id || state.sensorId;
-    renderSensorData();
-  });
-  sensorSel.addEventListener("change", () => {
-    state.sensorId = sensorSel.value;
-    renderSensorData();
+  shell(monitoring(), { activePath:"/sensor-data", breadcrumb:"Sensor Monitoring" });
+  const search = document.getElementById("channelSearch");
+  search?.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    document.querySelectorAll("[data-equipment]").forEach(card => {
+      card.hidden = q && !card.textContent.toLowerCase().includes(q);
+    });
   });
 }
-
 function renderAnomalies() {
   destroyActiveViewer();
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"AI Investigation", title:"Anomalies / Faults", subtitle:"Detection evidence and review workflow · Acknowledgement does not indicate repair", actions:'<span class="demo-label" style="border:1px solid #34454f;padding:7px 9px;border-radius:6px">DEMONSTRATION DATA</span>'})}
-    <section class="panel filters-bar six">
-      <div class="filter-group"><label class="label">Date Range</label><select class="select"><option>Today</option><option>7 Days</option><option>30 Days</option></select></div>
-      <div class="filter-group"><label class="label">Asset</label><select class="select" id="anomalyAsset"><option value="all">All Assets</option>${db.Assets.map(a=>`<option value="${a.asset_name}">${a.asset_name}</option>`).join('')}</select></div>
-      <div class="filter-group"><label class="label">Floor</label><select class="select"><option>All Floors</option></select></div>
-      <div class="filter-group"><label class="label">Status</label><select class="select" id="anomalyStatus"><option value="all">All Status</option><option>New</option><option>Review</option><option>Acknowledged</option><option>Closed</option></select></div>
-      <div class="filter-group"><label class="label">Model</label><select class="select"><option>All Models</option><option>AE-v1.3</option><option>SVM-v2.1</option></select></div>
-      <div class="filter-group"><label class="label">Severity</label><select class="select"><option>All Severities</option><option>High</option><option>Medium</option><option>Low</option></select></div>
-    </section>
-    <section class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>Detected</th><th>Asset</th><th>Sensor</th><th>Anomaly Score</th><th>Detection Result</th><th>Severity</th><th>Model</th><th>Status</th></tr></thead><tbody id="anomalyBody">${anomalyRowsHtml()}</tbody></table></div></section>
-    <div class="page-footer-line"><span>Click an anomaly to open the associated asset</span><span>Anomaly records are loaded from PostgreSQL demonstration data</span></div>
-  </div>`;
-  shell(html, { activePath: "/anomalies", breadcrumb: "Anomalies / Faults" });
+  const rows = getLatestAnomalyRows();
+  const active = rows.filter(r => r.anomaly_status !== "Closed");
+  const severities = active.map(r=>String(r.severity || "").toLowerCase());
+  const highest = severities.includes("critical") ? "Critical" :
+                  severities.includes("high") ? "High" :
+                  severities.includes("medium") ? "Medium" :
+                  severities.includes("low") ? "Low" : "—";
+  const affected = new Set(active.map(r=>r.asset?.asset_id).filter(Boolean));
+  const options = db.Assets.map(asset=>'<option value="' + escapeHtml(asset.asset_name) + '">' +
+    escapeHtml(asset.asset_name) + '</option>').join("");
+  const html = '<div class="page ai-page">' +
+    heading("Anomaly Detection", "Investigate deviations with context, not just alerts.") +
+    metrics([
+      ["Open anomaly records", String(active.length), "Stored events"],
+      ["Highest recorded severity", highest, "Open records"],
+      ["Affected equipment", affected.size + " / 3", "Level 5 assets"]
+    ]) +
+    '<div class="ai-chip-row"><label class="ai-chip">Equipment <select class="select" id="anomalyAsset"><option value="all">All equipment</option>' + options + '</select></label>' +
+    '<label class="ai-chip">Status <select class="select" id="anomalyStatus"><option value="all">All statuses</option><option>New</option><option>Review</option><option>Acknowledged</option><option>Closed</option></select></label></div>' +
+    '<section class="ai-card" style="margin-bottom:14px">' +
+      '<div class="ai-card-title"><div><strong>Recorded anomaly investigations</strong><small>Click a record to view its associated asset</small></div></div>' +
+      '<div class="ai-table-wrap"><table class="ai-table"><thead><tr><th>Detected</th><th>Asset</th><th>Sensor</th><th>Score</th><th>Description</th><th>Severity</th><th>Model</th><th>Status</th></tr></thead>' +
+      '<tbody id="anomalyBody">' + anomalyRowsHtml() + '</tbody></table></div>' +
+    '</section><div class="ai-grid-two"><section class="ai-card">' +
+      '<div class="ai-card-title"><strong>Recent event timeline</strong></div>' +
+      (rows.slice(0,5).map(r=>'<div class="ai-key-value"><span>' + escapeHtml(formatTime(r.timestamp)) + ' · ' +
+      escapeHtml(r.asset?.asset_name || "Unmapped asset") + '</span><strong>' +
+      escapeHtml(r.anomaly_status || "Recorded") + '</strong></div>').join("") ||
+      '<div class="ai-empty">No anomaly events are stored in this database.</div>') +
+    '</section><section class="ai-card"><div class="ai-card-title"><strong>Historical context</strong></div>' +
+      
+      '<button class="btn" data-route="/historical-data">Explore historical baseline ↗</button>' +
+    '</section></div></div>';
+  shell(html,{activePath:"/anomalies",breadcrumb:"Anomaly Detection"});
   const status = document.getElementById("anomalyStatus");
   const asset = document.getElementById("anomalyAsset");
   status.value = state.anomalyStatus;
@@ -1028,37 +1141,41 @@ function renderAnomalies() {
 
 function renderModelResults() {
   destroyActiveViewer();
-  const m = modelEvaluationDemo;
-  const metrics = m.metrics.map(x=>`<div class="metric-cell"><div class="metric-label">${x.label}</div><div class="metric-value">${x.value}</div><div class="metric-note">${x.note}</div></div>`).join('');
-  const rows = m.comparison.map(x=>`<tr><td class="primary">${x.model}</td><td>${x.purpose}</td><td>${x.version}</td><td>${x.precision}</td><td>${x.recall}</td><td>${x.f1}</td><td>${x.deployment}</td></tr>`).join('');
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"Model Evaluation", title:"Model Results", subtitle:"Evaluation workspace · Validation metrics are intentionally not fabricated", actions:'<span class="demo-label" style="border:1px solid #34454f;padding:7px 9px;border-radius:6px">DEMONSTRATION CONFIGURATION</span>'})}
-    <section class="panel">
-      <div class="model-hero"><div class="model-id"><div class="model-icon">⌘</div><div><div class="model-name">${m.deployed.name}</div><div class="model-sub">${m.deployed.version} &nbsp;·&nbsp; ${m.deployed.purpose}</div></div></div>${statusPill('normal','Demo Active')}</div>
-      <div class="metrics-grid">${metrics}</div>
-    </section>
-    <section class="panel" style="margin-top:12px"><div class="panel-header"><div class="section-title">Model Comparison</div><div class="section-meta">No fabricated performance metrics</div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Model</th><th>Purpose</th><th>Version</th><th>Precision</th><th>Recall</th><th>F1</th><th>Deployment</th></tr></thead><tbody>${rows}</tbody></table></div><div class="table-foot">Metrics should be supplied from a labelled evaluation dataset before operational use.</div></section>
-  </div>`;
-  shell(html, { activePath: "/model-results", breadcrumb: "Model Results" });
+  const horizon = state.forecastHorizon || 15;
+  const pointCode = state.forecastPoint || "SAT-507";
+  shell(forecasting(horizon, pointCode), {activePath:"/model-results", breadcrumb:"AI Forecasting"});
+  document.querySelectorAll("[data-horizon]").forEach(button => button.addEventListener("click", () => {
+    state.forecastHorizon = Number(button.dataset.horizon);
+    renderModelResults();
+  }));
+  document.querySelector("[data-forecast-point]")?.addEventListener("change", event => {
+    state.forecastPoint = event.target.value;
+    renderModelResults();
+  });
 }
-
 function renderSettings() {
   destroyActiveViewer();
-  const cards = [
-    ["▱ Data Sources", [["Current source","BMS Simulation"],["Mode","Demonstration · static snapshots"]]],
-    ["⌁ MQTT Connection", [["Connection","Not configured"],["Credentials","Managed securely outside this interface"]]],
-    ["▤ Database Connection", [["Engine", connectionState.status === "connected" ? "PostgreSQL · Connected" : "PostgreSQL · Offline"],["Database", connectionState.database],["Pilot data","Temporary records loaded through REST API"]]],
-    ["▥ Digital Twin Configuration", [["Building","Snowdon Towers"],["Floors","18"],["Viewer","xeokit integration active"],["Model","Snowdon Towers Sample Architectural.xkt"]]],
-    ["⌘ AI Model Configuration", [["Detector","Multivariate Autoencoder · AE-v1.3"],["Classifier","Not connected"],["Assistant","Explanations grounded in PostgreSQL demo context"]]],
-    ["⬡ User / Security", [["Access","Prototype workspace"],["Secrets","Never displayed in this interface"]]],
-    ["ⓘ System Information", [["Application","Asset Intelligence — AI-Driven Building Digital Twin"],["Version","PoC v1.2 · PostgreSQL API"],["Operational readiness","Demonstration only"]]]
-  ];
-  const html = `<div class="page">
-    ${pageHeading({eyebrow:"Workspace Configuration", title:"Settings", subtitle:"Read-only connection overview · No credentials are exposed"})}
-    <div class="settings-grid">${cards.map(([title, rows])=>`<section class="panel settings-card"><div class="panel-header"><div class="section-title">${title}</div></div><div class="setting-list">${rows.map(([k,v])=>`<div class="setting-row"><span class="setting-key">${k}</span><span class="setting-value">${v}</span></div>`).join('')}</div></section>`).join('')}</div>
-    <div class="page-footer-line"><span>SNOWDON TOWERS &nbsp;•&nbsp; BIM-INTEGRATED ASSET MONITORING</span><span>Demonstration data · Not connected to a live BMS</span></div>
-  </div>`;
-  shell(html, { activePath: "/settings", breadcrumb: "Settings" });
+  shell(settings(getSavedTheme(), connectionState), {activePath:"/settings",breadcrumb:"Settings"});
+  const sections = document.querySelectorAll("[data-settings-section]");
+  const tabs = document.querySelectorAll("[data-settings-tab]");
+  const openTab = name => {
+    sections.forEach(section => { section.hidden = section.dataset.settingsSection !== name; });
+    tabs.forEach(tab => tab.setAttribute("aria-selected", String(tab.dataset.settingsTab === name)));
+  };
+  tabs.forEach(tab => tab.addEventListener("click", () => openTab(tab.dataset.settingsTab)));
+  document.querySelectorAll("[data-appearance-option]").forEach(button => button.addEventListener("click", () => {
+    applyTheme(button.dataset.appearanceOption, {persist:true});
+  }));
+  openTab("sources");
+}
+function renderHistoricalData() {
+  destroyActiveViewer();
+  shell(historical(), {activePath:"/historical-data",breadcrumb:"Historical Data"});
+}
+
+function renderSimulator() {
+  destroyActiveViewer();
+  shell(simulator(), {activePath:"/simulator",breadcrumb:"Sensor Simulator"});
 }
 
 function assistantDrawerHtml() {
@@ -1069,7 +1186,7 @@ function assistantDrawerHtml() {
       <div class="drawer-header"><div><div class="drawer-title">□ Asset Intelligence Assistant</div><div class="drawer-subtitle">Grounded asset and engineering explanation</div></div><button class="icon-button" data-close-assistant>✕</button></div>
       <div class="drawer-body">
         <div class="context-chips"><span class="context-chip">${context.asset.asset_name}</span><span class="context-chip">${context.space?.space_name || 'Location'}</span><span class="context-chip">Anomaly Score ${anomaly?.anomaly_score?.toFixed(2) || '—'}</span></div>
-        <div class="assistant-intro"><div class="assistant-intro-icon">□</div><h3>Understand the asset context</h3><p>Explore the demonstration signals and detection evidence. Responses are grounded in the temporary sensor and anomaly records loaded from PostgreSQL. Engineering documents and live BMS readings are not connected.</p></div>
+        <div class="assistant-intro"><div class="assistant-intro-icon">□</div><h3>Understand the asset context</h3><p>Review asset readings and recorded anomaly information.</p></div>
         <div class="suggestions">
           <button class="suggestion-btn" data-ai-question="What changed before this anomaly?">What changed before this anomaly? <span>↑</span></button>
           <button class="suggestion-btn" data-ai-question="Why was this asset flagged?">Why was this asset flagged? <span>↑</span></button>
@@ -1089,11 +1206,11 @@ function assistantAnswer(question) {
   if (q.includes("changed") || q.includes("trend")) {
     const tempSensor = context.readings.find((r) => r.sensor_type === "Supply Air Temperature");
     const currentTemp = tempSensor?.reading?.value;
-    return `In the PostgreSQL demonstration history, the supply-air temperature trend changes over the monitored period${currentTemp != null ? ` and the latest stored value is ${currentTemp} ${tempSensor.unit}` : ""}. Review the airflow, static-pressure and temperature records over the same time window before treating the anomaly as a maintenance diagnosis.`;
+    return `The stored supply-air temperature history is available for review${currentTemp != null ? `; the latest reading is ${currentTemp} ${tempSensor.unit}` : ""}. Compare any changes with other recorded channels before drawing maintenance conclusions.`;
   }
-  if (q.includes("why") || q.includes("flag")) return `The demonstration detector flagged ${context.asset.asset_name} because its multivariate signal pattern produced an anomaly score of ${anomaly?.anomaly_score?.toFixed(2) || '0.87'}. This score indicates deviation from the learned or configured normal pattern; it is not, by itself, a confirmed fault diagnosis.`;
-  if (q.includes("airflow")) return "The current PostgreSQL anomaly record describes an airflow deviation. No supervised fault-classification result is connected in this build, so this should remain an anomaly requiring technical review rather than a confirmed diagnosis.";
-  return `For ${context.asset.asset_name}, the current demo state is ${assetAnomalyStatus(context.asset.asset_id)}. The latest readings and anomaly evidence can be reviewed in the Sensor Data and Anomalies / Faults pages.`;
+  if (q.includes("why") || q.includes("flag")) return `For ${context.asset.asset_name}, the latest stored anomaly score is ${anomaly?.anomaly_score?.toFixed(2) || 'unavailable'}. A recorded anomaly does not by itself confirm a specific equipment fault.`;
+  if (q.includes("airflow")) return "Check the recorded airflow readings alongside related measurements. A deviation alone does not establish a specific equipment fault.";
+  return `For ${context.asset.asset_name}, the current recorded status is ${assetAnomalyStatus(context.asset.asset_id)}. The latest readings and anomaly evidence can be reviewed in the Sensor Data and Anomalies / Faults pages.`;
 }
 
 function bindAssistantDrawer() {
@@ -1118,7 +1235,7 @@ function renderAuth(kind) {
     <section class="auth-visual">
       <div class="auth-brand"><div class="brand-mark"></div><div><div style="font-weight:900">Asset Intelligence</div><div class="brand-subtitle" style="color:#9da8af">AI-Driven Digital Twin</div></div></div>
       <div><h2>Building operations with <span>clear safety status.</span></h2><p>A high-contrast BIM and asset-monitoring workspace designed for facility teams, technical staff and site users. Safety orange, amber, red and green states make abnormal conditions easier to recognise at a glance.</p></div>
-      <div class="auth-safety-note">Prototype environment — alerts and sensor values shown in this project are demonstration data, not live building-control commands.</div>
+      <div class="auth-safety-note">Synthetic sensor telemetry · no equipment control</div>
     </section>
     <main class="auth-main"><div class="auth-wrap">
       <div class="auth-icon">${isRegister ? "♙+" : "↪"}</div>
@@ -1158,7 +1275,7 @@ function renderAuth(kind) {
 
 function renderNotFound() {
   destroyActiveViewer();
-  shell(`<div class="page"><section class="panel" style="max-width:620px;margin:70px auto;padding:30px"><div class="eyebrow">404</div><h1 class="page-title">Page not found</h1><p class="page-subtitle" style="margin-bottom:18px">The requested prototype route does not exist.</p><button class="btn btn-primary" id="home404">Return to Dashboard</button></section></div>`, {breadcrumb:"Not Found"});
+  shell(`<div class="page"><section class="panel" style="max-width:620px;margin:70px auto;padding:30px"><div class="eyebrow">404</div><h1 class="page-title">Page not found</h1><p class="page-subtitle" style="margin-bottom:18px">The requested page does not exist.</p><button class="btn btn-primary" id="home404">Return to Dashboard</button></section></div>`, {breadcrumb:"Not Found"});
   document.getElementById("home404")?.addEventListener("click",()=>go("/"));
 }
 
@@ -1171,6 +1288,8 @@ function render() {
   if (path === "/assets") return renderAssets();
   if (path.startsWith("/assets/")) return renderAssetDetail(path.split("/")[2]);
   if (path === "/sensor-data") return renderSensorData();
+  if (path === "/historical-data") return renderHistoricalData();
+  if (path === "/simulator") return renderSimulator();
   if (path === "/anomalies") return renderAnomalies();
   if (path === "/model-results") return renderModelResults();
   if (path === "/settings") return renderSettings();
@@ -1179,7 +1298,7 @@ function render() {
 
 function renderDatabaseError(error) {
   destroyActiveViewer();
-  app.innerHTML = `<div class="database-error-page"><section class="database-error-card"><div class="eyebrow">Database Connection</div><h1>PostgreSQL is not available</h1><p>The frontend is ready, but it could not load the temporary Digital Twin records from the backend API.</p><div class="database-error-detail">${escapeHtml(error?.message || "Unknown connection error")}</div><ol><li>Make sure PostgreSQL is running.</li><li>Create the <strong>digital_twin</strong> database.</li><li>Run <code>psql -d digital_twin -f database/postgres_init.sql</code>.</li><li>Check <code>.env</code> if your PostgreSQL user or password is different.</li><li>Restart <code>npm run dev</code>.</li></ol><button class="btn btn-primary" id="retryDatabase">Retry connection</button></section></div>`;
+  app.innerHTML = `<div class="database-error-page"><section class="database-error-card"><div class="eyebrow">Database Connection</div><h1>PostgreSQL is not available</h1><p>Could not load Digital Twin records from PostgreSQL.</p><div class="database-error-detail">${escapeHtml(error?.message || "Unknown connection error")}</div><ol><li>Make sure PostgreSQL is running.</li><li>Create the <strong>digital_twin</strong> database.</li><li>Check that the existing Digital Twin tables are present.</li><li>Check <code>.env</code> if your PostgreSQL user or password is different.</li><li>Restart <code>npm run dev</code>.</li></ol><button class="btn btn-primary" id="retryDatabase">Retry connection</button></section></div>`;
   document.getElementById("retryDatabase")?.addEventListener("click", initialize);
 }
 
@@ -1247,7 +1366,27 @@ function startLiveUpdates() {
         applyLiveReading(
           reading
         );
+        scheduleLiveChartRefresh();
 
+        // Update visible monitoring cards without rebuilding the xeokit scene
+        // or rerendering the entire SPA on every MQTT message.
+        document.querySelectorAll("[data-channel]").forEach(card => {
+          if (card.dataset.channel !== String(reading.point_code)) return;
+          const point = db.Sensor_Points.find(p => String(p.point_code) === String(reading.point_code));
+          const valueNode = card.querySelector(".point-value");
+          const timeNode = card.querySelector(".point-time");
+          const qualityNode = card.querySelector(".point-quality");
+          if (valueNode) {
+            const value = Number(reading.value);
+            valueNode.textContent = (Number.isFinite(value)
+              ? value.toLocaleString(undefined, {maximumFractionDigits:2})
+              : "—") + " " + (point?.unit || "");
+          }
+          if (timeNode) timeNode.textContent = String(reading.timestamp || reading.latest_update || "—");
+          if (qualityNode) qualityNode.textContent = String(reading.quality || "simulated");
+        });
+
+        refreshMiniOverview(state.selectedBimElement?.entityId, state.selectedVirtualSensorId);
         updateAssetDetailLiveReading(
           reading
         );
@@ -1324,6 +1463,7 @@ async function initialize() {
   app.innerHTML = `<div class="database-loading"><div class="database-loading-mark"></div><h1>Connecting to Digital Twin data</h1><p>Loading Snowdon Towers assets, sensors, readings and anomalies from PostgreSQL…</p></div>`;
   try {
     await loadDatabaseFromApi();
+    startLiveStatusMonitoring();
 
     if (!db.Assets.length) {
       throw new Error(
@@ -1350,5 +1490,7 @@ async function initialize() {
   }
 }
 
+// Freshness can expire even without new MQTT events.
+setInterval(() => refreshMiniOverview(state.selectedBimElement?.entityId, state.selectedVirtualSensorId), 30_000);
 window.addEventListener("popstate", render);
 initialize();

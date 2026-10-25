@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import pg from "pg";
 import mqtt from "mqtt";
+import { LIVE_POINT_ASSETS, validateLiveMqttMessage } from "./liveMqttContract.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -75,10 +76,52 @@ const MQTT_TOPIC =
   process.env.MQTT_TOPIC ||
   "dt/+/+";
 
-const mqttClient = mqtt.connect(MQTT_URL);
+const mqttClient = mqtt.connect(MQTT_URL, {
+  ...(process.env.MQTT_USERNAME ? { username: process.env.MQTT_USERNAME } : {}),
+  ...(process.env.MQTT_PASSWORD ? { password: process.env.MQTT_PASSWORD } : {})
+});
+const mqttLiveStatus = {
+  connected: false,
+  last_received_at: null,
+  last_point_code: null,
+  last_source_timestamp: null,
+  received_count: 0,
+  last_provenance: null,
+  by_point: Object.fromEntries(Object.keys(LIVE_POINT_ASSETS).map(code => [code, null]))
+};
+const ignoredLegacyWarnings = new Map();
 
 const liveClients = new Set();
 
+
+// MQTT transport state and last persisted simulated reading; no assumption
+// that the external Python process itself is still running.
+app.get("/api/live-status", (_req, res) => {
+  const now = Date.now();
+  const points = Object.entries(mqttLiveStatus.by_point).map(([point_code, last_received_at]) => {
+    const age_seconds = last_received_at
+      ? Math.max(0, Math.floor((now - Date.parse(last_received_at)) / 1000)) : null;
+    return {point_code,last_received_at,age_seconds,
+      recent: mqttLiveStatus.connected && age_seconds !== null && age_seconds < 90};
+  });
+  const received_points = points.filter(point => point.recent).length;
+  res.setHeader("Cache-Control", "no-store");
+  res.json({
+    mqtt_connected: mqttLiveStatus.connected,
+    last_received_at: mqttLiveStatus.last_received_at,
+    last_point_code: mqttLiveStatus.last_point_code,
+    last_source_timestamp: mqttLiveStatus.last_source_timestamp,
+    accepted_readings: mqttLiveStatus.received_count,
+    expected_points: points.length,
+    received_points,
+    points,
+    recent: mqttLiveStatus.connected && received_points === points.length,
+    source: mqttLiveStatus.last_provenance === "SYNTHETIC_RANDOM_WALK_NINE_POINT" ? "random_walk_simulator" : "independent_synthetic_simulator",
+    note: "Coverage counts persisted synthetic MQTT readings; no physical HRUs or AI inference"
+  });
+});
+
+mqttClient.on("close", () => { mqttLiveStatus.connected = false; });
 
 // =========================================================
 // DATABASE HELPER
@@ -176,6 +219,7 @@ function broadcastLiveEvent(
 // =========================================================
 
 mqttClient.on("connect", () => {
+  mqttLiveStatus.connected = true;
 
   console.log(
     `MQTT connected: ${MQTT_URL}`
@@ -239,6 +283,19 @@ mqttClient.on(
           buffer.toString("utf8")
         );
 
+
+      // Reject legacy feeds *before* doing any SQL writes. In particular, the
+      // old hru-simulator-v2 can use some valid topics but not this provenance.
+      const contract = validateLiveMqttMessage(topic, message);
+      if (!contract.ok) {
+        const key = `${contract.reason}:${contract.point_code || topic}`;
+        const now = Date.now();
+        if ((ignoredLegacyWarnings.get(key) || 0) < now - 30000) {
+          console.warn(`[MQTT] Ignored ${key}; stop any old simulator process`);
+          ignoredLegacyWarnings.set(key, now);
+        }
+        return;
+      }
 
       const {
         timestamp,
@@ -319,6 +376,7 @@ mqttClient.on(
 
             WHERE
               sp.point_code = $1
+              AND sp.point_status = 'Online'
           `,
           [point_code]
         );
@@ -348,7 +406,6 @@ mqttClient.on(
         !new Set([
           String(mapped.sensor_code),
           String(point_code),
-          ...(mapped.sensor_code === "S-L5-008" ? ["ENV-507"] : [])
         ]).has(String(sensor_id))
       ) {
 
@@ -451,6 +508,9 @@ mqttClient.on(
         source_sequence:
           sequence ?? null,
 
+        source_timestamp:
+          message.source_timestamp ?? null,
+
         source:
           "MQTT"
       };
@@ -464,6 +524,13 @@ mqttClient.on(
       // -----------------------------------------------------
       // PUSH UPDATE TO BROWSER
       // -----------------------------------------------------
+
+      mqttLiveStatus.last_received_at = new Date().toISOString();
+      mqttLiveStatus.last_point_code = point_code;
+      mqttLiveStatus.by_point[point_code] = mqttLiveStatus.last_received_at;
+      mqttLiveStatus.last_source_timestamp = message.source_timestamp || null;
+      mqttLiveStatus.last_provenance = message.provenance || null;
+      mqttLiveStatus.received_count += 1;
 
       broadcastLiveEvent(
         "sensor-reading",
@@ -499,10 +566,7 @@ mqttClient.on(
 //
 // Example:
 //
-// S-L5-008
-// ├── S-L5-008-TEMP
-// ├── S-L5-008-HUM
-// └── S-L5-008-CO2
+// S-L5-008 → S-L5-008-TEMP (nine-point profile); HUM and CO2 are archived.
 //
 // =========================================================
 
@@ -654,8 +718,13 @@ app.get("/api/bootstrap", async (_req, res) => {
           model,
           sensor_status AS status,
           data_source
-        FROM sensors
-        ORDER BY sensor_code
+        FROM sensors s
+        WHERE EXISTS (
+          SELECT 1 FROM sensor_points sp
+          WHERE sp.sensor_code = s.sensor_code
+            AND sp.point_status = 'Online'
+        )
+        ORDER BY s.sensor_code
       `),
 
 
@@ -676,6 +745,7 @@ app.get("/api/bootstrap", async (_req, res) => {
           unit,
           point_status AS status
         FROM sensor_points
+        WHERE point_status = 'Online'
         ORDER BY
           sensor_code,
           point_code
@@ -693,6 +763,9 @@ app.get("/api/bootstrap", async (_req, res) => {
           reading_value AS value,
           quality
         FROM sensor_readings
+        WHERE point_code IN (
+          SELECT point_code FROM sensor_points WHERE point_status = 'Online'
+        )
         ORDER BY
           point_code,
           reading_timestamp DESC
@@ -710,6 +783,9 @@ app.get("/api/bootstrap", async (_req, res) => {
           reading_value AS value,
           quality
         FROM sensor_readings
+        WHERE point_code IN (
+          SELECT point_code FROM sensor_points WHERE point_status = 'Online'
+        )
         ORDER BY
           reading_timestamp,
           point_code
@@ -769,6 +845,7 @@ app.get("/api/bootstrap", async (_req, res) => {
         JOIN sensor_points sp
           ON sp.point_code =
              sr.point_code
+         AND sp.point_status = 'Online'
 
         JOIN sensors s
           ON s.sensor_code =
@@ -1092,10 +1169,15 @@ app.get("/api/assets/:id", async (req, res) => {
 
           data_source
 
-        FROM sensors
+        FROM sensors s
 
         WHERE
           equipment_code = $1
+          AND EXISTS (
+            SELECT 1 FROM sensor_points sp
+            WHERE sp.sensor_code=s.sensor_code
+              AND sp.point_status='Online'
+          )
 
         ORDER BY
           sensor_code
@@ -1157,6 +1239,7 @@ app.get("/api/assets/:id", async (req, res) => {
 
         WHERE
           s.equipment_code = $1
+          AND sp.point_status = 'Online'
 
         ORDER BY
           sp.sensor_code,
@@ -1232,6 +1315,7 @@ app.get("/api/assets/:id", async (req, res) => {
         JOIN sensor_points sp
           ON sp.point_code =
              sr.point_code
+         AND sp.point_status = 'Online'
 
         JOIN sensors s
           ON s.sensor_code =
@@ -1418,6 +1502,7 @@ app.get(
         JOIN sensor_points sp
           ON sp.point_code =
              sr.point_code
+         AND sp.point_status = 'Online'
 
         JOIN sensors s
           ON s.sensor_code =
