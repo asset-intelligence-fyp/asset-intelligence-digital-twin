@@ -133,6 +133,98 @@ async function rows(sql, params = []) {
   return result.rows;
 }
 
+// HTTP ingestion for Level 03 synthetic sensor readings
+app.post("/api/sensor-readings", async (req, res) => {
+  try {
+    const {
+      sensor_id,
+      room_id,
+      timestamp,
+      value
+    } = req.body || {};
+
+    if (
+      typeof sensor_id !== "string" ||
+      typeof room_id !== "string" ||
+      typeof timestamp !== "string" ||
+      typeof value !== "number" ||
+      !Number.isFinite(value) ||
+      !Number.isFinite(Date.parse(timestamp))
+    ) {
+      return res.status(400).json({
+        error: "Invalid sensor reading payload"
+      });
+    }
+
+    // Validate sensor, location and online status
+    const mapping = await pool.query(`
+      SELECT
+        sp.point_code,
+        sp.measurement_type,
+        sp.unit,
+        s.sensor_code,
+        s.location_code
+      FROM sensor_points sp
+      JOIN sensors s
+        ON s.sensor_code = sp.sensor_code
+      WHERE sp.point_code = $1
+        AND s.location_code = $2
+        AND sp.point_status = 'Online'
+        AND s.sensor_status = 'Online'
+    `, [sensor_id, room_id]);
+
+    if (mapping.rows.length === 0) {
+      return res.status(400).json({
+        error: "Unknown or inactive sensor/location"
+      });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO sensor_readings (
+        point_code,
+        reading_timestamp,
+        reading_value,
+        quality
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [
+      sensor_id,
+      timestamp,
+      value,
+      "simulated"
+    ]);
+
+    const saved = result.rows[0];
+    const sensor = mapping.rows[0];
+
+    // Reuse existing SSE
+    broadcastLiveEvent("sensor-reading", {
+      reading_id: saved.reading_id,
+      point_code: saved.point_code,
+      sensor_id: sensor.sensor_code,
+      location_code: sensor.location_code,
+      measurement_type: sensor.measurement_type,
+      unit: sensor.unit,
+      value: Number(saved.reading_value),
+      quality: saved.quality,
+      timestamp: saved.reading_timestamp,
+      latest_update: saved.reading_timestamp,
+      source: "HTTP"
+    });
+
+    res.status(201).json({
+      success: true,
+      reading_id: saved.reading_id
+    });
+
+  } catch (error) {
+    console.error("HTTP ingestion error:", error);
+    res.status(500).json({
+      error: "Failed to save sensor reading"
+    });
+  }
+});
 
 // =========================================================
 // HEALTH CHECK
