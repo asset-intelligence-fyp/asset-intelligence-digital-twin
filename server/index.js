@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import pg from "pg";
 import mqtt from "mqtt";
 import { LIVE_POINT_ASSETS, validateLiveMqttMessage } from "./liveMqttContract.js";
+import { createAiRouter } from "./aiRoutes.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -63,6 +64,8 @@ app.use(
     limit: "1mb"
   })
 );
+
+app.use("/api/ai", createAiRouter(express, pool));
 
 // =========================================================
 // MQTT + LIVE EVENT CONFIGURATION

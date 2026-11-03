@@ -260,3 +260,8 @@ Change `SERVER_PORT` in `.env` only if needed. If you change the API port, also 
 ## Demo-data notice
 
 The database records are temporary demonstration fixtures only. They must not be presented as live building measurements, validated fault diagnoses, or measured AI performance.
+
+
+## Integrated Level 5 local AI assistant
+
+The existing TwinLabs drawer now supports local **Qwen3 1.7B** with the **P2 Concise** prompt style, read-only Level 5 PostgreSQL retrieval, numerical evidence checks, and R4.3.1-style hybrid semantic review. Sensor choices follow the real BIM and monitoring selections. Install Ollama, run `ollama pull qwen3:1.7b`, and start `npm run dev`. See [AI setup and limitations](docs/ai-integration.md). The earlier Level 03 R4.3.1 research metrics do **not** apply to the Level 5 sensor identities.

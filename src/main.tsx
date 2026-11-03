@@ -13,11 +13,11 @@ function App(){
  const [page,setPage]=useState<Page>('overview');
  const [selectedAsset,setSelectedAsset]=useState<'HRU501A'|'HRU504'|'HRU507'>('HRU501A');
  const [selectedCode,setSelectedCode]=useState('SAT-501A');
- return <Shell page={page} setPage={setPage}>
+ return <Shell page={page} setPage={setPage} selectedCode={selectedCode}>
   {page==='overview'&&<Overview setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='analytics'&&<Analytics/>}
-  {page==='sensors'&&<Sensors/>}
+  {page==='sensors'&&<Sensors selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='events'&&<Events/>}
   {page==='simulator'&&<Simulator/>}
  </Shell>;

@@ -1,7 +1,7 @@
 import { BellRing, Box, Boxes, ChartNoAxesCombined, Grid2X2, Radio, ListFilter } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTwin } from '../services/twin';
-import { AssistantPlaceholder } from './AssistantPlaceholder';
+import { AssistantPanel } from './AssistantPanel';
 export type Page='overview'|'assets'|'analytics'|'events'|'sensors'|'simulator';
 const nav: {id:Page;label:string;Icon:typeof Grid2X2}[]=[
  {id:'overview',label:'Building overview',Icon:Grid2X2},
@@ -11,7 +11,7 @@ const nav: {id:Page;label:string;Icon:typeof Grid2X2}[]=[
  {id:'events',label:'Event log',Icon:BellRing},
  {id:'simulator',label:'Simulator',Icon:Radio},
 ];
-export function Shell({page,setPage,children}:{page:Page;setPage:(p:Page)=>void;children:ReactNode}){
+export function Shell({page,setPage,selectedCode,children}:{page:Page;setPage:(p:Page)=>void;selectedCode:string;children:ReactNode}){
  const {mode,setMode,backendConnected,mqttCoverage}=useTwin();
  return <div className="app-shell">
   <header className="topbar">
@@ -22,6 +22,6 @@ export function Shell({page,setPage,children}:{page:Page;setPage:(p:Page)=>void;
   <nav className="sidebar" aria-label="Main navigation"><div className="sidebar-top">{nav.map(({id,label,Icon})=><button key={id} className={`nav-icon ${page===id?'selected':''}`} title={label} aria-label={label} aria-current={page===id?'page':undefined} onClick={()=>setPage(id)}><Icon size={19} strokeWidth={1.65}/></button>)}</div><div className="sidebar-bottom"><span>L5</span></div></nav>
   <main className="page-container">{children}</main>
   <footer className="statusbar"><span><i/>{mode==='random'?'Synthetic readings · local generator':`MQTT ${mqttCoverage}/9 active`}</span><span>BIM: Snowdon Towers · Level 5</span><span>PostgreSQL {backendConnected?'connected':'not connected'} · nine channels</span></footer>
-  <AssistantPlaceholder/>
+  <AssistantPanel selectedCode={selectedCode}/>
  </div>;
 }

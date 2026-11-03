@@ -1,0 +1,28 @@
+/* Extension of the existing TwinLabs assistant drawer, not a separate layout. */
+.twinlabs-assistant .ai-live-body{display:block;overflow-y:auto;padding:14px 16px 20px;min-height:0;flex:1}
+.ai-source-note{font-size:11px;line-height:1.5;color:#697e84;background:#eff7f6;border:1px solid #d7ebe7;border-radius:9px;padding:9px;margin-bottom:12px}
+.ai-controls{display:flex;flex-direction:column;gap:10px}
+.ai-controls label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:600;color:#526a70}
+.ai-controls input,.ai-controls select,.ai-controls textarea{width:100%;background:#fff;border:1px solid #d8e2df;border-radius:9px;padding:9px;color:#24373c;font:12px Inter,Arial,sans-serif;resize:vertical;min-width:0}
+.ai-time-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ai-submit{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:0;border-radius:10px;color:#fff;background:#0e4148;font-size:12px;font-weight:600}
+.ai-submit:disabled{opacity:.55;cursor:wait}
+.ai-error{background:#fff1ed;color:#983b2b;border:1px solid #ffcfc2;border-radius:9px;padding:9px;margin-top:12px;font-size:11px}
+.ai-analysis{border-top:1px solid #dce5e2;margin-top:13px;padding-top:13px;color:#34484c}
+.ai-result-status{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:9px;background:#edf7f6;border-radius:9px;font-size:11px}
+.ai-result-status span{font-size:10px;color:#68828a}
+.ai-status-review_required,.ai-status-insufficient_evidence,.ai-status-validation_failed{background:#fff5e5}
+.ai-status-alert{background:#ffebe7}
+.ai-finding{font-size:12px;line-height:1.55;margin:10px 0}
+.ai-metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}
+.ai-metrics>div{padding:8px;border:1px solid #dae6e2;border-radius:8px;background:#fff;min-width:0}
+.ai-metrics span{display:block;color:#849298;font-size:10px;margin-bottom:4px}
+.ai-metrics strong{display:block;font:11px 'DM Mono',monospace;overflow-wrap:anywhere}
+.ai-verification,.ai-review-note{font-size:11px;line-height:1.5;margin:10px 0}
+.ai-review-note{border-left:3px solid #bc843c;padding-left:9px;color:#7d5928}
+.ai-analysis details{border-top:1px solid #e3e9e6;padding:10px 0;font-size:11px;line-height:1.6}
+.ai-analysis summary{cursor:pointer;font-weight:600;color:#1c5f69}
+.ai-analysis ul{padding-left:18px;margin:8px 0}
+.ai-analysis li{overflow-wrap:anywhere;margin:5px 0}
+.ai-analysis details p{margin:7px 0;overflow-wrap:anywhere}
+@media(max-width:480px){.ai-time-grid{grid-template-columns:1fr}.ai-result-status{flex-direction:column}}
