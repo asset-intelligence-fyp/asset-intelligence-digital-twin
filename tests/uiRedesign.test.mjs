@@ -71,3 +71,4 @@ test("workspaces have no prototype banners and show the true telemetry source", 
  assert.match(main,/Synthetic MQTT · checking/);
  assert.doesNotMatch(main,/PostgreSQL demonstration data|The interface displays PostgreSQL demonstration data/);
 });
+

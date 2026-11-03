@@ -56,3 +56,4 @@ test("SSE schedules chart updates after mutating the cache", () => {
  assert.match(main,/refreshLiveCharts\(document\)/);
  assert.match(main,/200\);/);
 });
+

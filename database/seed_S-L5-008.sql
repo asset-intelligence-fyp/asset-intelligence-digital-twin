@@ -89,3 +89,4 @@ DO UPDATE SET
     point_status = EXCLUDED.point_status;
 
 COMMIT;
+

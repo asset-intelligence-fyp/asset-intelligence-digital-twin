@@ -44,3 +44,4 @@ export const LEVEL5_PROFILE_POINTS = Object.freeze([
 
 export const LEVEL5_BY_GUID = new Map(LEVEL5_SENSORS.map(s=>[s.guid,s]));
 export const LEVEL5_BY_SENSOR_ID = new Map(LEVEL5_SENSORS.map(s=>[s.sensorId,s]));
+

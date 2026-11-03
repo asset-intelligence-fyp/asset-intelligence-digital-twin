@@ -1,3 +1,8 @@
+> **Compatibility warning (18-point merged branch):** The implementation
+> described below targets the legacy nine-point Level 5 website and is **not
+> attached to the active `server/sensorServer.js` whole-building runtime**.
+> See [Whole-building AI merge status](whole-building-ai-merge-status.md).
+
 # Local AI assistant: Snowdon Level 5 (llm_integration)
 
 This implementation connects the current **React / xeokit / Express / PostgreSQL Level 5** application to local **Ollama `qwen3:1.7b`**. It uses a P2-concise-style prompt, deterministic read-only PostgreSQL retrieval, a typed numeric evidence checker, and the R4.3.1 **hybrid + semantic consistency** review policy.

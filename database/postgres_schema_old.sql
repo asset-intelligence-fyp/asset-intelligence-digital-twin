@@ -120,3 +120,4 @@ CREATE INDEX idx_assets_space ON assets(space_id);
 CREATE INDEX idx_sensors_asset ON sensors(asset_id);
 CREATE INDEX idx_history_sensor_time ON historical_sensor_readings(sensor_id, timestamp);
 CREATE INDEX idx_anomaly_sensor_time ON anomaly_results(sensor_id, timestamp);
+

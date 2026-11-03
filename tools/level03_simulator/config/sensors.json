@@ -1,0 +1,70 @@
+{
+  "note": "STAGE 1 proposed virtual IDs; teammate must replace with actual IFC room/space identifiers. 4 rooms + 1 floor virtual power monitoring point.",
+  "rooms": [
+    {
+      "room_id": "L03-OPEN-01",
+      "type": "open_office",
+      "capacity": 12,
+      "sensors": [
+        "temperature",
+        "humidity",
+        "co2",
+        "occupancy",
+        "light"
+      ],
+      "volume_m3": 210
+    },
+    {
+      "room_id": "L03-MEET-01",
+      "type": "meeting_room",
+      "capacity": 8,
+      "sensors": [
+        "temperature",
+        "humidity",
+        "co2",
+        "occupancy",
+        "light"
+      ],
+      "volume_m3": 115
+    },
+    {
+      "room_id": "L03-WC-01",
+      "type": "toilet",
+      "capacity": 2,
+      "sensors": [
+        "occupancy",
+        "light",
+        "humidity",
+        "water_leakage"
+      ],
+      "volume_m3": 45
+    },
+    {
+      "room_id": "L03-CLEAN-01",
+      "type": "cleaning_room",
+      "capacity": 1,
+      "sensors": [
+        "occupancy",
+        "light",
+        "water_leakage"
+      ],
+      "volume_m3": 30
+    },
+    {
+      "room_id": "L03-PWR-POINT-01",
+      "type": "distribution_board",
+      "capacity": 0,
+      "sensors": [
+        "power"
+      ]
+    }
+  ],
+  "power_meter": {
+    "scope": "illustrative Level 03 floor-level lighting and office plug-load demand (not verified building electrical data)",
+    "idle_kw": 0.25,
+    "lighting_kw": 0.85,
+    "plug_kw_per_occupied_person": 0.1,
+    "other_occupied_kw": 0.25,
+    "unmonitored_floor_baseline_kw": 0.9
+  }
+}

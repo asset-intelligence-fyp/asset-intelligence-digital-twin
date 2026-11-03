@@ -8,3 +8,4 @@ test('newly created synthetic alert is explicitly typed as EventRecord', () => {
  assert.match(src,/level: 'Warning'/);
  assert.match(src,/setEvents\(prev => \[event, \.\.\.prev\]\.slice\(0, 100\)\)/);
 });
+

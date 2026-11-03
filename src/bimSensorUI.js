@@ -85,3 +85,4 @@ export function refreshMiniOverview(selectedGuid = null, selectedVirtualId = nul
     if (status) status.textContent = updated.querySelector(".bim-mini-status")?.textContent || "";
   });
 }
+

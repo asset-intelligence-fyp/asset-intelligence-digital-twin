@@ -68,3 +68,4 @@ test("backend loads active sensor IDs, preventing archived duplicate GUID mappin
  assert.match(main,/selectedVirtualSensorId/);
  assert.match(main,/getSensorById/);
 });
+

@@ -48,3 +48,4 @@ Open `http://localhost:5173/bim-viewer`, hard-refresh, and verify:
 5. 3D/plan/fit and fullscreen work, and existing live sensor readings still update.
 
 JavaScript syntax and static UI regression checks passed. **The actual xeokit rendering and cut elevation still need verification against the local XKT models.**
+

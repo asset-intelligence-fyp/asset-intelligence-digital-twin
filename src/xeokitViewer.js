@@ -435,3 +435,4 @@ export function initXeokitViewer({ stageId, onSelection = () => {} } = {}) {
   active = { viewer, model, loadingTimer };
   return { viewer, model, showWholeBuilding, selectSensor, configureSensors, resetAllCuts, toggleArchitecture };
 }
+

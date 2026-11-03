@@ -29,3 +29,12 @@ tools/hru_digital_twin_simulator_v2/historical/*.csv
 # Independent synthetic live simulator outputs (includes test-only fault truth)
 tools/independent_3hru_live/outputs/
 tools/independent_3hru_live/.venv/
+
+# Local LLM database — do not commit
+storage/*.sqlite
+storage/*.sqlite-*
+storage/*.db
+
+# Private evaluation results
+**/*_PRIVATE.json
+**/*_PRIVATE.jsonl

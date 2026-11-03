@@ -27,3 +27,4 @@ export function validateLiveMqttMessage(topic,message){
  if(percentPoints.has(code)&&(message.value<0||message.value>100))return {ok:false,reason:'percentage outside range',point_code:code};
  return {ok:true,point_code:code,asset_id:expectedAsset,source:random?'random_walk':'independent_simulation'};
 }
+

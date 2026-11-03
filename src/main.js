@@ -1494,3 +1494,4 @@ async function initialize() {
 setInterval(() => refreshMiniOverview(state.selectedBimElement?.entityId, state.selectedVirtualSensorId), 30_000);
 window.addEventListener("popstate", render);
 initialize();
+

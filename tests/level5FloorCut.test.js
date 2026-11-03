@@ -56,3 +56,4 @@ test("does not clip without a valid slab reference", () => {
     id:"wrong-coordinates", type:"IfcSlab", aabb:[5,70,5,40,70.4,40]
   }), null);
 });
+

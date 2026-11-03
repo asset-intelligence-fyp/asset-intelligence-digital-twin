@@ -43,3 +43,4 @@ export function initAppearance() {
   query?.addEventListener?.("change", refresh);
   return () => query?.removeEventListener?.("change", refresh);
 }
+

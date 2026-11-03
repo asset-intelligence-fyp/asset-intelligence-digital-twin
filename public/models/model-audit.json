@@ -1,0 +1,14 @@
+{
+  "converter": "IfcOpenShell tessellation + xeokit XKT",
+  "objects": 10276,
+  "triangles": 2721484,
+  "sensorMarkers": 18,
+  "missingSensorMarkers": [],
+  "excludedTypes": [
+    "IfcSpace",
+    "IfcOpeningElement"
+  ],
+  "linearDeflectionMetres": 0.01,
+  "axes": "IFC Z-up converted to viewer Y-up",
+  "xktBytes": 16337818
+}

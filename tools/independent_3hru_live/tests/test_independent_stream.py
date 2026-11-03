@@ -59,3 +59,4 @@ class StreamTests(unittest.TestCase):
             self.assertGreater((base/'ground_truth_events.csv').stat().st_size,100)
 
 if __name__=='__main__':unittest.main()
+

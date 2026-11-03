@@ -107,3 +107,4 @@ test("left-side live sensor list retains search, selection, and in-place updates
  assert.ok(main.includes("refreshMiniOverview(state.selectedBimElement?.entityId"));
  assert.ok(css.includes(".bim-tree-column .bim-mini-card[hidden]"));
 });
+

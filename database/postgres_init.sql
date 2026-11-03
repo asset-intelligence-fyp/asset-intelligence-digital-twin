@@ -293,3 +293,4 @@ INSERT INTO alerts VALUES
 (3,3,'AI Anomaly','AHU-02 temperature anomaly was reviewed and closed.','Low','Closed','2026-10-04 09:58:00');
 
 COMMIT;
+

@@ -27,3 +27,4 @@ test('functional backend integration and live chart wiring exist',()=>{
  assert.match(read('install-into-repo.sh'),/Snowdon_Level5_Model\+HVAC\.xkt/);
  assert.doesNotMatch(read('src/main.tsx'),/Assistant/);
 });
+

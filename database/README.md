@@ -48,3 +48,4 @@ Copy `.env.example` to `.env`. The default configuration assumes PostgreSQL is o
 If your PostgreSQL account requires a specific username/password, uncomment and edit `PGUSER` and `PGPASSWORD` in `.env`.
 
 All included records are temporary demonstration data. They are not live BMS readings or validated AI performance results.
+

@@ -42,3 +42,4 @@ export function getSensorCardState(sensor, data, now = Date.now(), freshnessMs =
     invalid ? "Invalid quality" : recent ? "Recent simulated data" : "No recent data";
   return { status, statusText, matches, latestTime:latest.length ? Math.max(...latest) : null };
 }
+

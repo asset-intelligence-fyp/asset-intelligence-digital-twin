@@ -38,3 +38,4 @@ export function startLiveStatusMonitoring() {
   void refresh();
   timer = setInterval(refresh, 5000);
 }
+

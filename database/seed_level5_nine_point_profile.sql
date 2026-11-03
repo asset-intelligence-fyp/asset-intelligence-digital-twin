@@ -94,3 +94,4 @@ WHERE sp.point_status='Online'
  ('SAT-501A','MAT-501A','FS-501A','SAT-504','DP-504',
   'DPCMD-504','SAT-507','CV-507','S-L5-008-TEMP')
 ORDER BY s.equipment_code, sp.point_code;
+

@@ -37,3 +37,4 @@
   "daily_residual_std_c": 4.6911,
   "limitations": "Outdoor-air statistical reference only. No chronological LBNL samples are copied into the live feed. The 3-HRU engineering model uses illustrative, not field-validated, thermal parameters."
 }
+

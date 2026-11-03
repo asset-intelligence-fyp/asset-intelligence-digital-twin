@@ -56,3 +56,4 @@ def make_messages(message):
         }
         messages.append((f"dt/{asset_id}/{code}", payload))
     return messages
+

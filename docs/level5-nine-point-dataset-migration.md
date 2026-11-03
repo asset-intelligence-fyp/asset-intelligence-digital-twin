@@ -97,3 +97,4 @@ npm run dev
 ```
 
 Open the BIM Viewer and verify nine sensor cards, eight selectable original model markers and the unlocated FS-501A card. Inspect all eight model selections, check current values against PostgreSQL, and confirm MQTT/SSE refresh once the new simulator is connected. Source-level syntax and data-contract checks are not a substitute for actual browser, SQL and MQTT testing.
+

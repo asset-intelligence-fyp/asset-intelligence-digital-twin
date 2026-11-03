@@ -94,3 +94,4 @@ the Node terminal will report whether it was ignored as legacy, was
 unmapped, or failed SQL ingestion. Run the nine-point SQL migration
 only after making a database backup. The retired simulators are not
 required and must not be restarted.
+

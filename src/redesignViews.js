@@ -171,3 +171,4 @@ export function settings(theme,connectionState){
  '<div data-settings-section="workspace"><section class="ai-card">'+titleCard('Workspace','Snowdon Towers · Level 5')+
  '<div class="ai-key-value"><span>BIM Viewer</span><strong>xeokit 3D</strong></div><div class="ai-key-value"><span>Mapped physical sensors</span><strong>8</strong></div><div class="ai-key-value"><span>Measurement channels</span><strong>9</strong></div><div class="ai-key-value"><span>Data source</span><strong>Synthetic MQTT</strong></div></section></div></div>';
 }
+

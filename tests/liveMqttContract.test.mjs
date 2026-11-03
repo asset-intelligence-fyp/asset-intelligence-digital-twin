@@ -31,3 +31,4 @@ test("reject wrong topic, wrong asset and invalid values", () => {
  const valve=payload("CV-507","HRU507");
  assert.equal(validateLiveMqttMessage("dt/HRU507/CV-507",{...valve,value:101}).ok,false);
 });
+

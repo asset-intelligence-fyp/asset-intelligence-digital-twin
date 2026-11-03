@@ -69,3 +69,4 @@ npm run build
 ## AI Assistant placeholder
 
 A persistent bottom-right **AI Assistant** button is available across all TwinLabs pages. It opens and closes a small non-modal preview panel, with keyboard **Escape** dismissal and a disabled message box. It does not make network requests, accept user prompts, or fabricate AI replies. The existing MQTT, PostgreSQL, sensor simulation and BIM model are unchanged. 
+

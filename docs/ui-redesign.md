@@ -160,3 +160,4 @@ The Overview, Sensor Monitoring, Historical Data, and AI Forecasting charts are 
 Check the page while the Python publisher is running (e.g. `--mqtt --interval-seconds 5`). In Overview and Sensor Monitoring, ensure the line changes without refreshing the browser; check Historical Data and the selected trend in AI Forecasting as well. Inspect the top-bar sensor coverage badge for MQTT freshness. Stopping the Python process stops new plot samples; no fictitious points are inserted.
 
 Tests: `node --test tests/uiRedesign.test.mjs tests/liveCharts.test.mjs tests/bimSensorCards.test.mjs`; build: `npm run build`.
+

@@ -23,3 +23,4 @@ export function EmptyState({message}: {message: string}) {
 export function TinyLine({color = '#279da5'}:{color?: string}) {
   return <Activity size={16} color={color} />;
 }
+

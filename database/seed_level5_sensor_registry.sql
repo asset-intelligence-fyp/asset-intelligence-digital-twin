@@ -75,3 +75,4 @@ SET sensor_code=EXCLUDED.sensor_code,measurement_type=EXCLUDED.measurement_type,
     unit=EXCLUDED.unit,point_status=EXCLUDED.point_status;
 
 COMMIT;
+

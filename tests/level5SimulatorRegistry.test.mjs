@@ -31,3 +31,4 @@ test("backend validates replacement stream before database insertion and emits S
  assert.match(backend,/broadcastLiveEvent\(\s*"sensor-reading"/);
  assert.match(backend,/\/api\/live-status/);
 });
+

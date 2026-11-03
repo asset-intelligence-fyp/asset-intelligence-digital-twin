@@ -112,3 +112,4 @@ export function findFloorCutFromIdentifiedSlab(architecture, slab) {
     source: "operator-identified-IfcSlab"
   };
 }
+
