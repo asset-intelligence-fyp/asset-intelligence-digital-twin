@@ -1,3 +1,5 @@
+> **Legacy Level 5 reference only.** The 18-sensor office-building integration uses `server/sensorServer.js`, `server/roomAssistant.js` and `llm_service/validated_room.py`. See [whole-building LLM integration](whole-building-llm.md). This document below describes the inactive nine-point adapter.
+
 > **Compatibility warning (18-point merged branch):** The implementation
 > described below targets the legacy nine-point Level 5 website and is **not
 > attached to the active `server/sensorServer.js` whole-building runtime**.

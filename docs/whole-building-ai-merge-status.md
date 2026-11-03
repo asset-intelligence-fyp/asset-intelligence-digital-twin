@@ -1,3 +1,5 @@
+> **Updated:** The current 18-point room assistant has now been adapted to local Qwen3 1.7B + P2 Concise and R4.3.1-style checks. See [current integration](whole-building-llm.md). The notes below describe the earlier merge-state diagnosis, not outstanding implementation work.
+
 # Whole-building AI merge status — two distinct architectures
 
 The local commit `7b87d48` is the **newer 18-sensor, five-location, whole-building**

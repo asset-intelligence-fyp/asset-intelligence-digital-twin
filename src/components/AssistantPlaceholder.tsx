@@ -5,6 +5,12 @@ import {roomEvidence} from '../services/experienceMath.js';
 import {roomTitle} from '../viewer/sensorPresentation.js';
 
 type Answer={
+ status?:'alert'|'no_alert'|'review_required'|'insufficient_evidence'|'validation_failed';
+ numeric_verification_passed?:boolean;
+ semantic_conflict?:boolean;
+ human_review_required?:boolean;
+ verified_evidence?:Record<string,unknown>;
+ decision_assessment?:Record<string,unknown>;
  result:{
   finding:string;
   evidence:string[];
@@ -128,7 +134,7 @@ export function AssistantPlaceholder(){
     ?current
     :t.history.filter(
       r=>codes.has(r.point_code)&&Date.parse(r.timestamp)<=cutoff
-     ).slice(-18000);
+     ).slice(-1500);
 
    const res=await fetch('/api/assistant/ask',{
     method:'POST',
@@ -194,7 +200,7 @@ export function AssistantPlaceholder(){
       {health.model} · {health.connected?'available':'offline'}
       <span>
         {health.connected
-            ?'Live readings · Historical comparison'
+            ?'P2 Concise · Verified evidence · Hybrid review'
             :health.error||'Checking connection…'}
         </span>
      </div>
@@ -232,7 +238,26 @@ export function AssistantPlaceholder(){
       {answer&&(
        <div className="message message-assistant room-llm-answer">
         <strong>{asked}</strong>
+        <p role="status" aria-live="polite" className={answer.status==='alert'?'pill pill-fault':answer.status==='review_required'?'pill pill-warning':'pill pill-muted'}>
+         Assessment: {(answer.status||'unclassified').replaceAll('_',' ')}
+        </p>
         <p>{answer.result.finding}</p>
+        <small>
+         Numerical claims: {answer.numeric_verification_passed?'verified':'not verified'} ·
+         Semantic conflict: {answer.semantic_conflict?'review required':'not detected'} ·
+         Human review: {answer.human_review_required?'yes':'no'}
+        </small>
+        {answer.verified_evidence&&(
+         <details open>
+          <summary>Backend-verified sensor measurements and historical context</summary>
+          <pre>{JSON.stringify(answer.verified_evidence,null,2)}</pre>
+         </details>
+        )}
+        {answer.decision_assessment&&(
+         <details><summary>LLM and independent rule assessment</summary>
+          <pre>{JSON.stringify(answer.decision_assessment,null,2)}</pre>
+         </details>
+        )}
 
         <small>
          {answer.model} · {answer.elapsed_seconds}s · Snapshot{' '}
