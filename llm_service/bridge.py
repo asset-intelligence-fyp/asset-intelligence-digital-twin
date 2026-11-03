@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 # or directly with `python llm_service/bridge.py`.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from llm_service.shared_llm.ollama import OllamaClient
-from llm_service.validated_room import analyse_validated
+from llm_service.validated_room import analyse_validated, normal_history_ready, resolve_history_path
 
 
 def analyse(request, config):
@@ -45,9 +45,14 @@ def main():
 
         def do_GET(self):
             if self.path == '/health':
+                history_path = resolve_history_path(os.environ.get('LLM_HISTORY_DB', ''))
+                history_ready = normal_history_ready(history_path)
                 self.reply(200, {'ok': True, 'model': 'qwen3:1.7b', 'prompt': 'concise',
                                  'validation_mode': 'hybrid_semantic',
-                                 'retrieval': 'backend_verified_room_evidence'})
+                                 'retrieval': 'backend_verified_room_evidence',
+                                 'normal_history_database_ready': history_ready,
+                                 'history_status': 'synthetic_normal_sqlite_connected' if history_ready else 'normal_history_not_available',
+                                 'history_notice': 'Comparison requires five earlier same-weekday dates per sensor; database availability alone does not establish coverage.'})
             else:
                 self.reply(404, {'error': 'Not found'})
 

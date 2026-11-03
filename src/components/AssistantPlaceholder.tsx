@@ -40,6 +40,8 @@ export function AssistantPlaceholder(){
   model:string;
   prompt?:string;
   retrieval?:string;
+  historical_reference_available?:boolean;
+  history_status?:string;
   error?:string;
  }>({connected:false,model:'qwen3:1.7b'});
 
@@ -200,7 +202,7 @@ export function AssistantPlaceholder(){
       {health.model} · {health.connected?'available':'offline'}
       <span>
         {health.connected
-            ?'P2 Concise · Verified evidence · Hybrid review'
+            ?`P2 Concise · ${health.historical_reference_available?'Normal-history DB available':'Normal-history DB unavailable'} · Hybrid review`
             :health.error||'Checking connection…'}
         </span>
      </div>

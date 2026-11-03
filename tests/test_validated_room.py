@@ -1,10 +1,15 @@
 """No-network checks for source-backed Qwen3 P2/R4.3.1-style integration."""
 import json
+import tempfile
+import sqlite3
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 from datetime import datetime,timedelta,timezone
 from llm_service.validated_room import (
     analyse_validated,build_evidence,check_claims,expected_claims,finding_signal,
-    publish,reference_daily_samples,source_evidence_lines,
+    publish,reference_daily_samples,source_evidence_lines,normal_history_ready,
+    resolve_history_path,prose_number_issues,
 )
 TZ=timezone(timedelta(hours=8))
 CUTOFF=datetime(2026,3,9,14,0,tzinfo=TZ)
@@ -85,10 +90,68 @@ class ValidatedRoomTests(unittest.TestCase):
         d=draft(ev,False,'No anomaly was detected.')
         d['numeric_claims']['historical_median']=430
         self.assertFalse(check_claims(d,expected_claims(ev['sensors'][0]))[0])
-    def test_digits_in_model_prose_blocked(self):
+    def test_unverified_prose_number_is_withheld_without_discarding_structured_evidence(self):
         ev=build_evidence(request())
-        d=draft(ev,True,'The reading was 999 ppm and unusually high.')
-        self.assertEqual(publish(d,ev,1)['status'],'validation_failed')
+        d=draft(ev,True,'The reading was 999 ppm and unusually high. Inspect the ventilation.')
+        out=publish(d,ev,1)
+        self.assertEqual(out['status'],'review_required')
+        self.assertTrue(out['numeric_verification_passed'])
+        self.assertNotIn('999', out['result']['finding'])
+        self.assertIn('Inspect the ventilation.',out['result']['finding'])
+        self.assertTrue(out['decision_assessment']['narrative_numeric_issues'])
+
+    def test_actual_uploaded_co2_prose_values_are_verified(self):
+        req=request(current=650.49,include_prior=False,source='browser_demo')
+        req['history'][0]['value']=631.702
+        ev=build_evidence(req)
+        self.assertAlmostEqual(ev['sensors'][0]['average'],641.096)
+        d=draft(ev,True,'Current CO₂ level is 650.49 ppm, higher than the average of 641.096 ppm. History is unavailable.')
+        out=publish(d,ev,1)
+        self.assertEqual(out['status'],'review_required')
+        self.assertTrue(out['numeric_verification_passed'])
+        self.assertFalse(out['decision_assessment']['narrative_numeric_issues'])
+        self.assertIn('650.49 ppm',out['result']['finding'])
+        self.assertIsNone(out['verified_evidence']['sensors'][0]['historical_median'])
+
+    def test_numeric_prose_unit_mismatch_is_removed(self):
+        ev=build_evidence(request(include_prior=False))
+        d=draft(ev,True,'CO₂ is 700 °C. Check the sensor.')
+        result=publish(d,ev,1)
+        self.assertEqual(result['status'],'review_required')
+        self.assertNotIn('700 °C',result['result']['finding'])
+
+    def test_subscript_co2_is_not_a_numeric_claim(self):
+        ev=build_evidence(request())
+        self.assertEqual(prose_number_issues('Check CO₂ conditions.',ev),[])
+
+    def test_explicit_history_path_uses_real_normal_only_rows(self):
+        with tempfile.TemporaryDirectory() as folder:
+            file = Path(folder) / 'reference.sqlite'
+            with sqlite3.connect(file) as db:
+                db.execute('CREATE TABLE sensor_readings(dataset TEXT,sensor_id TEXT,timestamp TEXT,weekday INT,minute_of_day INT,quality_flag TEXT,value REAL)')
+                for n in range(1,7):
+                    ts=(CUTOFF-timedelta(weeks=n)).isoformat()
+                    db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?,?,?)',('normal','CO2-L03-MEET-01',ts,CUTOFF.weekday(),CUTOFF.hour*60,'ok',430))
+                db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?,?,?)',('fault','CO2-L03-MEET-01',(CUTOFF-timedelta(weeks=7)).isoformat(),CUTOFF.weekday(),CUTOFF.hour*60,'ok',9000))
+            self.assertTrue(normal_history_ready(resolve_history_path(str(file))))
+            req=request(source='browser_demo',include_prior=False)
+            ev=build_evidence(req,resolve_history_path(str(file)))
+            f=ev['sensors'][0]
+            self.assertEqual(f['historical_days'],6)
+            self.assertEqual(f['historical_median'],430)
+            self.assertEqual(f['historical_source'],'normal_synthetic_sqlite')
+            self.assertEqual(f['rule_alert'],True)
+
+    def test_discover_only_existing_project_local_reference_and_do_not_create_files(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/'website'
+            sample=root/'storage'/'digital_twin.sqlite'
+            sample.parent.mkdir(parents=True)
+            sample.write_bytes(b'not a database')
+            with patch('llm_service.validated_room.__file__',str(root/'llm_service'/'validated_room.py')):
+                self.assertEqual(resolve_history_path(),str(sample))
+                self.assertFalse(normal_history_ready(str(sample)))
+            self.assertFalse(resolve_history_path(str(root/'not_here.sqlite')))
     def test_leak_detection_not_normal(self):
         inp=request(kind='water_leakage',current=1,include_prior=False)
         ev=build_evidence(inp)

@@ -28,7 +28,7 @@ const reading={point_code:first.code,value:24,timestamp:'2026-03-09T13:40:00+08:
 
 test('health reports real whole-building P2/validated configuration after bridge and model checks',async()=>{
  const f=fixture(async url=>{
-  if(url.endsWith('/health'))return {ok:true,json:async()=>({ok:true,validation_mode:'hybrid_semantic',prompt:'concise'})};
+  if(url.endsWith('/health'))return {ok:true,json:async()=>({ok:true,validation_mode:'hybrid_semantic',prompt:'concise',normal_history_database_ready:true,history_status:'synthetic_normal_sqlite_connected'})};
   if(url.endsWith('/api/tags'))return {ok:true,json:async()=>({models:[{name:'qwen3:1.7b'}]})};
   throw Error('unexpected URL');
  });
@@ -36,6 +36,8 @@ test('health reports real whole-building P2/validated configuration after bridge
  assert.equal(r.statusCode,200);assert.equal(r.body.connected,true);
  assert.equal(r.body.model,'qwen3:1.7b');assert.equal(r.body.prompt,'concise');
  assert.equal(r.body.retrieval,'validated');assert.equal(r.body.validation_mode,'hybrid_semantic');
+ assert.equal(r.body.historical_reference_available,true);
+ assert.equal(r.body.history_configured,true);
 });
 
 test('room endpoint retains canonical 18-point mapping and preserves source provenance',async()=>{
@@ -78,4 +80,17 @@ test('browser-supplied snapshots are explicitly distinguished from HTTP database
  const r=await f.request('POST','/api/assistant/ask',{...body,source:'browser_demo',snapshot:[reading]});
  assert.equal(r.statusCode,200);
  assert.equal(captured.request.source,'browser_demo');
+});
+
+
+test('a missing normal-history database is visible but does not falsify Ollama connectivity',async()=>{
+ const f=fixture(async url=>{
+  if(url.endsWith('/health'))return {ok:true,json:async()=>({ok:true,validation_mode:'hybrid_semantic',prompt:'concise',normal_history_database_ready:false,history_status:'normal_history_not_available'})};
+  if(url.endsWith('/api/tags'))return {ok:true,json:async()=>({models:[{name:'qwen3:1.7b'}]})};
+  throw Error('unexpected URL');
+ });
+ const res=await f.request('GET','/api/assistant/health');
+ assert.equal(res.body.connected,true);
+ assert.equal(res.body.historical_reference_available,false);
+ assert.equal(res.body.history_status,'normal_history_not_available');
 });

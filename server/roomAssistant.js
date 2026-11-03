@@ -42,7 +42,10 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
    const tags=await tagsResponse.json();
    const available=Array.isArray(tags.models)&&tags.models.some(m=>m.name===model||m.model===model);
    res.json({connected:!!available,model,prompt:'concise',retrieval:'validated',validation_mode:'hybrid_semantic',
-             history_configured:!!config().history_db,error:available?null:'Run ollama pull '+model});
+             history_configured:!!h.normal_history_database_ready,
+             historical_reference_available:!!h.normal_history_database_ready,
+             history_status:h.history_status||'unavailable',
+             error:available?null:'Run ollama pull '+model});
   }catch(e){res.json({connected:false,model,prompt:'concise',retrieval:'validated',validation_mode:'hybrid_semantic',error:'Start the Python bridge and Ollama: '+e.message});}
  });
  app.post('/api/assistant/ask',allowed,async(req,res)=>{
