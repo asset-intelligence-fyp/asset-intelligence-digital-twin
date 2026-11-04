@@ -38,3 +38,7 @@ storage/*.db
 # Private evaluation results
 **/*_PRIVATE.json
 **/*_PRIVATE.jsonl
+
+# Benchmark runs, predictions and simulator runtime output
+runtime/
+tsconfig.tsbuildinfo

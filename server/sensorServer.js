@@ -1,4 +1,5 @@
 import express from 'express';
+import {createLatencyMetrics} from './latencyMetrics.js';
 import {registerRoomAssistant} from './roomAssistant.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -10,19 +11,22 @@ import {registry,normalizeReadings} from './sensorContract.js';
 dotenv.config();
 export function createSensorApp({pool=null}={}) {
  const app=express(); app.use(cors());app.use(express.json({limit:'1mb'}));
- const clients=new Set(), received=new Map(); let memory=[];
+ const clients=new Set(), received=new Map(); let memory=[];let lastSource=null;
+ const latency=createLatencyMetrics({storage:pool?'postgresql':'temporary_memory'});latency.routes(app);
  app.get('/api/health',async(_req,res)=>{try{if(pool)await pool.query('SELECT 1');res.json({ok:true,storage:pool?'postgresql':'temporary_memory',synthetic:true})}catch{res.status(503).json({ok:false,error:'PostgreSQL unavailable'})}});
  app.get('/api/sensor-registry',(_req,res)=>res.json({points:registry,mapping:'demonstration_alias'}));
  app.get('/api/live-status',(_req,res)=>{
   const points=registry.map(p=>{const at=received.get(p.code);return {point_code:p.code,last_received_at:at||null,recent:!!at&&Date.now()-Date.parse(at)<90000}});
-  res.setHeader('Cache-Control','no-store');res.json({transport:'http',expected_points:18,received_points:points.filter(p=>p.recent).length,points,recent:points.every(p=>p.recent),source:'synthetic_simulator',storage:pool?'postgresql':'temporary_memory'});
+  res.setHeader('Cache-Control','no-store');res.json({transport:'http',expected_points:18,received_points:points.filter(p=>p.recent).length,points,recent:points.every(p=>p.recent),source:'synthetic_simulator',producer:lastSource,storage:pool?'postgresql':'temporary_memory'});
  });
  app.get('/api/events',(req,res)=>{
   res.set({'Content-Type':'text/event-stream','Cache-Control':'no-cache',Connection:'keep-alive'});res.flushHeaders();res.write(': connected\n\n');clients.add(res);
   const timer=setInterval(()=>res.write(': keepalive\n\n'),20000);req.on('close',()=>{clearInterval(timer);clients.delete(res)});
  });
  app.post('/api/sensor-readings',async(req,res)=>{
+  const receivedAt=Date.now();
   let batch;try{batch=normalizeReadings(req.body)}catch(e){return res.status(400).json({error:e.message})}
+  const trace=latency.begin(req.body,receivedAt);
   let client;
   try{
    if(pool){
@@ -30,11 +34,14 @@ export function createSensorApp({pool=null}={}) {
     for(const r of batch)await client.query(`INSERT INTO twin18.sensor_readings(point_code,reading_timestamp,reading_value,quality) VALUES($1,$2,$3,$4) ON CONFLICT(point_code,reading_timestamp) DO UPDATE SET reading_value=EXCLUDED.reading_value,quality=EXCLUDED.quality`,[r.point_code,r.timestamp,r.value,r.quality]);
     await client.query('COMMIT');
    }else{for(const r of batch){memory=memory.filter(x=>x.point_code!==r.point_code||x.timestamp!==r.timestamp);memory.push(r)}memory=memory.slice(-18000)}
+   lastSource={name:req.body.producer||'external_simulator_unverified',sequence:req.body.sequence??null,generated_at_utc:req.body.generated_at_utc??null,received_at_utc:new Date(receivedAt).toISOString()};
+   latency.commit(trace,batch);
+   if(trace)for(const row of batch)row.trace={trace_id:trace.trace_id,batch_size:batch.length};
    // Publish only after the entire batch commits. Coverage uses receipt time,
    // independent of the simulator's historical or accelerated clock.
    for(const r of batch){received.set(r.point_code,new Date().toISOString());for(const c of clients)c.write(`event: sensor-reading\ndata: ${JSON.stringify(r)}\n\n`)}
    res.status(201).json({success:true,accepted:batch.length,storage:pool?'postgresql':'temporary_memory'});
-  }catch(e){if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Sensor persistence failed:',e.message);res.status(503).json({error:'Batch was not saved; check database setup'})}finally{client?.release()}
+  }catch(e){latency.failed(trace);if(client)await client.query('ROLLBACK').catch(()=>{});console.error('Sensor persistence failed:',e.message);res.status(503).json({error:'Batch was not saved; check database setup'})}finally{client?.release()}
  });
  app.get('/api/bootstrap',async(_req,res)=>{
   try{

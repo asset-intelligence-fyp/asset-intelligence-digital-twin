@@ -312,12 +312,14 @@ def main(argv=None):
 
             start = time.monotonic()
 
+            # Wall time is independent of accelerated/dataset timestamps.
+            generated_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
             # Generate sensor readings
             message, truth = engine.step()
 
-            message["generated_at_utc"] = datetime.now(
-                timezone.utc
-            ).isoformat(timespec="milliseconds")
+            message["generated_at_utc"] = generated_at
+            message["clock_domain"] = "same_host"
+            message["producer"] = "bundled_level03_sop_v1.4_unverified_against_teammate_dataset"
 
             message["source"] = "synthetic_demo"
 

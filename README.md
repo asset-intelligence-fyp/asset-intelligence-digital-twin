@@ -1,138 +1,82 @@
-# TwinLabs · whole-building sensor integration
+# TwinLabs · simulation-only building digital twin
 
-This branch connects the supplied `FYP_WholeBuilding_18Sensors.ifc` and the updated 18-point Python simulator to the existing React dashboard. It preserves the original simulator equations and provides HTTP batch ingestion, live server-sent events, history, and PostgreSQL persistence. The room assistant uses local, pretrained Qwen3 1.7B with P2 Concise and evidence validation when Ollama is running. No trained forecasts or confirmed physical fault diagnoses are generated.
+The current website uses an 18-point **synthetic Python HTTP stream**, the whole-building
+IFC/XKT model, and a local Qwen3 room assistant. No physical building feed is connected.
+Scene weather is decorative and does not alter the readings. The overview no longer
+contains the Live twin / replay / what-if / comfort panel or a browser-random source switch.
+The theme toggle remains in the header.
 
-## Open it on a Mac
+## Source status
 
-Install Node.js 22 or newer and Python 3.9 or newer. Extract the downloaded project ZIP, open Terminal inside its folder, then run:
+The intended teammate simulator and dataset have **not yet been supplied or verified**.
+The bundled `tools/level03_simulator` is a provisional SOP v1.4 generator with configurable
+assumptions, not a verified replay of the teammate's dataset. Do not claim dataset fidelity.
+The five IFC locations and 18 canonical point mappings retain their documented demonstration
+aliases; PIR represents presence, and virtual power is an illustrative aggregate.
+
+## Run on a Mac
+
+Requirements: Node.js 22+, Python 3.9+, Git LFS for the model files, and a WebGL 2 capable
+browser for the BIM viewer. From the project folder:
 
 ```bash
+git lfs pull
 npm ci
-npm run demo
+TWIN_STORAGE=memory npm run dev
 ```
 
-This package is based on `asset-intelligence-fyp/asset-intelligence-digital-twin`, branch `level03-data-integration`, commit `448a5557fefc16aefcfcda169b1e7973663a7fa0`. This ZIP contains the local integration; publication of these changes to GitHub has not been verified.
+Open http://localhost:5173/. This starts the website, API, Python assistant bridge and
+bundled simulator. Temporary memory resets when the API stops. Generated CSV/JSON output
+is saved in ignored `runtime/simulator`; previously tracked simulator files are not changed.
+Use Control+C to stop. Do not start a second publisher at the same time.
 
-Open **http://localhost:5173/** in Chrome. `npm run demo` starts the API, website, and original Python simulator together. It uses clearly labelled **temporary memory** and clears readings when the API stops. No PostgreSQL or MQTT broker is needed for this first look. You can also double-click `Open_TwinLabs.command` after downloading; if macOS does not allow it to run, use the Terminal commands above.
+The simulator sends a batch every five real seconds and advances simulation time by one
+minute per batch. `normal` mode injects no faults. Select controlled injected scenarios
+with `SIM_FAULT_MODE=demo` or sparse faults with `SIM_FAULT_MODE=live` before starting;
+these are synthetic modes, not real sensor measurements. To use a teammate publisher,
+set `SIMULATOR_AUTOSTART=false` and start its adapter separately after validating IDs/units.
 
-Use **Control+C** to stop. The Simulator page switches between Python HTTP readings and a browser-only demonstration generator. Its Pause and Reset controls affect only the browser generator. Stop the Python process in Terminal to stop HTTP readings. Simulator timestamps advance one simulated minute per tick; the default launcher starts from the current time and sends every five seconds. Receipt coverage uses real wall-clock time.
+For local Qwen inference, run Ollama and download `qwen3:1.7b`. Defaults are
+`http://127.0.0.1:11434` for Ollama and `http://127.0.0.1:8011` for the bridge.
+The active server is `server/sensorServer.js`; older `server/index.js` and `/api/ai/*`
+modules are legacy references. See [current assistant setup](docs/whole-building-llm.md).
+Known chatbot grounding/validation limitations remain outstanding.
 
-Without a configured database, `npm run dev` also starts a temporary demonstration stream automatically.
+## Persistent PostgreSQL
 
-## Save readings in PostgreSQL
+Keep existing databases unchanged. Create a separate `digital_twin_18` database, configure
+`.env` from `.env.example`, and run `npm run db:setup` before `npm run dev`. Do not force
+`TWIN_STORAGE=memory` for a persistence run. Setup creates the additive `twin18` schema.
+Keep real credentials and local SQLite references out of Git. The benchmark identifies
+whether storage is temporary memory or PostgreSQL.
 
-Keep an existing project database unchanged. Create a separate database for this integration:
+## Benchmarks and acceptance
 
-```bash
-createdb digital_twin_18
-cp .env.example .env
-# Set PGUSER / PGPASSWORD in .env if your PostgreSQL setup needs them.
-npm run db:setup
-npm run dev
-```
+Open **Simulator** for source-to-browser latency. Start a fresh measurement run, keep one
+browser tab visible for at least 30 complete batches, and download the result. AI response
+time is a separate measurement. A preview trial of 40 batches had a 5.392 s p95 and
+6.037 s maximum conservative upper bound; **it did not establish the ≤5 s target**.
+It used temporary memory and lacked WebGL 2, not the final Mac/PostgreSQL configuration.
 
-In a second Terminal, from the same folder:
+AI accuracy is **not measured**. The brief requires ≥85% anomaly accuracy against logged
+maintenance events. The evaluator needs frozen, independently labelled held-out cases;
+synthetic injection results must be reported separately and require agreement if replacing
+the maintenance-event basis. Tests and fluent answers do not establish model accuracy.
 
-```bash
-npm run simulator
-```
+See [measurement method, source handoff and evaluation commands](docs/performance-evaluation.md)
+and [recorded preview samples](docs/benchmarks/2026-11-04-preview-latency.json).
 
-Open **http://localhost:5173/**. Check **http://localhost:3001/api/health** for `storage: "postgresql"` and **http://localhost:3001/api/live-status** for `received_points: 18`. The footer also identifies the storage mode.
-
-`db:setup` creates only the additive `twin18` schema and seeds its mapping registry. It does not run the older destructive initialization scripts or depend on the obsolete equipment tables. TimescaleDB is optional for this initial integration; the timestamped PostgreSQL table and index work without it. Do not set `TWIN_STORAGE=memory` when you want persistent readings.
-
-## Use the building viewer
-
-Choose a named room on the left or a room label on the building, then select the sensor you want to inspect. The viewer moves to the correct IFC floor and shows the reading. The room/sensor picker also lets you jump directly to a location.
-
-- **Building:** normal model appearance.
-- **X-ray:** matte blue-grey shading with explicit dark outlines and a Wall shading slider (8–85%). Floors remain subdued instead of covering internal details.
-- **Sensor colours:** choose a reading type to see coloured areas near its sensors. The legend explains the display range; these colours are illustrative, not AI diagnoses or a thermal simulation.
-- **Trackpad:** scroll or pinch inside the viewer to zoom; Shift + scroll moves the camera. Drag to rotate. Page scrolling and page zoom remain available outside the viewer.
-- **Reset / Fit / 3D / Top:** return to the whole building, fit the current view, orbit in 3D or view a top-down plan.
-
-This update fixes reversed floor cuts that made the model disappear. It replaces the numbered markers with named room labels and retains readable geometry in X-ray mode. The room assistant uses locally served Qwen3 1.7B for P2 Concise interpretations; source-backed numbers are independently checked.
-
-## Sensor and IFC mapping
-
-The IFC has 18 unique sensor markers across Levels 2–5. The simulator has 18 virtual points whose room IDs all begin with `L03`. These are different location arrangements. `shared/sensorRegistry.json` explicitly links corresponding room types and sensor types, preserving both IDs and the IFC GlobalId.
-
-**These are demonstration aliases, not verified physical sensor locations.** The monitoring interface shows the IFC location and simulator room separately. The power marker is placed at `L05-ELEC`, while the value remains the simulator's illustrative aggregate demand; it must not be called a measured Level 5 meter reading. The IFC also repeats an `Asset_ID` on two markers, so integration identity uses unique Sensor_ID / GlobalId rather than that field.
-
-See [the complete mapping](docs/whole-building-integration.md). IFC geometry and its original IDs were not renamed or moved.
-
-## Model files
-
-- `public/models/FYP_WholeBuilding_18Sensors.xkt`: converted whole-building model used by the viewer; all 18 sensor GlobalIds retained.
-- `public/models/FYP_WholeBuilding_18Sensors.ifc.gz`: losslessly compressed original IFC, keeping each repository file below GitHub's 100 MB limit.
-
-The viewer supports whole-building, floor, plan and sensor selection. A WebGL 2 capable browser is required for 3D; without it the sensor dashboard remains usable. Pick a marker to select its data, or select a sensor card to focus its marker. Floor filters use IFC storey metadata. The original Level 5 viewer/source files remain available for reference.
-
-Regenerate the XKT only if the IFC changes:
+## Verification and model mapping
 
 ```bash
-npm run model:convert
-```
-
-Install the conversion-only dependency with `python3 -m pip install ifcopenshell==0.9.0`. Conversion can take several minutes and consumes more resources than viewing the dashboard. Converter warnings and limitations are documented in `docs/whole-building-integration.md`.
-
-## API and verification
-
-`POST /api/sensor-readings` accepts the simulator's `{readings:[...]}` batch or a legacy single-reading object. It validates IDs, room aliases, types, units and timestamps before persistence, commits a batch atomically, and broadcasts only after commit. Retrying the same point/timestamp updates that row rather than creating a duplicate. Invalid batches return 400; database failures return 503.
-
-```bash
-npm test
-npm run model:verify
 npm run build
+npm test
+node --test tests/latencyMetrics.test.mjs tests/velvetUI.test.mjs tests/roomAssistantValidated.test.mjs
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Tests generate an actual simulator tick and exercise mapping, HTTP delivery, SSE, retries, history restoration and transaction rollback. Database tests use PGlite's embedded PostgreSQL engine; they do not prove access to your own PostgreSQL installation. The old `server/index.js` remains as legacy reference; package scripts run `server/sensorServer.js` for this profile.
-
-For a built local application: `npm run build` then `npm start`, and open **http://localhost:3001/**. Hosting this Node API and PostgreSQL requires a separate deployment environment; a GitHub branch is source code, not a hosted application.
-
-
-## Experience update
-
-- **Replay:** scrub or play available history. “Load 24-hour demo” creates labelled synthetic history for all 18 points, with office hours and a meeting peak. Every three seconds advances 15 simulated minutes while the simulator is running. Connected-source replay is limited to the history actually available in the browser/session; it does not invent a full day.
-- **What if:** choose a room, then adjust planned people, AC setpoint, ventilation and outdoor temperature. Presets demonstrate a heatwave, an all-hands meeting and cooling failure. Solid chart lines remain historical readings; dashed endpoints show the illustrative +1 h or +24 h result. Reset disables the illustration. These are simple uncalibrated response formulas, not predictions from Qwen, validated energy models or confidence intervals.
-- **Heatmap:** sensor-based translucent colour areas, legend and room-label comfort status use the current/replayed/illustrative values. These areas are approximate regions around IFC sensor anchors, not reconstructed room air volumes. The existing named-room camera navigation, floor cuts and trackpad handling are retained. Selected markers with actual IFC space geometry also show a room footprint and outline; Room plan fits the complete available room boundary. Camera flights take 280 ms and respect reduced motion.
-- **Room evidence:** the assistant follows the selected room and summarizes the displayed readings with IFC Sensor_IDs and timestamps. Answers update with their evidence. It identifies the local model, evidence source, validation status, and review requirement. Cmd/Ctrl+K opens friendly room/sensor search (for example “show CO2 in meeting room”).
-- **Presentation:** animated values, table sparklines, chart guide lines, meaningful room comfort comparisons, loading placeholders and an optional dark theme. The comfort indicator is a simple display heuristic: average penalties outside temperature 22–27 °C, humidity 40–65 %RH and CO₂ above 900 ppm. It is not a certified assessment; chart guides/heatmap bands are separate display guides. No indicator is assigned to rooms without environmental sensors.
-- **Demo records:** synthetic review events and a maintenance illustration appear only in guided demo mode. They are labelled and are never written to the physical maintenance database. Real empty states remain truthful.
-
-Not connected in this update: trained forecasting/streaming, forecast confidence bands, bookings, weather feeds, external actions, or headcount measurement. The pretrained local room assistant is available separately. Existing PIR points indicate presence only. Room mapping remains the documented demonstration alias; original simulator identifiers are preserved while the interface uses friendly IFC room names.
-
-To preview: `npm install`, then `npm run dev`. Open the local URL printed by Vite. Use a WebGL 2 capable browser for the building. Run `npm test` and `npm run build` for verification.
-
-
-The clearer X-ray update includes actual IFC room outlines for 15/18 markers. The meeting temperature, humidity and CO₂ markers have no unique linked room geometry, so their boundary is shown as unavailable. Other markers with the same dashboard location name must not be used to invent a boundary for these three. See `docs/whole-building-integration.md` for the coverage and regeneration details.
-
-
-## 18-sensor frontend / Level 5 AI merge notice (November 2026)
-
-This repository's CURRENT WEBSITE is the **FYP whole-building 18-sensor app**.
-The locally committed room assistant uses `/api/assistant/health` and
-`/api/assistant/ask` and is part of the whole-building experience. Do not
-replace its sensor registry or frontend with the older Level 5 nine-point UI.
-
-A separate GitHub commit brought in `server/aiCore.js`, `server/aiRoutes.js`,
-`server/aiService.js`, and `src/components/AssistantPanel.tsx` designed for
-**Snowdon Towers Level 5, nine HRU points**, using a different PostgreSQL schema.
-Those files are retained as an **unadapted prototype**, not the active 18-point
-integration. The new `/api/ai/status` route is mounted in legacy
-`server/index.js`; this whole-building package starts `server/sensorServer.js`
-instead. `/api/ai/status` may therefore be unavailable even after the merge.
-
-Do not present the nine-point prototype as validated 18-point R4.3.1, or map
-sensor codes between these two datasets by guessing. Inspect the active
-`server/sensorServer.js`, room-assistant routes, `shared/sensorRegistry.json`,
-and `twin18` storage schema before porting numerical/semantic validation.
-
-See `docs/whole-building-ai-merge-status.md` for a safe next-step checklist.
-
-
-## Current whole-building Qwen3 P2 / R4.3.1-style AI (November 2026)
-
-The **active** 18-point room assistant now uses `qwen3:1.7b`, the existing P2 `concise` prompt and a new whole-building numerical/semantic validator. It keeps the original `/api/assistant/ask` endpoint and follows BIM-selected rooms. The independent historical deviation check never vetoes a model alert: disagreement, explicit contradictory prose, or a binary leak event triggers human review. Missing historical baselines yield `insufficient_evidence`, not a fabricated normal result. Source-verified statistics come from stored HTTP history or clearly labelled client snapshots. The old Level 5 `/api/ai/*` code is inactive.
-
-See **[whole-building AI setup, current methods and limitations](docs/whole-building-llm.md)**. Previous P2/R4.3.1 experiment scores do **not** apply to this integrated 18-point data path without a new independent evaluation.
+[Whole-building mapping and geometry](docs/whole-building-integration.md) ·
+[Velvet UI integration](docs/velvet-ui-integration.md).
+Model assets remain in `public/models/FYP_WholeBuilding_18Sensors.xkt` and
+`public/models/FYP_WholeBuilding_18Sensors.ifc.gz`, managed by Git LFS. No BIM geometry
+or original sensor IDs were renamed by the simulation/benchmark update.

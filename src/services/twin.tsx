@@ -6,7 +6,7 @@ export const POINTS = sensorRegistry;
 export type PointCode = string;
 export type AssetId = string;
 export const ASSETS: AssetId[] = [...new Set(POINTS.map(p=>p.assetId))];
-export interface Reading { point_code:string; value:number; timestamp:string; quality:string; source:'random'|'http'|'stored' }
+export interface Reading { point_code:string; value:number; timestamp:string; quality:string; source:'random'|'http'|'stored'; trace?:{trace_id:string;batch_size:number} }
 export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean }
 interface Bootstrap {storage?:string;data?:{
   Assets?: Array<{asset_id:string;asset_name:string;asset_type:string;status:string;ifc_global_id?:string;manufacturer?:string;model?:string}>;
@@ -71,6 +71,18 @@ export function TwinProvider({children}:{children:ReactNode}){
  const [storage,setStorage]=useState('unknown');
  const [mqttCoverage,setMqttCoverage]=useState(0);
  const generator=useRef({...initial});
+ const pendingTraces=useRef(new Map<string,{codes:Set<string>;size:number}>());
+ const browserId=useRef(crypto.randomUUID());
+ useEffect(()=>{
+  if(mode!=='mqtt'||document.visibilityState!=='visible')return;
+  const ready=[...pendingTraces.current].filter(([id,v])=>v.codes.size===v.size&&[...v.codes].every(code=>readings[code]?.trace?.trace_id===id)).map(([id])=>id);
+  if(!ready.length)return;
+  let second=0;const first=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>{
+   if(document.visibilityState!=='visible')return;
+   for(const id of ready){pendingTraces.current.delete(id);void fetch('/api/benchmarks/rendered',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trace_id:id,client_id:browserId.current})}).catch(()=>{});}
+  });});
+  return()=>{cancelAnimationFrame(first);if(second)cancelAnimationFrame(second)};
+ },[readings,mode]);
  const randomEventId=useRef(-1);
  const setMode=useCallback((value:Mode)=>{setModeState(value);setDemo(false);setReplayTime(null);setReadings({});setHistory([]);generator.current={...initial};},[]);
  const ingest=useCallback((batch:Reading[])=>{
@@ -111,7 +123,8 @@ export function TwinProvider({children}:{children:ReactNode}){
   const source=new EventSource('/api/events');
   source.addEventListener('sensor-reading',(event)=>{
    try{const data=JSON.parse((event as MessageEvent).data);
-    ingest([{point_code:String(data.point_code),value:Number(data.value),timestamp:String(data.timestamp||data.latest_update||nowIso()),quality:String(data.quality||'simulated'),source:'http'}]);
+    if(data.trace?.trace_id){const trace=pendingTraces.current.get(data.trace.trace_id)||{codes:new Set<string>(),size:Number(data.trace.batch_size)};trace.codes.add(String(data.point_code));pendingTraces.current.set(data.trace.trace_id,trace);if(pendingTraces.current.size>2000)pendingTraces.current.delete(pendingTraces.current.keys().next().value!);}
+    ingest([{point_code:String(data.point_code),value:Number(data.value),timestamp:String(data.timestamp||data.latest_update||nowIso()),quality:String(data.quality||'simulated'),source:'http',trace:data.trace}]);
    }catch{/* ignore malformed message, not the stream */}
   });
   return()=>source.close();

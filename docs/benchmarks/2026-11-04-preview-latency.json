@@ -1,0 +1,30 @@
+{
+  "test_type": "preview_smoke_test_not_final_acceptance",
+  "date": "2026-11-04",
+  "run_id": "396f05ba-67a5-401e-bae2-c0728939c362",
+  "source": "bundled_level03_sop_v1.4_unverified_against_teammate_dataset",
+  "storage": "temporary_memory",
+  "delivery_interval_seconds": 5,
+  "sensor_points_per_batch": 18,
+  "batches": 40,
+  "readings": 720,
+  "completed_batches": 40,
+  "pending_batches": 0,
+  "invalid_clock_batches": 0,
+  "uninstrumented_batches": 0,
+  "median_upper_ms": 1708,
+  "p95_upper_ms": 5392,
+  "maximum_upper_ms": 6037,
+  "within_5000ms": 37,
+  "assessment": "does_not_establish_all_updates_within_5s",
+  "source_to_commit_ms": [29,16,4,5,47,4,4,11,7,5,14,4,3,5,32,22,283,14,4,117,330,3,8,8,6,5,5,10,6,6,4,10,7,32,157,489,4,3,5,17],
+  "source_to_browser_ack_upper_ms": [2178,1400,1472,1738,1671,1715,1799,1948,2033,401,81,1052,1156,1219,1380,1763,1842,1901,6037,2663,1708,1685,1770,1844,1925,2009,1076,51,101,1777,1856,2171,1164,1261,5584,5392,1407,1492,37,63],
+  "limitations": [
+    "Managed preview environment, not the user's Mac or final deployment.",
+    "Browser-reported completion after a React update and two animation frames, plus the return HTTP hop. This upper bound includes browser/preview routing overhead and is not exact pixel or GPU completion time.",
+    "The preview browser lacked WebGL 2; BIM geometry rendering was not included in the claim.",
+    "The test did not run the intended teammate simulator/dataset, PostgreSQL, or Qwen inference load.",
+    "Three upper-bound samples exceeded 5000 ms; do not report this trial as a five-second acceptance pass.",
+    "Server commit took at most 489 ms. The remaining upper-bound time includes forward transport, browser scheduling/render opportunity and acknowledgement return; these were not separately isolated in this trial."
+  ]
+}

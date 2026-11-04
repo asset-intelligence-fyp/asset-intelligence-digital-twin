@@ -6,7 +6,6 @@ import { DemoBuilding } from '../components/DemoBuilding';
 import { TelemetryChart } from '../components/TelemetryChart';
 import { Eyebrow, Pill, StatusPill } from '../components/UI';
 import {roomTitle} from '../viewer/sensorPresentation.js';
-import {ExperiencePanel} from '../components/ExperiencePanel';
 import {WeatherControls} from '../components/WeatherControls';
 import type { Page } from '../components/Shell';
 
@@ -23,9 +22,8 @@ export function Overview({externalFocusRequest=0,setPage,selectedAsset,onSelectA
  const open=events.filter(e=>!e.acknowledged&&e.level!=='Info').length;
  const updated=useMemo(()=>Object.values(readings).map(x=>x.timestamp).sort().at(-1),[readings]);
  return <div className="overview-page">
-  <div className="page-heading overview-heading"><div><Eyebrow>ASSET INTELLIGENCE / SIMULATION</Eyebrow><h1>Building overview</h1><p>FYP whole building · Levels 2–5 — last reading {displayTime(updated)}</p></div><div className="heading-actions"><Pill tone={mode==='mqtt'&&mqttCoverage<18?'warning':'teal'}><span className="status-dot"/>{mode==='random'?'Synthetic readings':`HTTP · ${mqttCoverage}/18`}</Pill><button className="dark-button" onClick={()=>document.querySelector<HTMLElement>('.model-card .small-outline')?.click()}><Maximize2 size={14}/> Twin view</button></div></div>
+  <div className="page-heading overview-heading"><div><Eyebrow>ASSET INTELLIGENCE / SIMULATION</Eyebrow><h1>Building overview</h1><p>FYP whole building · Levels 2–5 — simulation timestamp {displayTime(updated)}</p></div><div className="heading-actions"><Pill tone={mode==='mqtt'&&mqttCoverage<18?'warning':'teal'}><span className="status-dot"/>{mode==='random'?'Synthetic readings':`HTTP · ${mqttCoverage}/18`}</Pill><button className="dark-button" onClick={()=>document.querySelector<HTMLElement>('.model-card .small-outline')?.click()}><Maximize2 size={14}/> Twin view</button></div></div>
   <WeatherControls/>
-  <ExperiencePanel/>
   <div className="overview-workbench"><section className="zone-list surface"><div className="zone-list-title"><span><Layers size={14}/> MONITORING LOCATIONS</span><span>5</span></div><div className="zone-items">{ASSETS.map(asset=>{
    const channels=POINTS.filter(p=>p.assetId===asset),current=channels.filter(p=>readings[p.code]).length;
    return <button key={asset} className={`zone-item ${selectedAsset===asset?'zone-item-selected':''}`} onClick={()=>focusSensor(channels[0].code)}><span className="zone-name"><i/>{roomTitle(channels[0])}</span><span className="room-floor-label">{channels[0].floor.replace('Level_0','Level ').replaceAll('_',' ')}</span><span className="zone-percent">{current}/{channels.length} CHANNELS</span><span className="occupancy-track"><span style={{width:`${current/channels.length*100}%`}}/></span></button>;

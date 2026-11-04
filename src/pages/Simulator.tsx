@@ -1,14 +1,19 @@
-import { Activity, Pause, Play, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Activity, AlertTriangle } from 'lucide-react';
 import { POINTS, readingLabel, displayTime, useTwin } from '../services/twin';
 import { Eyebrow } from '../components/UI';
+import {BenchmarkPanel} from '../components/BenchmarkPanel';
 import { TelemetryChart } from '../components/TelemetryChart';
 export function Simulator(){
- const {mode,setMode,running,setRunning,intervalMs,setIntervalMs,resetSimulator,readings,addTestEvent}=useTwin();
- return <div className="analytics-page"><div className="page-heading"><div><Eyebrow>SIMULATION CONTROLS</Eyebrow><h1>Sensor simulator</h1><p>Live-generated synthetic telemetry · 18 IFC-linked channels</p></div><div className="heading-actions"><span className="pill pill-teal"><span className="status-dot"/>{mode==='random'?'Random generator':'HTTP simulator stream'}</span></div></div>
- <div className="twin-sim-grid"><section className="surface twin-sim-control"><Eyebrow>DATA SOURCE</Eyebrow><div className="segmented twin-selector"><button className={mode==='random'?'active':''} onClick={()=>setMode('random')}>Random simulation</button><button className={mode==='mqtt'?'active':''} onClick={()=>setMode('mqtt')}>Python HTTP / PostgreSQL</button></div>
- <p>Python HTTP receives the attached simulator’s 18-point stream. Browser demo generates temporary values locally. Pause and Reset control only the browser demo.</p><p>IFC floors differ from the simulator rooms. Links use documented room-type aliases for demonstration; virtual power remains the simulator’s illustrative aggregate.</p><Eyebrow>GENERATORS</Eyebrow><div className="twin-sim-actions"><button className="dark-button" onClick={()=>setRunning(!running)} disabled={mode!=='random'}>{running?<Pause size={15}/>:<Play size={15}/>} {running?'Pause':'Resume'}</button><button className="small-outline" onClick={resetSimulator} disabled={mode!=='random'}><RotateCcw size={15}/> Reset</button></div><label className="twin-speed">Reading interval<select className="twin-select" value={intervalMs} onChange={e=>setIntervalMs(Number(e.target.value))} disabled={mode!=='random'}><option value={1000}>1 second</option><option value={3000}>3 seconds</option><option value={5000}>5 seconds</option><option value={10000}>10 seconds</option></select></label>
+ const {readings,addTestEvent}=useTwin();
+ return <div className="analytics-page"><div className="page-heading"><div><Eyebrow>SIMULATION CONTROLS</Eyebrow><h1>Sensor simulator</h1><p>Simulated telemetry · 18 IFC-linked channels</p></div><div className="heading-actions"><span className="pill pill-teal"><span className="status-dot"/>Synthetic Python HTTP stream</span></div></div>
+ <BenchmarkPanel/>
+ <div className="twin-sim-grid"><section className="surface twin-sim-control"><Eyebrow>SIMULATED SOURCE</Eyebrow>
+ <p>The dashboard receives the bundled 18-point Python simulator over HTTP. Your teammate’s intended simulator/dataset has not been supplied or verified yet. There is no physical sensor feed.</p>
+ <p>Simulation time advances one minute per batch; delivery defaults to one batch every five real seconds. These are different clocks. Normal mode injects no faults. Scene weather does not change readings.</p>
+ <p>Source delivery is controlled by the Python process. Stop it in Terminal to pause; no browser-random fallback is offered here.</p>
+ <p>IFC locations remain demonstration room-type aliases. Virtual power is an illustrative aggregate.</p>
  <Eyebrow>EVENT TESTING</Eyebrow><button className="small-outline twin-alert-button" onClick={addTestEvent}><AlertTriangle size={15}/> Generate test alert</button><p>Test alerts can be acknowledged in Event log. They are not AI predictions.</p></section>
  <section className="surface twin-sim-readings"><Eyebrow><Activity size={14}/> ACTIVE CHANNELS</Eyebrow>{POINTS.map(p=><div className="twin-sim-reading" key={p.code}><div><strong>{p.code}</strong><small>{p.assetId} · {p.label}</small></div><div><code>{readingLabel(p.code,readings[p.code])}</code><small>{readings[p.code]?new Date(readings[p.code].timestamp).toLocaleTimeString():'—'}</small></div></div>)}<p className="twin-small">Updated {displayTime(Object.values(readings).map(r=>r.timestamp).sort().at(-1))}</p></section></div>
- <section className="surface chart-panel twin-sim-chart"><div className="chart-heading"><h3>Live room temperatures</h3><span>°C · auto-refresh</span></div><TelemetryChart codes={['TEMP-L03-OPEN-01','TEMP-L03-MEET-01']}/></section></div>;
+ <section className="surface chart-panel twin-sim-chart"><div className="chart-heading"><h3>Simulated room temperatures</h3><span>°C · auto-refresh</span></div><TelemetryChart codes={['TEMP-L03-OPEN-01','TEMP-L03-MEET-01']}/></section></div>;
 }
 
