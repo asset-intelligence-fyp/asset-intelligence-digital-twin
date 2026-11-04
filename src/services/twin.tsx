@@ -15,8 +15,10 @@ interface Bootstrap {storage?:string;data?:{
   Historical_Sensor_Readings?: Array<{point_code:string;value:number;timestamp:string;quality:string}>;
   Anomaly_Results?: Array<{anomaly_id:number;asset_id:string;point_code:string;timestamp:string;description?:string;severity?:string;anomaly_status?:string;anomaly_score?:number}>;
 }};
+export type Weather = 'clear'|'cloudy'|'rain'|'night';
 type Mode = 'random'|'mqtt';
 type TwinContext = {
+ weather:Weather;setWeather:(v:Weather)=>void;weatherMotion:boolean;setWeatherMotion:(v:boolean)=>void;
  mode:Mode;setMode:(v:Mode)=>void;running:boolean;setRunning:(v:boolean)=>void;intervalMs:number;setIntervalMs:(v:number)=>void;
  readings:Record<string,Reading>;history:Reading[];events:EventRecord[];acknowledge:(id:number)=>Promise<void>;addTestEvent:()=>void;
  assets:NonNullable<NonNullable<Bootstrap['data']>['Assets']>;maintenance:NonNullable<NonNullable<Bootstrap['data']>['Maintenance_Events']>;
@@ -53,6 +55,8 @@ function fromDb(data:Bootstrap['data']){
 export function TwinProvider({children}:{children:ReactNode}){
  const [demo,setDemo]=useState(false),[demoStep,setDemoStep]=useState(0),[replayTime,setReplayTime]=useState<number|null>(null),[scenario,setScenario]=useState(false),[scenarioConfig,setScenarioConfig]=useState(DEFAULT_SCENARIO),[horizon,setHorizon]=useState(1),[selectedRoom,setSelectedRoom]=useState('L02-OPEN'),[assistantOpen,setAssistantOpen]=useState(false);
  const demoOrigin=useRef(Math.floor(Date.now()/900000)*900000);
+ const [weather,setWeather]=useState<Weather>('clear');
+ const [weatherMotion,setWeatherMotion]=useState(()=>!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
  const [mode,setModeState]=useState<Mode>('mqtt');
  const [running,setRunning]=useState(true);
  useEffect(()=>{if(!demo||!running)return;const timer=setInterval(()=>setDemoStep(s=>s+1),3000);return()=>clearInterval(timer)},[demo,running]);
@@ -147,7 +151,7 @@ export function TwinProvider({children}:{children:ReactNode}){
   };
   setEvents(prev => [event, ...prev].slice(0, 100));
  },[]);
- const resetSimulator=useCallback(()=>{generator.current={...initial};setReadings({});setHistory([]);setEvents(prev=>prev.filter(e=>!e.synthetic));},[]);
+ const resetSimulator=useCallback(()=>{generator.current={...initial};const timestamp=nowIso();const batch=POINTS.map(p=>({point_code:p.code,value:initial[p.code],timestamp,quality:'simulated',source:'random' as const}));setReadings(Object.fromEntries(batch.map(row=>[row.point_code,row])));setHistory(batch);setEvents(prev=>prev.filter(e=>!e.synthetic));},[]);
  const liveHistory:Reading[]=useMemo(()=>demo?demoHistory(POINTS,demoOrigin.current+demoStep*900000) as Reading[]:history,[demo,demoStep,history]);
  const liveReadings=useMemo(()=>demo?readingsAt(liveHistory,Infinity) as Record<string,Reading>:readings,[demo,liveHistory,readings]);
  const baseReadings=useMemo(()=>replayTime===null?liveReadings:readingsAt(liveHistory,replayTime) as Record<string,Reading>,[liveReadings,liveHistory,replayTime]);
@@ -156,8 +160,8 @@ export function TwinProvider({children}:{children:ReactNode}){
  const demoEnd=demoOrigin.current;
  const displayEvents:EventRecord[]=demo?[-10001,-10002].map((id,i)=>({id,title:i?'Cooling schedule review · demo':'Review meeting CO₂ · demo',level:i?'Info':'Warning',description:i?'Illustrative review event for demonstration.':'Synthetic review marker; inspect timeline readings. No verified maintenance fault.',source:i?'L02-OPEN':'L03-MEET',zone:i?'Level_02':'Level_03',time:new Date(demoEnd-(i?8:4)*3600000).toISOString(),acknowledged:demoAcknowledged.includes(id),synthetic:true})):events;
  const displayMaintenance=demo?[{maintenance_id:-1,asset_id:'L03-MEET',event_date:new Date(demoEnd-86400000).toISOString(),event_type:'Demo record',maintenance_status:'Illustration',description:'Synthetic ventilation review for the guided demonstration; no physical work recorded.'}]:maintenance;
- const value=useMemo(()=>({mode,setMode,running,setRunning,intervalMs,setIntervalMs,readings:shownReadings,history:shownHistory,liveHistory,liveReadings,replayTime,setReplayTime,demo,setDemo,scenario,setScenario,scenarioConfig,setScenarioConfig,horizon,setHorizon,selectedRoom,setSelectedRoom,assistantOpen,setAssistantOpen,events:displayEvents,acknowledge,addTestEvent,assets,maintenance:displayMaintenance,backendConnected,storage,mqttCoverage,resetSimulator}),
-  [mode,running,intervalMs,shownReadings,shownHistory,liveHistory,liveReadings,replayTime,demo,scenario,scenarioConfig,horizon,selectedRoom,assistantOpen,displayEvents,displayMaintenance,events,acknowledge,addTestEvent,assets,maintenance,backendConnected,storage,mqttCoverage,resetSimulator]);
+ const value=useMemo(()=>({weather,setWeather,weatherMotion,setWeatherMotion,mode,setMode,running,setRunning,intervalMs,setIntervalMs,readings:shownReadings,history:shownHistory,liveHistory,liveReadings,replayTime,setReplayTime,demo,setDemo,scenario,setScenario,scenarioConfig,setScenarioConfig,horizon,setHorizon,selectedRoom,setSelectedRoom,assistantOpen,setAssistantOpen,events:displayEvents,acknowledge,addTestEvent,assets,maintenance:displayMaintenance,backendConnected,storage,mqttCoverage,resetSimulator}),
+  [weather,weatherMotion,mode,running,intervalMs,shownReadings,shownHistory,liveHistory,liveReadings,replayTime,demo,scenario,scenarioConfig,horizon,selectedRoom,assistantOpen,displayEvents,displayMaintenance,events,acknowledge,addTestEvent,assets,maintenance,backendConnected,storage,mqttCoverage,resetSimulator]);
  return <TwinContext.Provider value={value}>{children}</TwinContext.Provider>;
 }
 export function useTwin(){const context=useContext(TwinContext);if(!context)throw Error('TwinProvider is missing');return context;}

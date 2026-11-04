@@ -10,10 +10,13 @@ import {Sensors} from './pages/Sensors';
 import {Simulator} from './pages/Simulator';
 import {CommandPalette} from './components/ExperiencePanel';
 import './styles.css';
+import './control-room.css';
+document.documentElement.dataset.theme='dark';
 function App(){
  const {selectedRoom:selectedAsset,setSelectedRoom:setSelectedAsset}=useTwin();
  const [commandRequest,setCommandRequest]=useState(0);
- const [page,setPage]=useState<Page>('overview');
+ const [page,updatePage]=useState<Page>('overview');
+ const setPage=(next:Page)=>{updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
  const [selectedCode,setSelectedCode]=useState('TEMP-L03-OPEN-01');
  return <Shell page={page} setPage={setPage}>
   {page==='overview'&&<Overview externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}

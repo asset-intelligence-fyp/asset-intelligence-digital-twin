@@ -48,3 +48,22 @@ export function layoutPins(pins,width,height){
  }
  return placed;
 }
+
+/** Small numbered badges are displaced from the anchor, never placed over the sensor. */
+export function layoutSensorPins(pins,width,height){
+ const placed=[],size=26,pad=18,top=Math.min(150,height*.24),bottom=Math.max(top,height-155);
+ for(const pin of [...pins].sort((a,b)=>Number(b.selected)-Number(a.selected)||a.index-b.index)){
+  if(!Number.isFinite(pin.anchorX)||!Number.isFinite(pin.anchorY)||pin.anchorX<0||pin.anchorY<top-20||pin.anchorX>width||pin.anchorY>height-95)continue;
+  for(let i=0;i<64;i++){
+   const angle=(i%8)*Math.PI/4-Math.PI/4,radius=38+Math.floor(i/8)*23;
+   const x=Math.max(pad,Math.min(width-pad,pin.anchorX+Math.cos(angle)*radius));
+   const y=Math.max(top,Math.min(bottom,pin.anchorY+Math.sin(angle)*radius));
+   if(Math.hypot(x-pin.anchorX,y-pin.anchorY)<30)continue;
+   if(placed.some(p=>Math.hypot(p.x-x,p.y-y)<size+7))continue;
+   // Keep badges clear of every physical sensor anchor, including neighbours.
+   if(pins.some(p=>Math.hypot(p.anchorX-x,p.anchorY-y)<25))continue;
+   placed.push({...pin,x:Math.round(x),y:Math.round(y),width:size});break;
+  }
+ }
+ return placed;
+}

@@ -1,6 +1,6 @@
-import {METRICS,roomRepresentatives} from './sensorPresentation.js';
+import {METRICS} from './sensorPresentation.js';
 import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
-import {storeyFor,floorBounds,frameBounds,frameSensor,layoutPins} from './navigationMath.js';
+import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
 /** One owner for floor visibility, selection and camera movement. No competing React flights. */
 export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
@@ -32,7 +32,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   // A controlled, unlit emphasis material prevents source lighting/materials bleaching the shell.
   Object.assign(scene.xrayMaterial,{fill:true,fillColor:style.fillColor,fillAlpha:style.alpha,edges:true,edgeColor:style.edgeColor,edgeAlpha:style.edgeAlpha,edgeWidth:1,glowThrough:false});
   scene.setObjectsOpacity(architectureIds,1);
-  scene.setObjectsColorized(architectureIds,null);
+  scene.setObjectsColorized(architectureIds,ghost?null:[.42,.46,.86]);
   scene.setObjectsXRayed(architectureIds,ghost);
   scene.setObjectsXRayed(markerIds,false);
   scene.setObjectsEdges(architectureIds,ghost);
@@ -53,7 +53,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
  }
  function unselect(){if(state.selectedGuid){const id=guidIndex.get(state.selectedGuid);if(id)scene.setObjectsSelected([id],false)}state.selectedGuid=null;}
  function bounds(){const ids=visibleIds();return ids.length?floorBounds(scene.getAABB(ids),levelFor(state.floor)):null}
- function sensorFrame(sensor){const room=roomFocus.bounds(sensor.guid);return room?frameBounds(room,aspect(),state.view):frameSensor(sensor,aspect(),state.view)}
+ function sensorFrame(sensor){const room=roomFocus.bounds(sensor.guid);return room&&state.view==='plan'?frameBounds(room,aspect(),state.view):frameSensor(sensor,aspect(),state.view)}
  function fit(){if(state.ready)fly(frameBounds(bounds(),aspect(),state.view))}
  function focusSensor(guid){
   const sensor=sensors.get(guid),id=guidIndex.get(guid);
@@ -72,16 +72,16 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   if(!state.ready||destroyed||now-lastPins<50)return;lastPins=now;
   const canvas=scene.canvas.canvas,width=canvas.clientWidth,height=canvas.clientHeight;
   const eye=viewer.camera.eye,look=viewer.camera.look;
-  const representatives=roomRepresentatives(points,state.metric,state.selectedGuid).filter(p=>state.mode!=='heatmap'||p.sensorType===state.metric);
-  const projected=representatives.flatMap((point,index)=>{
+  const representatives=points.filter(p=>state.mode!=='heatmap'||p.sensorType===state.metric);
+  const projected=representatives.flatMap(point=>{
    const p=sensors.get(point.guid);if(!p)return [];
    if(!guidIndex.has(p.guid)||(state.floor!=='all'&&p.floor!==state.floor))return [];
    const forward=p.position.reduce((sum,v,i)=>sum+(v-eye[i])*(look[i]-eye[i]),0);
    if(forward<=0)return [];
    const pos=viewer.camera.projectWorldPos(p.position);
-   return [{code:p.code,guid:p.guid,index:index+1,anchorX:pos[0],anchorY:pos[1],selected:p.guid===state.selectedGuid}];
+   return [{code:p.code,guid:p.guid,index:points.indexOf(point)+1,anchorX:pos[0],anchorY:pos[1],selected:p.guid===state.selectedGuid}];
   });
-  const pins=layoutPins(projected,width,height),signature=JSON.stringify(pins.map(p=>[p.code,p.x,p.y,p.selected]));
+  const pins=layoutSensorPins(projected,width,height),signature=JSON.stringify(pins.map(p=>[p.code,p.x,p.y,p.selected]));
   if(signature!==pinSignature){pinSignature=signature;onPins(pins)}
  }
  const tick=scene.on('tick',()=>updatePins());
@@ -96,7 +96,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    }
    markerIds=navigation.sensors.map(p=>guidIndex.get(p.guid)).filter(Boolean);const markers=new Set(markerIds);architectureIds=all.filter(id=>!markers.has(id));
    slabIds=architectureIds.filter(id=>viewer.metaScene.metaObjects[id]?.type==='IfcSlab');
-   scene.setObjectsColorized(markerIds,[.06,.67,.68]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
+   scene.setObjectsColorized(markerIds,[.20,1,.70]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
   },focusSensor,showFloor,home,fit,setView,
   setMode(mode){state.mode=['xray','heatmap'].includes(mode)?mode:'solid';pinSignature='';appearance();emit()},
   setCutaway(value){state.cutaway=!!value;clipping();emit()},

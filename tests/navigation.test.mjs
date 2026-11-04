@@ -124,7 +124,7 @@ test('X-ray wall slider changes emphasis shading across the full range without a
  f.controller.setMode('solid');
  assert.equal(f.objects['building#shell_Level_04'].xrayed,false);
  assert.equal(f.objects['building#slab_Level_04'].opacity,1);
- assert.equal(f.objects['building#slab_Level_04'].colour,null);
+ assert.deepEqual(f.objects['building#slab_Level_04'].colour,[.42,.46,.86]);
  f.controller.destroy();
 });
 

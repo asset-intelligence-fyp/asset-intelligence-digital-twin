@@ -6,7 +6,7 @@ import {roomTitle,sensorTitle} from '../viewer/sensorPresentation.js';
 export function ExperiencePanel(){
  const t=useTwin();const times=[...new Set(t.liveHistory.map(r=>Date.parse(r.timestamp)))].filter(Number.isFinite).sort((a,b)=>a-b);
  const now=times.at(-1)||Date.now(),first=times[0]||now,current=t.replayTime??now;
- const [playing,setPlaying]=useState(false),[open,setOpen]=useState(false),[dark,setDark]=useState(()=>localStorage.getItem('twin-theme')==='dark');
+ const [playing,setPlaying]=useState(false),[open,setOpen]=useState(false),[dark,setDark]=useState(()=>localStorage.getItem('twin-theme')!=='light');
  useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('twin-theme',dark?'dark':'light')},[dark]);
  useEffect(()=>{if(!playing)return;const timer=setInterval(()=>{const next=times.find(time=>time>current);if(next)t.setReplayTime(next);else{setPlaying(false);t.setReplayTime(null)}},550);return()=>clearInterval(timer)},[playing,current,times.join(',')]);
  useEffect(()=>{if(t.replayTime!==null&&t.replayTime<first)t.setReplayTime(first)},[first,t.replayTime]);
