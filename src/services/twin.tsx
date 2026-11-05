@@ -6,7 +6,7 @@ export const POINTS = sensorRegistry;
 export type PointCode = string;
 export type AssetId = string;
 export const ASSETS: AssetId[] = [...new Set(POINTS.map(p=>p.assetId))];
-export interface Reading { point_code:string; value:number|null; timestamp:string; quality:string; source:'random'|'http'|'stored'; trace?:{trace_id:string;batch_size:number} }
+export interface Reading { point_code:string; value:number|null; timestamp:string; quality:string; source:'random'|'http'|'stored'; received_at_utc?:string; trace?:{trace_id:string;batch_size:number} }
 export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean;point_code?:string;reading_snapshot?:{value:number|null;timestamp:string;quality:string} }
 interface Bootstrap {storage?:string;simulation?:{replay_id:string|null};data?:{
   Assets?: Array<{asset_id:string;asset_name:string;asset_type:string;status:string;ifc_global_id?:string;manufacturer?:string;model?:string}>;
@@ -142,7 +142,7 @@ export function TwinProvider({children}:{children:ReactNode}){
     if(sourceSession.current!==data.replay_id)reset(data.replay_id??null);
     if(seenEvents.current.has(data.event_id))return;
     seenEvents.current.add(data.event_id);if(seenEvents.current.size>256)seenEvents.current.delete(seenEvents.current.values().next().value!);
-    const batch:Reading[]=data.readings.map((r:Reading)=>({...r,source:'http' as const}));
+    const batch:Reading[]=data.readings.map((r:Reading)=>({...r,source:'http' as const,received_at_utc:data.producer?.received_at_utc}));
     for(const row of batch)if(row.trace?.trace_id){const trace=pendingTraces.current.get(row.trace.trace_id)||{codes:new Set<string>(),size:Number(row.trace.batch_size)};trace.codes.add(row.point_code);pendingTraces.current.set(row.trace.trace_id,trace);}
     if(pendingTraces.current.size>2000)pendingTraces.current.delete(pendingTraces.current.keys().next().value!);
     ingest(batch);setBackendConnected(true);
