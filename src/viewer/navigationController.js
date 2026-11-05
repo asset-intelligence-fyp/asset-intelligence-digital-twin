@@ -32,7 +32,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   // A controlled, unlit emphasis material prevents source lighting/materials bleaching the shell.
   Object.assign(scene.xrayMaterial,{fill:true,fillColor:style.fillColor,fillAlpha:style.alpha,edges:true,edgeColor:style.edgeColor,edgeAlpha:style.edgeAlpha,edgeWidth:1,glowThrough:false});
   scene.setObjectsOpacity(architectureIds,1);
-  scene.setObjectsColorized(architectureIds,ghost?null:[.73,.78,.77]);
+  scene.setObjectsColorized(architectureIds,ghost?null:[.35,.43,.54]);
   scene.setObjectsXRayed(architectureIds,ghost);
   scene.setObjectsXRayed(markerIds,false);
   scene.setObjectsEdges(architectureIds,ghost);
@@ -96,7 +96,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    }
    markerIds=navigation.sensors.map(p=>guidIndex.get(p.guid)).filter(Boolean);const markers=new Set(markerIds);architectureIds=all.filter(id=>!markers.has(id));
    slabIds=architectureIds.filter(id=>viewer.metaScene.metaObjects[id]?.type==='IfcSlab');
-   scene.setObjectsColorized(markerIds,[.20,1,.70]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
+   scene.setObjectsColorized(markerIds,[.15,.85,.95]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
   },focusSensor,showFloor,home,fit,setView,
   setMode(mode){state.mode=['xray','heatmap'].includes(mode)?mode:'solid';pinSignature='';appearance();emit()},
   setCutaway(value){state.cutaway=!!value;clipping();emit()},

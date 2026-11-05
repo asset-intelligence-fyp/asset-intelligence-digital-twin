@@ -10,9 +10,9 @@ export function createBuildingViewer({canvas,navCanvas,navigation,onSelect,onLoa
  const viewer=new Viewer({canvasId:canvas.id,transparent:true});
  viewer.camera.perspective.fov=35;
  viewer.cameraControl.navMode='orbit';viewer.cameraControl.doublePickFlyTo=false;viewer.cameraControl.smartPivot=false;viewer.cameraControl.zoomOnMouseWheel=false;
- Object.assign(viewer.scene.edgeMaterial,{edgeColor:[.28,.35,.36],edgeAlpha:.9,edgeWidth:1});
+ Object.assign(viewer.scene.edgeMaterial,{edgeColor:[.23,.36,.48],edgeAlpha:.9,edgeWidth:1});
  viewer.cameraFlight.easing=true;
- Object.assign(viewer.scene.selectedMaterial,{fill:true,fillColor:[.30,1,.70],fillAlpha:1,edges:true,edgeColor:[.70,1,.85],edgeAlpha:1,glowThrough:true});
+ Object.assign(viewer.scene.selectedMaterial,{fill:true,fillColor:[.15,.85,.95],fillAlpha:1,edges:true,edgeColor:[.45,.90,1],edgeAlpha:1,glowThrough:true});
  const planes={lower:new SectionPlane(viewer.scene,{id:'floor_lower',dir:FLOOR_CLIP_DIRECTIONS.lower,active:false}),upper:new SectionPlane(viewer.scene,{id:'floor_upper',dir:FLOOR_CLIP_DIRECTIONS.upper,active:false})};
  const exterior=createExteriorLayer(viewer.scene);
  const weatherTick=viewer.scene.on('tick',()=>exterior.tick(performance.now()));

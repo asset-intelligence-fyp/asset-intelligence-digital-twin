@@ -1,4 +1,4 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';import {CloudSun,Droplets,Sun,CloudRain} from 'lucide-react';
 export type SimulationSource={name?:string;dataset?:string;dataset_timestamp?:string;release_interval_seconds?:number;simulation?:{
  operation?:{attendance_factor:number;ac_mode:string;setpoint_c:number;ventilation:number};
  profile_id:string;seed:number;simulation_step_seconds:number;fit_period:string;
@@ -10,19 +10,21 @@ export function useSimulationSource(){
  useEffect(()=>{let active=true;const refresh=async()=>{try{const r=await fetch('/api/live-status',{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();if(active)setSource(d.producer)}catch{if(active)setSource(null)}};void refresh();const timer=setInterval(refresh,2000);return()=>{active=false;clearInterval(timer)}},[]);
  return source;
 }
-export function WeatherStation({controls=false}:{controls?:boolean}){
+function MiniTrend({values}:{values:number[]}){
+ if(values.length<2)return <span className="weather-wave"/>;
+ const lo=Math.min(...values),span=Math.max(.01,Math.max(...values)-lo);
+ return <svg className="weather-wave" viewBox="0 0 75 23" aria-hidden="true"><polyline points={values.map((v,i)=>`${i/(values.length-1)*75},${21-(v-lo)/span*18}`).join(' ')} fill="none" stroke="currentColor" strokeWidth="1.3"/></svg>;
+}
+export function WeatherStation(){
  const source=useSimulationSource(),s=source?.simulation,w=s?.weather,c=s?.calendar;
- const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
- const [requested,setRequested]=useState<{weather_mode?:string;calendar_mode?:string}>({});
- const change=async(key:'weather_mode'|'calendar_mode',value:string)=>{
-  setBusy(true);try{const r=await fetch('/api/simulation/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({[key]:value})});if(!r.ok)throw Error('Unable to change simulation');setRequested(old=>({...old,[key]:value}));setMessage('Requested. Applies to the next generated batch.')}catch(e){setMessage(String(e))}finally{setBusy(false)}
- };
- return <section className="surface weather-station" aria-label="Virtual weather station"><div className="chart-heading"><h3>Virtual weather station</h3><span>Simulated · no weather website or physical hardware</span></div>
- {!w||!c?<p>Waiting for the hybrid generator. Dataset replay does not create virtual weather sensors.</p>:<>
- <div className="weather-station-values"><div><small>Outdoor temperature</small><strong>{w.outdoor_temp_c.toFixed(1)} °C</strong></div><div><small>Outdoor humidity</small><strong>{w.outdoor_humidity_pct.toFixed(1)} %RH</strong></div><div><small>Solar irradiance</small><strong>{w.solar_radiation_w_m2.toFixed(1)} W/m²</strong></div><div><small>Rainfall rate</small><strong>{w.rainfall_mm_per_h.toFixed(2)} mm/h</strong></div></div>
- <p><strong>{c.date} · {c.day_type}</strong>{c.holiday_name?' · '+c.holiday_name:''} · Malaysia time{c.override!=='auto'?' · demonstration override':''}. {c.is_workday?'Working-day attendance pattern.':'Closed-day attendance; AC follows the applied override or schedule. Environmental readings continue.'}</p>
- {!c.calendar_complete&&<p role="status">This year’s public-holiday calendar is not covered. Only weekends and any custom dates are known; add a reviewed calendar before using this year.</p>}
- {controls&&<><div className="weather-station-controls"><label>Weather input<select aria-label="Simulator weather input" value={requested.weather_mode??w.mode} disabled={busy} onChange={e=>void change('weather_mode',e.target.value)}><option value="auto">Automatic generated weather</option><option value="clear">Clear scenario</option><option value="cloudy">Cloudy scenario</option><option value="rain">Rain scenario</option></select></label><label>Attendance calendar<select aria-label="Simulator attendance calendar" value={requested.calendar_mode??c.override} disabled={busy} onChange={e=>void change('calendar_mode',e.target.value)}><option value="auto">Actual date and Sarawak holidays</option><option value="workday">Working-day demonstration</option><option value="holiday">Holiday demonstration</option></select></label></div><p role="status">{message}</p><p>Weather interventions affect the generated indoor readings gradually. Rain does not automatically create a leak. Manual calendar settings override the date for demonstration only.</p></>}
- </>}
+ const samples=useRef<{stamp:string;rh:number;solar:number;rain:number}[]>([]);
+ if(w&&samples.current.at(-1)?.stamp!==w.timestamp)samples.current=[...samples.current,{stamp:w.timestamp,rh:w.outdoor_humidity_pct,solar:w.solar_radiation_w_m2,rain:w.rainfall_mm_per_h}].slice(-40);
+ return <section className="surface weather-station weather-strip" aria-label="Virtual weather station">
+ <div className="weather-primary"><div className="weather-icon"><CloudSun size={23}/></div><div><span className="eyebrow">WEATHER STATION <small>VIRTUAL</small></span><div className="weather-temperature">{w?w.outdoor_temp_c.toFixed(1):'—'}<small>°C outdoors</small></div><p>{w?w.scene.replace(/^./,x=>x.toUpperCase()):'Waiting for source'}{c?' · '+c.day_type:''}{c?.override!=='auto'&&c?' · override':''}</p></div></div>
+ <div className="weather-cell"><span className="eyebrow"><Droplets size={12}/>OUTDOOR RH</span><MiniTrend values={samples.current.map(x=>x.rh)}/><strong>{w?w.outdoor_humidity_pct.toFixed(1):'—'}<small>%RH</small></strong></div>
+ <div className="weather-cell"><span className="eyebrow"><Sun size={12}/>SOLAR IRRADIANCE</span><MiniTrend values={samples.current.map(x=>x.solar)}/><strong>{w?w.solar_radiation_w_m2.toFixed(0):'—'}<small>W/m²</small></strong></div>
+ <div className="weather-cell"><span className="eyebrow"><CloudRain size={12}/>RAINFALL RATE</span><MiniTrend values={samples.current.map(x=>x.rain)}/><strong>{w?w.rainfall_mm_per_h.toFixed(2):'—'}<small>mm/h</small></strong></div>
+ {c?.holiday_name&&<div className="weather-calendar">{c.holiday_name}</div>}
+ {c&&!c.calendar_complete&&<p className="weather-calendar" role="status">Public-holiday coverage is incomplete for this year.</p>}
  </section>;
 }
