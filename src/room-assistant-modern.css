@@ -118,3 +118,12 @@
  .twin-ai-chat .twin-ai-room-title span{display:none}
  .twin-ai-chat .twin-ai-predict-row{flex-wrap:wrap}
 }
+/* Readable long-range Qwen projection controls; preserve mobile layout. */
+.twin-ai-chat .twin-ai-predict-note{font-size:10px;color:#805b29;background:#fff4df;border-radius:7px;padding:7px;margin:4px 0 9px}
+.twin-ai-chat .twin-ai-predict-controls .twin-ai-predict-row select{min-width:0}
+@media(max-width:520px){.twin-ai-chat .twin-ai-predict-row select{flex-basis:45%}.twin-ai-chat .twin-ai-predict-row button{flex:1}}
+.twin-ai-chat .twin-ai-trend-grid{border:1px solid #dae8ec;border-radius:8px;overflow:hidden;margin-top:6px}
+.twin-ai-chat .twin-ai-trend-row{display:grid;grid-template-columns:1fr 1.25fr .6fr;gap:8px;padding:6px 9px;border-bottom:1px solid #e4eced;font-size:10px}
+.twin-ai-chat .twin-ai-trend-row:last-child{border-bottom:none}
+.twin-ai-chat .twin-ai-trend-row.twin-ai-trend-header{background:#e9f4f6;color:#234f5d}
+.twin-ai-chat .twin-ai-trend-row span{overflow-wrap:anywhere}

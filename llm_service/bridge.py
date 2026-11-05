@@ -18,7 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from llm_service.shared_llm.ollama import OllamaClient
 from llm_service.validated_room import analyse_validated, normal_history_ready, resolve_history_path
-from llm_service.prediction import expected_room_reading
+from llm_service.prediction import forecast_room_reading
 
 
 def analyse(request, config):
@@ -77,7 +77,10 @@ def main():
                     raise ValueError('Malformed request')
                 if self.path == '/predict':
                     config = data.get('config') or {}
-                    self.reply(200, expected_room_reading(data['request'], config.get('history_db') or os.environ.get('LLM_HISTORY_DB', '')))
+                    self.reply(200, forecast_room_reading(data['request'],
+                        {**config, 'history_db': config.get('history_db') or os.environ.get('LLM_HISTORY_DB', '')},
+                        lambda model: OllamaClient(base_url=os.environ.get('OLLAMA_URL','http://127.0.0.1:11434'),
+                                                   model=model, temperature=0, timeout=150)))
                 else:
                     self.reply(200, analyse(data['request'], data.get('config') or {}))
             except (ValueError, TypeError, KeyError) as exc:

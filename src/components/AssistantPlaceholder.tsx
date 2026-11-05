@@ -17,11 +17,19 @@ type Answer={
  reference_source:string;observation_source:string;
 };
 type Prediction={
- status:'ok'|'insufficient_history';sensor_id:string;sensor_type:string;unit:string;
- target_time:string;as_of:string;horizon_hours:1|24;expected_value:number|null;
- historical_range:{p10:number;p90:number}|null;historical_days:number;
- minimum_required_days:number;historical_source:string;method:string;
- reason:string;note:string;limitations:string[];trained_forecast:false;
+ status:'llm_projection'|'insufficient_history'|'validation_failed'|'ok';
+ sensor_id:string;sensor_type:string;unit:string;model:string;
+ target_time:string;as_of:string;horizon_months:number;horizon_hours?:number;expected_value?:number|null;
+ projected_value:number|null;lower_scenario:number|null;upper_scenario:number|null;
+ direction:'increasing'|'decreasing'|'stable'|'uncertain';
+ explanation:string;assumptions:string[];limitations:string[];
+ method:string;reason:string;trained_forecast:false;
+ data_basis:string;numeric_output_check:string;
+ observed_trends?:{current_http:Array<{month:string;mean:number;samples:number}>;historical_normal:Array<{month:string;mean:number;samples:number}>};
+ coverage?:{recent_http_days:number;recent_http_months:number;recent_http_span_days:number;
+  historical_normal_days:number;historical_normal_months:number;
+  minimum_days_for_horizon:number;minimum_months_for_horizon:number;
+  latest_reading:number|null;latest_time:string|null;reference_last_reading_time:string|null};
 };
 type ChatItem={id:string;role:'user'|'analysis'|'prediction'|'error';createdAt:string;
  text?:string;answer?:Answer;prediction?:Prediction};
@@ -102,24 +110,49 @@ function AnalysisCard({answer}:{answer:Answer}){
  </article>;
 }
 function PredictionCard({prediction:p}:{prediction:Prediction}){
- const available=p.status==='ok'&&typeof p.expected_value==='number';
- return <article className="twin-ai-result" aria-label="Historical expected reading">
+ // Preserve accurate labels for pre-upgrade 1h/24h entries in browser chat history.
+ if(p.status==='ok'&&typeof p.expected_value==='number')return <article className="twin-ai-result" aria-label="Legacy historical expected reading">
+  <div className="twin-ai-status"><strong>Earlier historical baseline estimate</strong><span>+{p.horizon_hours||'?'} hours · {readableDate(p.target_time)}</span></div>
+  <div className="twin-ai-prediction-value"><span>Historical expected reading (not LLM-generated)</span><strong>{formatValue(p.expected_value,p.unit)}</strong></div>
+  <div className="twin-ai-caution">Saved before the LLM long-range projection update. This was a deterministic historical estimate, not a future forecast.</div>
+ </article>;
+ const available=p.status==='llm_projection'&&typeof p.projected_value==='number';
+ const label=p.sensor_type==='co2'?'CO₂':p.sensor_type;
+ return <article className="twin-ai-result" aria-label="Long-range LLM sensor projection">
   <div className={`twin-ai-status ${available?'twin-ai-status-estimate':'twin-ai-status-insufficient_evidence'}`}>
-   <strong>{available?'Historical expected reading':'Not enough historical data'}</strong>
-   <span>{p.sensor_type==='co2'?'CO₂':p.sensor_type} · +{p.horizon_hours} hour{p.horizon_hours===1?'':'s'} · {readableDate(p.target_time)}</span>
+   <strong>{available?'Speculative LLM trend projection':p.status==='validation_failed'?'Projection output not valid':'Insufficient data for a projection'}</strong>
+   <span>{label} · +{p.horizon_months} month{p.horizon_months===1?'':'s'} · {readableDate(p.target_time)}</span>
   </div>
   {available&&<div className="twin-ai-prediction-value">
-   <span>Typical value at target time</span><strong>{formatValue(p.expected_value,p.unit)}</strong>
-   <small>Empirical historical 10th–90th percentile: {formatValue(p.historical_range?.p10,p.unit)} – {formatValue(p.historical_range?.p90,p.unit)}</small>
+   <span>Qwen3 proposed future reading (not verified)</span><strong>{formatValue(p.projected_value,p.unit)}</strong>
+   <small>Illustrative low–high scenarios: {formatValue(p.lower_scenario,p.unit)} – {formatValue(p.upper_scenario,p.unit)}</small>
+   <small>Suggested trend: {p.direction}</small>
   </div>}
-  <div className="twin-ai-section"><h4>Evidence</h4>
-   <p>{p.reason}</p><p>{p.historical_days} comparable earlier normal dates (minimum {p.minimum_required_days}).</p>
-   <p>Source: {p.historical_source.replaceAll('_',' ')}.</p>
+  <div className="twin-ai-section"><h4>{available?'Why Qwen3 projects this':'Why no projection is shown'}</h4>
+   <p>{available?p.explanation:p.reason}</p>
   </div>
-  <div className="twin-ai-caution">Historical baseline estimate only — <strong>not a trained future forecast</strong>. The empirical range is not a prediction confidence interval.</div>
-  <details className="twin-ai-details"><summary>Method and limitations</summary>
-   <p>{p.method}</p><ul>{(p.limitations||[]).map((x,i)=><li key={i}>{x}</li>)}</ul></details>
-  <button className="twin-ai-export" onClick={()=>downloadJSON(p,'room-expected-reading.json')}>Download estimate (JSON)</button>
+  <div className="twin-ai-section"><h4>Data behind this answer</h4>
+   <p>Latest HTTP reading: {formatValue(p.coverage?.latest_reading,p.unit)} · {readableDate(p.coverage?.latest_time||undefined)}</p>
+   <p>Recent HTTP: {p.coverage?.recent_http_days??0} distinct days; historical normal reference: {p.coverage?.historical_normal_days??0} days.</p>
+   <p>Minimum for +{p.horizon_months} months: {p.coverage?.minimum_days_for_horizon??'—'} days across {p.coverage?.minimum_months_for_horizon??'—'} months.</p>
+   <p>Projection basis: {p.data_basis?.replaceAll('_',' ')||'not available'}.</p>
+  </div>
+  {(p.observed_trends?.historical_normal?.length||p.observed_trends?.current_http?.length)?<details className="twin-ai-details">
+   <summary>Observed monthly trends used (not forecasts)</summary>
+   {(['current_http','historical_normal'] as const).map(key=><div key={key}>
+    <p>{key==='current_http'?'Connected HTTP readings':'Older synthetic normal history'}</p>
+    <div className="twin-ai-trend-grid"><div className="twin-ai-trend-row twin-ai-trend-header"><strong>Month</strong><strong>Mean</strong><strong>Samples</strong></div>
+     {(p.observed_trends?.[key]||[]).map(row=><div className="twin-ai-trend-row" key={`${key}-${row.month}`}>
+      <span>{row.month}</span><span>{formatValue(row.mean,p.unit)}</span><span>{row.samples}</span></div>)}
+    </div>
+   </div>)}</details>:null}
+  <div className="twin-ai-caution"><strong>Exploratory LLM scenario only.</strong> Future numbers cannot be verified today. This is not a trained or validated forecasting model, and the low–high scenarios are not confidence intervals.</div>
+  {!!p.assumptions?.length&&<details className="twin-ai-details"><summary>Assumptions</summary><ul>{p.assumptions.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
+  <details className="twin-ai-details"><summary>Limitations and data quality</summary>
+   <ul>{(p.limitations||[]).map((x,i)=><li key={i}>{x}</li>)}</ul>
+   <p>Output verification: {p.numeric_output_check?.replaceAll('_',' ')||'not checked'}. This does not verify future accuracy.</p>
+  </details>
+  <button className="twin-ai-export" onClick={()=>downloadJSON(p,'room-llm-trend-projection.json')}>Download projection (JSON)</button>
  </article>;
 }
 
@@ -135,7 +168,7 @@ export function AssistantPlaceholder(){
  const [expanded,setExpanded]=useState(false);
  const [panelSize,setPanelSize]=useState(loadSize);
  const [predictionCode,setPredictionCode]=useState('');
- const [predictionHorizon,setPredictionHorizon]=useState<1|24>(1);
+ const [predictionHorizon,setPredictionHorizon]=useState<1|4|6|12|24>(4);
  const [health,setHealth]=useState<{connected:boolean;model:string;historical_reference_available?:boolean;error?:string}>({connected:false,model:'qwen3:1.7b'});
  const request=useRef(0);
  const abort=useRef<AbortController|null>(null);
@@ -205,8 +238,27 @@ export function AssistantPlaceholder(){
   if(!Number.isFinite(time))throw Error('No sensor readings at this cutoff. Start the simulator first.');
   return new Date(time).toISOString();
  };
+ const forecastFromQuestion=(text:string)=>{
+  if(!/\b(predict|forecast|project|estimate)\b/i.test(text))return null;
+  const m=text.match(/\b(1|2|4|6|12|24)\s*(months?|years?)\b/i);
+  if(!m)return null;
+  const horizon=m[2].toLowerCase().startsWith('year')?Number(m[1])*12:Number(m[1]);
+  if(![1,4,6,12,24].includes(horizon))return null;
+  const lower=text.toLowerCase().replaceAll('co₂','co2');
+  const requestedType=lower.includes('co2')||lower.includes('carbon dioxide')?'co2':
+   lower.includes('temperature')?'temperature':lower.includes('humid')?'humidity':null;
+  const sensor=eligible.find(p=>p.sensorType===requestedType) || eligible.find(p=>p.code===selectedPredictionCode);
+  return sensor?{sensor_id:sensor.code,horizon_months:horizon}:null;
+ };
  const ask=(text:string)=>{
   try {
+   const forecast=forecastFromQuestion(text);
+   if(forecast){
+    if(source!=='http')throw Error('Long-range projections require Live connected HTTP sensor data.');
+    void run(text,'prediction',{room_id:t.selectedRoom,...forecast,source,as_of:cutoff()});
+    return;
+   }
+
    const as_of=cutoff();const codes=new Set(POINTS.filter(p=>p.assetId===t.selectedRoom).map(p=>p.code));
    const current=Object.values(t.readings).filter(r=>codes.has(r.point_code));
    const snapshot=source==='what_if'?current:t.history.filter(r=>codes.has(r.point_code)&&Date.parse(r.timestamp)<=Date.parse(as_of)).slice(-1500);
@@ -214,12 +266,12 @@ export function AssistantPlaceholder(){
   }catch(ex){setError(ex instanceof Error?ex.message:'No observations available.');}
  };
  const predict=()=>{
-  if(!selectedPredictionCode)return;
+  if(!selectedPredictionCode||source!=='http')return;
   try{
    const as_of=cutoff();const target=eligible.find(p=>p.code===selectedPredictionCode)!;
    const label=target.sensorType==='co2'?'CO₂':target.label.toLowerCase();
-   void run(`Estimate expected ${label} in +${predictionHorizon} hour${predictionHorizon===1?'':'s'} from comparable history.`,
-    'prediction',{room_id:t.selectedRoom,sensor_id:selectedPredictionCode,horizon_hours:predictionHorizon,source,as_of});
+   void run(`Project ${label} trend in +${predictionHorizon} month${predictionHorizon===1?'':'s'} using current and historical sensor trends.`,
+    'prediction',{room_id:t.selectedRoom,sensor_id:selectedPredictionCode,horizon_months:predictionHorizon,source,as_of});
   }catch(ex){setError(ex instanceof Error?ex.message:'No observations available.');}
  };
  const newChat=()=>{request.current++;abort.current?.abort();setBusy(false);setError('');setQuestion('');setActiveId('__new__');setShowHistory(false)};
@@ -263,7 +315,7 @@ export function AssistantPlaceholder(){
    <div className="assistant-messages twin-ai-scroll">
     {!currentThread?.messages.length&&<div className="twin-ai-intro">
      <strong>Ask about this room</strong>
-     <p>Get a concise, source-backed interpretation or estimate a typical future-time sensor value from historical normal readings.</p>
+     <p>Get source-backed room analysis or an exploratory Qwen3 long-range sensor projection based on available trends.</p>
     </div>}
     {currentThread?.messages.map(item=><div key={item.id} className={`twin-ai-turn twin-ai-turn-${item.role}`}>
      {item.role==='user'&&<p>{item.text}</p>}
@@ -277,18 +329,19 @@ export function AssistantPlaceholder(){
    </div>
    <div className="twin-ai-controls">
     <div className="prompt-chips twin-ai-prompts">
-     {['Summarise this room','Are any readings unusual?','Why this comfort score?'].map(q=><button key={q} disabled={busy} onClick={()=>ask(q)}>{q}</button>)}
+     {['Summarise this room','Are any readings unusual?','Predict CO₂ in 4 months'].map(q=><button key={q} disabled={busy} onClick={()=>ask(q)}>{q}</button>)}
     </div>
-    {eligible.length>0&&<div className="twin-ai-predict-controls" aria-label="Historical expected reading">
-     <div className="twin-ai-predict-heading"><strong>Estimate a sensor reading</strong><small>Comparable normal-history baseline · not a trained forecast</small></div>
+    {eligible.length>0&&<div className="twin-ai-predict-controls" aria-label="LLM-only long-range sensor projection">
+     <div className="twin-ai-predict-heading"><strong>LLM long-range sensor projection</strong><small>Qwen3 interprets monthly trends · speculative, not a trained forecast</small></div>
+     {source!=='http'&&<p className="twin-ai-predict-note">Switch to Live connected HTTP readings to project future trends. Demo, replay and what-if values are not accepted.</p>}
      <div className="twin-ai-predict-row">
-      <select aria-label="Sensor for expected reading" disabled={busy} value={selectedPredictionCode} onChange={e=>setPredictionCode(e.target.value)}>
+      <select aria-label="Sensor for trend projection" disabled={busy||source!=='http'} value={selectedPredictionCode} onChange={e=>setPredictionCode(e.target.value)}>
        {eligible.map(p=><option key={p.code} value={p.code}>{p.sensorType==='co2'?'CO₂':p.label}</option>)}
       </select>
-      <select aria-label="Expected reading horizon" disabled={busy} value={predictionHorizon} onChange={e=>setPredictionHorizon(Number(e.target.value) as 1|24)}>
-       <option value={1}>+1 hour</option><option value={24}>+24 hours</option>
+      <select aria-label="Projection horizon" disabled={busy||source!=='http'} value={predictionHorizon} onChange={e=>setPredictionHorizon(Number(e.target.value) as 1|4|6|12|24)}>
+       <option value={1}>+1 month</option><option value={4}>+4 months</option><option value={6}>+6 months</option><option value={12}>+1 year</option><option value={24}>+2 years</option>
       </select>
-      <button type="button" disabled={busy} onClick={predict}>Estimate</button>
+      <button type="button" disabled={busy||source!=='http'} onClick={predict}>Project</button>
      </div>
     </div>}
     <form className="assistant-composer twin-ai-compose" onSubmit={e=>{e.preventDefault();ask(question)}}>

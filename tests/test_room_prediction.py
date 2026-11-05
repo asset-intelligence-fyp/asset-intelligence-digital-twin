@@ -1,92 +1,150 @@
-"""Regression coverage for the future-time historical expected-value endpoint."""
+"""Long-range Qwen-only prediction tests; all LLM outputs are mocked."""
+import json
 import sqlite3
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from llm_service.prediction import expected_room_reading
+from llm_service.prediction import forecast_room_reading, add_months
 
 TZ=timezone(timedelta(hours=8))
 CUTOFF=datetime(2026,11,6,14,0,tzinfo=TZ)
 POINT={'code':'CO2-L03-MEET-01','sensorType':'co2','unit':'ppm','simulatorRoomId':'L03-MEET-01'}
+CONFIG={'model':'qwen3:1.7b','prompt':'concise'}
+DRAFT={'projected_value':725,'lower_scenario':500,'upper_scenario':950,
+       'direction':'increasing','explanation':'A speculative continuation of the observed monthly patterns.',
+       'assumptions':['Similar building operation'],
+       'limitations':['Future ventilation and schedules are unknown']}
 
-def req(horizon=1):
-    return {'point':dict(POINT),'room_id':'L03-MEET-01','as_of':CUTOFF.isoformat(),
-            'horizon_hours':horizon,'source':'http'}
+class FakeClient:
+    def __init__(self,content=None):
+        self.calls=[]
+        self.content=json.dumps(content if content is not None else DRAFT)
+    def chat(self,messages,format=None):
+        self.calls.append((messages,format))
+        return {'message':{'content':self.content}}
 
 class PredictionTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
         self.path=str(Path(self.tmp.name)/'normal.sqlite')
-        self.conn=sqlite3.connect(self.path)
-        self.conn.execute('''CREATE TABLE sensor_readings (dataset TEXT,timestamp TEXT,sensor_id TEXT,
-            value REAL,quality_flag TEXT,weekday INTEGER,minute_of_day INTEGER)''')
+        self.db=sqlite3.connect(self.path)
+        self.db.execute('''CREATE TABLE sensor_readings
+            (dataset TEXT,sensor_id TEXT,timestamp TEXT,value REAL,quality_flag TEXT)''')
+        self.client=FakeClient()
     def tearDown(self):
-        self.conn.close()
+        self.db.close()
         self.tmp.cleanup()
-    def add(self,when,value,code='CO2-L03-MEET-01',dataset='normal',quality='ok'):
-        self.conn.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?,?,?)',
-                          (dataset,when.isoformat(),code,value,quality,when.weekday(),when.hour*60+when.minute))
-        self.conn.commit()
-    def populate(self,n=6,horizon=1):
-        target=CUTOFF+timedelta(hours=horizon)
-        for week in range(1,n+1):
-            day=target-timedelta(weeks=week)
-            self.add(day,500+week*20)
-    def test_one_hour_expected_value_source_range_and_count(self):
-        self.populate()
-        result=expected_room_reading(req(),self.path)
-        self.assertEqual(result['status'],'ok')
-        self.assertEqual(result['historical_days'],6)
-        self.assertEqual(result['expected_value'],570)
-        self.assertEqual(result['historical_range'],{'p10':530,'p90':610})
-        self.assertEqual(result['horizon_hours'],1)
-        self.assertEqual(result['model'],'deterministic_historical_estimator')
+    def add(self,stamp,val=650,code=POINT['code'],dataset='normal',quality='ok'):
+        self.db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?)',
+                        (dataset,code,stamp.isoformat(),val,quality))
+    def normal(self,days=170):
+        for i in range(1,days+1):
+            self.add(CUTOFF-timedelta(days=i),600+(i%30)*2)
+        self.db.commit()
+    def request(self,horizon=4,history=None,source='http'):
+        if history is None:
+            history=[{'point_code':POINT['code'],'value':655,'timestamp':(CUTOFF-timedelta(minutes=2)).isoformat(),'quality':'synthetic'}]
+        return {'point':dict(POINT),'room_id':'L03-MEET-01','as_of':CUTOFF.isoformat(),
+                'horizon_months':horizon,'source':source,'history':history}
+    def invoke(self,req=None,client=None,db=None):
+        config={**CONFIG,'history_db':self.path if db is None else db}
+        c=self.client if client is None else client
+        return forecast_room_reading(req or self.request(),config,lambda model:c)
+
+    def test_four_month_llm_generates_forecast_from_source_months(self):
+        self.normal()
+        result=self.invoke()
+        self.assertEqual(result['status'],'llm_projection')
+        self.assertEqual(result['horizon_months'],4)
+        self.assertEqual(result['projected_value'],725)
+        self.assertEqual(result['lower_scenario'],500)
+        self.assertEqual(result['upper_scenario'],950)
         self.assertFalse(result['trained_forecast'])
-    def test_24_hour_uses_target_weekday_not_current_weekday(self):
-        self.populate(horizon=24)
-        result=expected_room_reading(req(24),self.path)
-        self.assertEqual(result['status'],'ok')
-        self.assertEqual(result['target_time'],(CUTOFF+timedelta(hours=24)).isoformat())
-    def test_same_day_future_and_post_cutoff_rows_never_leak(self):
-        self.populate()
-        target=CUTOFF+timedelta(hours=1)
-        for j in range(100):
-            self.add(target+timedelta(days=j*7),10000)
-        result=expected_room_reading(req(),self.path)
-        self.assertEqual(result['historical_days'],6)
-        self.assertEqual(result['expected_value'],570)
-    def test_duplicate_single_day_not_counted_five_times(self):
-        target=CUTOFF+timedelta(hours=1)-timedelta(weeks=1)
-        for minute in range(-25,26,5):
-            self.add(target+timedelta(minutes=minute),500)
-        result=expected_room_reading(req(),self.path)
+        self.assertEqual(result['method'],'llm_only_long_range_trend_projection')
+        self.assertEqual(result['data_basis'],'historical_normal_synthetic')
+        self.assertEqual(result['numeric_output_check'],'schema_and_basic_range_passed')
+        self.assertEqual(len(self.client.calls),1)
+        messages, schema=self.client.calls[0]
+        self.assertIn('current_stream',messages[1]['content'])
+        self.assertIn('historical_normal',messages[1]['content'])
+        self.assertIn('future numbers',messages[0]['content'])
+        self.assertIn('projected_value',schema['properties'])
+        self.assertNotIn('trained forecasting',result['explanation'])
+
+    def test_one_year_and_two_year_horizons_calendar_accurate(self):
+        self.normal(330)
+        for horizon in (1,6,12,24):
+            with self.subTest(horizon=horizon):
+                result=self.invoke(self.request(horizon=horizon))
+                self.assertEqual(result['target_time'],add_months(CUTOFF,horizon).isoformat())
+                self.assertEqual(result['status'],'llm_projection')
+
+    def test_sparse_live_data_and_no_matching_reference_refuse_invention(self):
+        result=self.invoke(db='/no/such/file.sqlite')
         self.assertEqual(result['status'],'insufficient_history')
-        self.assertEqual(result['historical_days'],1)
-    def test_only_normal_valid_quality_and_canonical_id(self):
-        self.populate(n=4)
-        day=CUTOFF+timedelta(hours=1)-timedelta(weeks=5)
-        self.add(day,555,quality='invalid')
-        self.add(day,555,dataset='fault')
-        self.add(day,555,code='ANOTHER-SENSOR')
-        self.assertEqual(expected_room_reading(req(),self.path)['status'],'insufficient_history')
-    def test_missing_db_is_explicit(self):
-        result=expected_room_reading(req(),'/does-not-exist.sqlite')
+        self.assertIsNone(result['projected_value'])
+        self.assertEqual(self.client.calls,[])
+        self.assertIn('60 distinct days',result['reason'])
+
+    def test_reference_history_isolation_quality_cutoff(self):
+        self.normal(59)
+        for k in range(200):
+            self.add(CUTOFF+timedelta(days=k+1),999)
+            self.add(CUTOFF-timedelta(days=65+k),999,code='OTHER-SENSOR')
+            self.add(CUTOFF-timedelta(days=65+k),999,dataset='fault')
+            self.add(CUTOFF-timedelta(days=65+k),999,quality='invalid')
+        self.db.commit()
+        result=self.invoke()
         self.assertEqual(result['status'],'insufficient_history')
-        self.assertIsNone(result['expected_value'])
-    def test_rejects_binary_invalid_horizon_and_room(self):
-        cases=[{**req(),'horizon_hours':2},{**req(),'horizon_hours':True},
-               {**req(),'room_id':'WRONG'},
-               {**req(),'point':{**POINT,'sensorType':'occupancy'}}]
-        for case in cases:
-            with self.subTest(case=case),self.assertRaises(ValueError):
-                expected_room_reading(case,self.path)
-    def test_invalid_db_schema_is_explicit(self):
-        self.conn.execute('DROP TABLE sensor_readings')
-        self.conn.commit()
-        result=expected_room_reading(req(),self.path)
+        self.assertEqual(result['coverage']['historical_normal_days'],59)
+        self.assertEqual(self.client.calls,[])
+
+    def test_invalid_llm_projections_are_rejected(self):
+        self.normal()
+        invalid=[{'projected_value':500,'lower_scenario':600,'upper_scenario':950},
+                 {'projected_value':950,'lower_scenario':500,'upper_scenario':10100},
+                 {'projected_value':'700','lower_scenario':500,'upper_scenario':900},
+                 {'projected_value':float('nan'),'lower_scenario':500,'upper_scenario':900}]
+        for bad in invalid:
+            draft={**DRAFT,**bad}
+            c=FakeClient(draft)
+            result=self.invoke(client=c)
+            self.assertEqual(result['status'],'validation_failed')
+            self.assertIsNone(result['projected_value'])
+            self.assertEqual(len(c.calls),1)
+
+    def test_horizon_room_source_and_sensor_restrictions(self):
+        for payload in [
+            {**self.request(), 'horizon_months':3},
+            {**self.request(), 'horizon_months':True},
+            {**self.request(), 'horizon_months':'12'},
+            {**self.request(), 'room_id':'WRONG'},
+            {**self.request(), 'source':'what_if'},
+            {**self.request(), 'point':{**POINT,'sensorType':'occupancy'}},
+            {**self.request(), 'as_of':'2026-11-06T14:00:00'}]:
+            with self.subTest(payload=str(payload)[:120]),self.assertRaises(ValueError):
+                self.invoke(payload)
+
+    def test_current_http_trend_alone_can_support_llm_projection(self):
+        hist=[{'point_code':POINT['code'],'value':600+(i//30),'timestamp':(CUTOFF-timedelta(days=i)).isoformat(),'quality':'synthetic'}
+              for i in range(160)]
+        result=self.invoke(self.request(horizon=12,history=hist),db='/no/such/file.sqlite')
+        self.assertEqual(result['status'],'llm_projection')
+        self.assertEqual(result['data_basis'],'connected_http_trend')
+        self.assertEqual(result['coverage']['recent_http_days'],160)
+
+    def test_stale_current_stream_rejected(self):
+        self.normal()
+        hist=[{'point_code':POINT['code'],'value':600,'timestamp':(CUTOFF-timedelta(hours=5)).isoformat()}]
+        result=self.invoke(self.request(history=hist))
         self.assertEqual(result['status'],'insufficient_history')
-        self.assertIn('schema',result['reason'])
+        self.assertIn('two hours',result['reason'])
+        self.assertFalse(self.client.calls)
+
+    def test_month_end_target_is_clamped(self):
+        january=datetime(2026,1,31,10,0,tzinfo=TZ)
+        self.assertEqual(add_months(january,1).date().isoformat(),'2026-02-28')
 
 if __name__=='__main__':unittest.main()

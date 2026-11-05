@@ -78,27 +78,32 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
    res.status(response.status).json(data);
   }catch(e){replyError(res,503,'Room AI unavailable: '+e.message+'. Check your Python bridge/Ollama terminals.');}
  });
- // A separate deterministic, normal-history-based estimator. Never use LLM-authored
- // numbers as forecasts and never allow arbitrary sensors or prediction horizons.
+ // A separate LLM-only exploratory long-range projection. The backend provides observed
+ // trend evidence, never a trained model or deterministic future-value estimator.
  app.post('/api/assistant/predict',allowed,async(req,res)=>{
   try {
-   const {room_id,sensor_id,horizon_hours,source,as_of}=req.body||{};
+   const {room_id,sensor_id,horizon_months,source,as_of}=req.body||{};
    const points=registry.filter(p=>p.assetId===room_id);
    if(!points.length)return replyError(res,400,'Unknown room');
    const point=points.find(p=>p.code===sensor_id);
    if(!point||!PREDICTABLE.has(point.sensorType))
     return replyError(res,400,'Select a temperature, humidity or CO2 sensor in this room');
-   if(![1,24].includes(horizon_hours)||!Number.isInteger(horizon_hours))
-    return replyError(res,400,'Prediction horizon must be +1 or +24 hours');
-   if(!SOURCES.has(source))return replyError(res,400,'Unknown observation source');
+   if(![1,4,6,12,24].includes(horizon_months)||!Number.isInteger(horizon_months))
+    return replyError(res,400,'Projection horizon must be 1, 4, 6, 12 or 24 months');
+   if(source!=='http')return replyError(res,400,'Long-range projections require connected HTTP data, not browser simulation/replay/what-if');
    if(!validCutoff(as_of))return replyError(res,400,'Prediction cutoff must include a timezone offset');
+   const cutoff=Date.parse(as_of);
+   const raw=await getHistory([point.code]);
+   if(!Array.isArray(raw))return replyError(res,503,'Sensor history unavailable');
+   const history=raw.filter(r=>r&&r.point_code===point.code&&typeof r.value==='number'&&Number.isFinite(r.value)&&
+       typeof r.timestamp==='string'&&Number.isFinite(Date.parse(r.timestamp))&&Date.parse(r.timestamp)<=cutoff).slice(-18000);
    const response=await fetchImpl(bridge()+'/predict',{
-    method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(20000),
+    method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(180000),
     body:JSON.stringify({config:config(),request:{point,room_id:point.simulatorRoomId,
-     as_of,horizon_hours,source}})
+     as_of,horizon_months,source,history}})
    });
    const data=await response.json();
    res.status(response.status).json(data);
-  }catch(e){replyError(res,503,'Historical estimate unavailable: '+e.message+'. Check the Python bridge and normal-history database.');}
+  }catch(e){replyError(res,503,'LLM projection unavailable: '+e.message+'. Check the Python bridge and normal-history database.');}
  });
 }
