@@ -1,0 +1,23 @@
+{
+  "kind": "observed_browser_trial_summary_not_raw_samples",
+  "date": "2026-11-05",
+  "environment": "managed Linux preview, cloud browser, temporary memory, WebGL 2 unavailable, Ollama unavailable",
+  "dataset": "fault_weather_2026_q1",
+  "release_interval_seconds": 2,
+  "measurement": "source batch release -> committed React update -> two animation frames -> server receives browser acknowledgement (conservative upper bound, not GPU completion)",
+  "run_id": "62cbd8fc-07f7-4e0b-8f00-e6f2a2c4c8c2",
+  "producer": "people_driven_v3.0_dataset_replay",
+  "total_batches": 105,
+  "completed_batches": 102,
+  "pending_batches": 3,
+  "median_ms": 1450,
+  "p95_ms": 1954,
+  "max_ms": 2000,
+  "within_5s": 102,
+  "invalid_clock_batches": 0,
+  "uninstrumented_batches": 0,
+  "evicted_batches": 0,
+  "complete": false,
+  "assessment": "incomplete",
+  "interpretation": "All acknowledged batches were below five seconds, but three batches lack browser acknowledgements. This trial does not establish the all-update <=5-second criterion. Rerun a bounded trial on the final Mac with the selected storage and loaded 3D scene. Percentiles describe acknowledged batches only."
+}

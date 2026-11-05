@@ -7,7 +7,7 @@ export function BenchmarkPanel(){
  const ms=(v:number|null|undefined)=>v==null?'Not measured':`${v.toFixed(1)} ms`;
  const download=()=>{if(!report)return;const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=`latency-${report.run_id}.json`;a.click();URL.revokeObjectURL(url)};
  return <section className="surface benchmark-panel"><div className="chart-heading"><h3>Source-to-screen latency</h3><span>Target ≤ 5,000 ms</span></div>
- <p>Measured from Python generation start to a browser update and paint opportunity, including the acknowledgement back to the API. This is a conservative upper bound, not AI response time or GPU rendering completion.</p>
+ <p>Measured from dataset batch release to a browser update and paint opportunity, including the acknowledgement back to the API. This is a conservative upper bound, not AI response time or GPU rendering completion.</p>
  {error&&<p role="alert">{error}</p>}
  <div className="kpi-grid"><div><strong>{ms(report?.median_ms)}</strong><p>Median</p></div><div><strong>{ms(report?.p95_ms)}</strong><p>95th percentile</p></div><div><strong>{ms(report?.max_ms)}</strong><p>Maximum</p></div><div><strong>{report?.completed_batches??0} / {report?.total_batches??0}</strong><p>Completed batches</p></div></div>
  <p role="status">{report?.assessment.replaceAll('_',' ')||'Waiting for instrumented simulator readings'}. At least 30 batches and complete coverage are required for a run assessment. Result uses the first reporting browser; close duplicate tabs.</p>

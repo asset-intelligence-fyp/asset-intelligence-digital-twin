@@ -27,7 +27,7 @@ export function scenarioReadings(base,points,room,config,hours){
 }
 export function comfort(points,readings,room){
  const channels=points.filter(p=>p.assetId===room&&['temperature','humidity','co2'].includes(p.sensorType));
- const values=channels.filter(p=>readings[p.code]);if(!values.length)return {score:null,coverage:0,total:channels.length,reason:'No comfort sensors configured'};
+ const values=channels.filter(p=>Number.isFinite(readings[p.code]?.value));if(!values.length)return {score:null,coverage:0,total:channels.length,reason:'No comfort sensors configured'};
  const penalty=values.reduce((sum,p)=>{const value=readings[p.code].value;return sum+(p.sensorType==='temperature'?Math.max(0,Math.abs(value-24.5)-2.5)*14:p.sensorType==='humidity'?Math.max(0,Math.abs(value-52.5)-12.5)*2:Math.max(0,value-900)/12)},0);
  return {score:Math.round(Math.max(0,100-penalty/values.length)),coverage:values.length,total:channels.length,reason:'Demo temperature / humidity / CO₂ bands'};
 }

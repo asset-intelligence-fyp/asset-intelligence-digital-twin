@@ -8,33 +8,32 @@ The theme toggle remains in the header.
 
 ## Source status
 
-The intended teammate simulator and dataset have **not yet been supplied or verified**.
-The bundled `tools/level03_simulator` is a provisional SOP v1.4 generator with configurable
-assumptions, not a verified replay of the teammate's dataset. Do not claim dataset fidelity.
-The five IFC locations and 18 canonical point mappings retain their documented demonstration
-aliases; PIR represents presence, and virtual power is an illustrative aggregate.
+The supplied dataset has been audited: 6,148,224 sensor rows, in complete 18-point
+five-minute batches. `tools/dataset_replay/replay.py` now replays the actual CSV values
+and timestamps from the supplied ZIP. The old SOP generator remains a legacy reference;
+it is not the default feed. Fault labels are excluded from the online path. Missing values
+remain unavailable, not zero. IFC room mappings remain demonstration aliases.
+
+See **[dataset setup and operation](docs/dataset-replay.md)** and
+**[architecture research and latency method](docs/http-sse-architecture.md)**.
 
 ## Run on a Mac
 
-Requirements: Node.js 22+, Python 3.9+, Git LFS for the model files, and a WebGL 2 capable
+Requirements: Node.js 22+, Python 3.10+, Git LFS for the model files, and a WebGL 2 capable
 browser for the BIM viewer. From the project folder:
 
 ```bash
 git lfs pull
 npm ci
+# Configure DATASET_PATH in .env first; see dataset setup above.
 TWIN_STORAGE=memory npm run dev
 ```
 
-Open http://localhost:5173/. This starts the website, API, Python assistant bridge and
-bundled simulator. Temporary memory resets when the API stops. Generated CSV/JSON output
-is saved in ignored `runtime/simulator`; previously tracked simulator files are not changed.
-Use Control+C to stop. Do not start a second publisher at the same time.
-
-The simulator sends a batch every five real seconds and advances simulation time by one
-minute per batch. `normal` mode injects no faults. Select controlled injected scenarios
-with `SIM_FAULT_MODE=demo` or sparse faults with `SIM_FAULT_MODE=live` before starting;
-these are synthetic modes, not real sensor measurements. To use a teammate publisher,
-set `SIMULATOR_AUTOSTART=false` and start its adapter separately after validating IDs/units.
+Open http://localhost:5173/. This starts the website, API and Python assistant bridge.
+It also starts dataset replay when DATASET_PATH is configured; otherwise the dashboard
+waits for a source. Temporary memory resets at API shutdown. Use Control+C to stop.
+Run only one publisher per API. Default replay releases five minutes of source time every
+two real seconds, with no random replacement or automatic loop.
 
 For local Qwen inference, run Ollama and download `qwen3:1.7b`. Defaults are
 `http://127.0.0.1:11434` for Ollama and `http://127.0.0.1:8011` for the bridge.
@@ -54,9 +53,11 @@ whether storage is temporary memory or PostgreSQL.
 
 Open **Simulator** for source-to-browser latency. Start a fresh measurement run, keep one
 browser tab visible for at least 30 complete batches, and download the result. AI response
-time is a separate measurement. A preview trial of 40 batches had a 5.392 s p95 and
-6.037 s maximum conservative upper bound; **it did not establish the ≤5 s target**.
+time is a separate measurement. The new dataset-replay preview recorded 102 acknowledged
+batches out of 105: median 1.450 s, p95 1.954 s, maximum 2.000 s. Three unacknowledged
+batches mean the trial is **incomplete**, so it does not establish the ≤5 s criterion.
 It used temporary memory and lacked WebGL 2, not the final Mac/PostgreSQL configuration.
+See [trial summary](docs/benchmarks/2026-11-05-dataset-replay-summary.json).
 
 AI accuracy is **not measured**. The brief requires ≥85% anomaly accuracy against logged
 maintenance events. The evaluator needs frozen, independently labelled held-out cases;
@@ -71,7 +72,7 @@ and [recorded preview samples](docs/benchmarks/2026-11-04-preview-latency.json).
 ```bash
 npm run build
 npm test
-node --test tests/latencyMetrics.test.mjs tests/velvetUI.test.mjs tests/roomAssistantValidated.test.mjs
+node --test tests/datasetStream.test.mjs tests/latencyMetrics.test.mjs tests/velvetUI.test.mjs tests/roomAssistantValidated.test.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 

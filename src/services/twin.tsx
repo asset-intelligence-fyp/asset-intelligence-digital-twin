@@ -6,30 +6,31 @@ export const POINTS = sensorRegistry;
 export type PointCode = string;
 export type AssetId = string;
 export const ASSETS: AssetId[] = [...new Set(POINTS.map(p=>p.assetId))];
-export interface Reading { point_code:string; value:number; timestamp:string; quality:string; source:'random'|'http'|'stored'; trace?:{trace_id:string;batch_size:number} }
+export interface Reading { point_code:string; value:number|null; timestamp:string; quality:string; source:'random'|'http'|'stored'; trace?:{trace_id:string;batch_size:number} }
 export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean }
-interface Bootstrap {storage?:string;data?:{
+interface Bootstrap {storage?:string;simulation?:{replay_id:string|null};data?:{
   Assets?: Array<{asset_id:string;asset_name:string;asset_type:string;status:string;ifc_global_id?:string;manufacturer?:string;model?:string}>;
   Maintenance_Events?: Array<{maintenance_id:number;asset_id:string;event_date:string;event_type:string;maintenance_status:string;description:string}>;
-  Sensor_Readings?: Array<{point_code:string;value:number;latest_update:string;quality:string}>;
-  Historical_Sensor_Readings?: Array<{point_code:string;value:number;timestamp:string;quality:string}>;
+  Sensor_Readings?: Array<{point_code:string;value:number|null;latest_update:string;quality:string}>;
+  Historical_Sensor_Readings?: Array<{point_code:string;value:number|null;timestamp:string;quality:string}>;
   Anomaly_Results?: Array<{anomaly_id:number;asset_id:string;point_code:string;timestamp:string;description?:string;severity?:string;anomaly_status?:string;anomaly_score?:number}>;
 }};
 export type Weather = 'clear'|'cloudy'|'rain'|'night';
-type Mode = 'random'|'mqtt';
+type Mode = 'random'|'http';
 type TwinContext = {
  weather:Weather;setWeather:(v:Weather)=>void;weatherMotion:boolean;setWeatherMotion:(v:boolean)=>void;
  mode:Mode;setMode:(v:Mode)=>void;running:boolean;setRunning:(v:boolean)=>void;intervalMs:number;setIntervalMs:(v:number)=>void;
  readings:Record<string,Reading>;history:Reading[];events:EventRecord[];acknowledge:(id:number)=>Promise<void>;addTestEvent:()=>void;
  assets:NonNullable<NonNullable<Bootstrap['data']>['Assets']>;maintenance:NonNullable<NonNullable<Bootstrap['data']>['Maintenance_Events']>;
  liveHistory:Reading[];liveReadings:Record<string,Reading>;replayTime:number|null;setReplayTime:(time:number|null)=>void;demo:boolean;setDemo:(value:boolean)=>void;scenario:boolean;setScenario:(value:boolean)=>void;scenarioConfig:typeof DEFAULT_SCENARIO;setScenarioConfig:(value:typeof DEFAULT_SCENARIO)=>void;horizon:number;setHorizon:(value:number)=>void;selectedRoom:string;setSelectedRoom:(value:string)=>void;assistantOpen:boolean;setAssistantOpen:(value:boolean)=>void;
- backendConnected:boolean; storage:string; mqttCoverage:number; resetSimulator:()=>void;
+ backendConnected:boolean; storage:string; httpCoverage:number; resetSimulator:()=>void;
 };
 const TwinContext=createContext<TwinContext|null>(null);
 const nowIso=()=>new Date().toISOString();
 const round=(v:number)=>Math.round(v*100)/100;
 export function readingLabel(code:string, reading?:Reading){
  if(!reading)return '—';
+ if(reading.value===null)return 'Unavailable';
  const point=POINTS.find(p=>p.code===code);
  if(point?.sensorType==='occupancy')return reading.value===1?'Occupied':'Vacant';
  if(point?.sensorType==='water_leakage')return reading.value===1?'Leak detected':'Dry';
@@ -48,8 +49,8 @@ function nextValues(previous:Record<string,number>){
 function storeEvents(events:EventRecord[]){try{localStorage.setItem('twinlabs_test_events_v1',JSON.stringify(events.filter(e=>e.synthetic).slice(0,100)))}catch{}}
 function restoreEvents():EventRecord[]{try{const x=JSON.parse(localStorage.getItem('twinlabs_test_events_v1')||'[]');return Array.isArray(x)?x:[]}catch{return []}}
 function fromDb(data:Bootstrap['data']){
- const readings:Reading[]=(data?.Sensor_Readings||[]).map(r=>({point_code:r.point_code,value:Number(r.value),timestamp:r.latest_update,quality:r.quality||'simulated',source:'stored'}));
- const history:Reading[]=(data?.Historical_Sensor_Readings||[]).slice(-18000).map(r=>({point_code:r.point_code,value:Number(r.value),timestamp:r.timestamp,quality:r.quality||'simulated',source:'stored'}));
+ const readings:Reading[]=(data?.Sensor_Readings||[]).map(r=>({point_code:r.point_code,value:r.value===null?null:Number(r.value),timestamp:r.latest_update,quality:r.quality||'simulated',source:'stored'}));
+ const history:Reading[]=(data?.Historical_Sensor_Readings||[]).slice(-18000).map(r=>({point_code:r.point_code,value:r.value===null?null:Number(r.value),timestamp:r.timestamp,quality:r.quality||'simulated',source:'stored'}));
  return {readings,history};
 }
 export function TwinProvider({children}:{children:ReactNode}){
@@ -57,7 +58,7 @@ export function TwinProvider({children}:{children:ReactNode}){
  const demoOrigin=useRef(Math.floor(Date.now()/900000)*900000);
  const [weather,setWeather]=useState<Weather>('clear');
  const [weatherMotion,setWeatherMotion]=useState(()=>!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
- const [mode,setModeState]=useState<Mode>('mqtt');
+ const [mode,setModeState]=useState<Mode>('http');
  const [running,setRunning]=useState(true);
  useEffect(()=>{if(!demo||!running)return;const timer=setInterval(()=>setDemoStep(s=>s+1),3000);return()=>clearInterval(timer)},[demo,running]);
  const [intervalMs,setIntervalMs]=useState(3000);
@@ -69,12 +70,15 @@ export function TwinProvider({children}:{children:ReactNode}){
  const [events,setEvents]=useState<EventRecord[]>(restoreEvents);
  const [backendConnected,setBackendConnected]=useState(false);
  const [storage,setStorage]=useState('unknown');
- const [mqttCoverage,setMqttCoverage]=useState(0);
+ const [httpCoverage,setHttpCoverage]=useState(0);
  const generator=useRef({...initial});
+ const sourceSession=useRef<string|null|undefined>(undefined),sourceRevision=useRef(0);
+ const seenEvents=useRef(new Set<string>());
+ const [bootstrapVersion,setBootstrapVersion]=useState(0);
  const pendingTraces=useRef(new Map<string,{codes:Set<string>;size:number}>());
  const browserId=useRef(crypto.randomUUID());
  useEffect(()=>{
-  if(mode!=='mqtt'||document.visibilityState!=='visible')return;
+  if(mode!=='http'||document.visibilityState!=='visible')return;
   const ready=[...pendingTraces.current].filter(([id,v])=>v.codes.size===v.size&&[...v.codes].every(code=>readings[code]?.trace?.trace_id===id)).map(([id])=>id);
   if(!ready.length)return;
   let second=0;const first=requestAnimationFrame(()=>{second=requestAnimationFrame(()=>{
@@ -86,22 +90,26 @@ export function TwinProvider({children}:{children:ReactNode}){
  const randomEventId=useRef(-1);
  const setMode=useCallback((value:Mode)=>{setModeState(value);setDemo(false);setReplayTime(null);setReadings({});setHistory([]);generator.current={...initial};},[]);
  const ingest=useCallback((batch:Reading[])=>{
-  const accepted=batch.filter(x=>POINTS.some(p=>p.code===x.point_code)&&Number.isFinite(x.value)&&Boolean(x.timestamp));
+  const accepted=batch.filter(x=>POINTS.some(p=>p.code===x.point_code)&&(Number.isFinite(x.value)||(x.value===null&&x.quality==='missing'))&&Boolean(x.timestamp));
   if(!accepted.length)return;
-  setReadings(prev=>{const next={...prev};for(const row of accepted)next[row.point_code]=row;return next;});
-  setHistory(prev=>[...prev,...accepted].slice(-30000));
+  setReadings(prev=>{const next={...prev};for(const row of accepted){const old=next[row.point_code];if(!old||Date.parse(row.timestamp)>Date.parse(old.timestamp)||(row.timestamp===old.timestamp&&row.trace))next[row.point_code]=row;}return next;});
+  setHistory(prev=>{const map=new Map(prev.map(r=>[r.point_code+'|'+r.timestamp,r]));for(const r of accepted)map.set(r.point_code+'|'+r.timestamp,r);return [...map.values()].sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-30000)});
  },[]);
  useEffect(()=>{
   let active=true;
   const fetchData=async()=>{
+   const revision=sourceRevision.current;
    try{const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('API unavailable');
-    const payload:Bootstrap=await response.json();if(!active)return;
+    const payload:Bootstrap=await response.json();if(!active||revision!==sourceRevision.current)return;
+    const session=payload.simulation?.replay_id??null;
+    if(sourceSession.current!==undefined&&sourceSession.current!==session)return;
+    sourceSession.current=session;
     const data=payload.data;
     setBackendConnected(true);setStorage(payload.storage||'unknown');setAssets(data?.Assets||[]);setMaintenance(data?.Maintenance_Events||[]);
     const dbState=fromDb(data);
-    if(mode==='mqtt'){
+    if(mode==='http'){
+      ingest(dbState.history);
       ingest(dbState.readings);
-      setHistory(dbState.history.slice(-30000));
     }
     const incoming:EventRecord[]=(data?.Anomaly_Results||[]).map(item=>({
       id:item.anomaly_id,title:item.point_code+' · recorded anomaly',level:/critical|high/i.test(item.severity||'')?'Critical':/medium|warning/i.test(item.severity||'')?'Warning':'Info',
@@ -111,21 +119,34 @@ export function TwinProvider({children}:{children:ReactNode}){
     setEvents(old=>[...incoming,...old.filter(e=>e.synthetic)]);
    }catch{if(active)setBackendConnected(false)}
   };
-  void fetchData();const timer=setInterval(fetchData,15000);return()=>{active=false;clearInterval(timer)};
- },[ingest,mode]);
+  void fetchData();return()=>{active=false};
+ },[ingest,mode,bootstrapVersion]);
  useEffect(()=>{
   let cancelled=false;
-  const check=async()=>{try{const response=await fetch('/api/live-status',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(!cancelled)setMqttCoverage(Number(data.received_points)||0)}catch{if(!cancelled)setMqttCoverage(0)}};
+  const check=async()=>{try{const response=await fetch('/api/live-status',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(!cancelled)setHttpCoverage(Number(data.received_points)||0)}catch{if(!cancelled)setHttpCoverage(0)}};
   void check();const timer=setInterval(check,5000);return()=>{cancelled=true;clearInterval(timer)};
  },[]);
  useEffect(()=>{
-  if(mode!=='mqtt')return;
-  const source=new EventSource('/api/events');
-  source.addEventListener('sensor-reading',(event)=>{
-   try{const data=JSON.parse((event as MessageEvent).data);
-    if(data.trace?.trace_id){const trace=pendingTraces.current.get(data.trace.trace_id)||{codes:new Set<string>(),size:Number(data.trace.batch_size)};trace.codes.add(String(data.point_code));pendingTraces.current.set(data.trace.trace_id,trace);if(pendingTraces.current.size>2000)pendingTraces.current.delete(pendingTraces.current.keys().next().value!);}
-    ingest([{point_code:String(data.point_code),value:Number(data.value),timestamp:String(data.timestamp||data.latest_update||nowIso()),quality:String(data.quality||'simulated'),source:'http',trace:data.trace}]);
-   }catch{/* ignore malformed message, not the stream */}
+  if(mode!=='http')return;
+  const source=new EventSource('/api/events?format=batch');
+  source.onopen=()=>setBootstrapVersion(v=>v+1);
+  source.addEventListener('resync',()=>setBootstrapVersion(v=>v+1));
+  const reset=(session:string|null)=>{
+   sourceSession.current=session;sourceRevision.current++;seenEvents.current.clear();pendingTraces.current.clear();setReadings({});setHistory([]);setReplayTime(null);
+  };
+  source.addEventListener('source-reset',event=>{try{reset(JSON.parse((event as MessageEvent).data).replay_id??null)}catch{}});
+  source.addEventListener('sensor-batch',event=>{
+   try{
+    const data=JSON.parse((event as MessageEvent).data);
+    if(!Array.isArray(data.readings)||data.readings.length!==18||new Set(data.readings.map((r:Reading)=>r.point_code)).size!==18||!data.readings.every((r:Reading)=>POINTS.some(p=>p.code===r.point_code)&&(Number.isFinite(r.value)||(r.value===null&&r.quality==='missing'))&&Number.isFinite(Date.parse(r.timestamp))))return;
+    if(sourceSession.current!==data.replay_id)reset(data.replay_id??null);
+    if(seenEvents.current.has(data.event_id))return;
+    seenEvents.current.add(data.event_id);if(seenEvents.current.size>256)seenEvents.current.delete(seenEvents.current.values().next().value!);
+    const batch:Reading[]=data.readings.map((r:Reading)=>({...r,source:'http' as const}));
+    for(const row of batch)if(row.trace?.trace_id){const trace=pendingTraces.current.get(row.trace.trace_id)||{codes:new Set<string>(),size:Number(row.trace.batch_size)};trace.codes.add(row.point_code);pendingTraces.current.set(row.trace.trace_id,trace);}
+    if(pendingTraces.current.size>2000)pendingTraces.current.delete(pendingTraces.current.keys().next().value!);
+    ingest(batch);setBackendConnected(true);
+   }catch{/* reject malformed batches without substituting readings */}
   });
   return()=>source.close();
  },[mode,ingest]);
@@ -173,8 +194,8 @@ export function TwinProvider({children}:{children:ReactNode}){
  const demoEnd=demoOrigin.current;
  const displayEvents:EventRecord[]=demo?[-10001,-10002].map((id,i)=>({id,title:i?'Cooling schedule review · demo':'Review meeting CO₂ · demo',level:i?'Info':'Warning',description:i?'Illustrative review event for demonstration.':'Synthetic review marker; inspect timeline readings. No verified maintenance fault.',source:i?'L02-OPEN':'L03-MEET',zone:i?'Level_02':'Level_03',time:new Date(demoEnd-(i?8:4)*3600000).toISOString(),acknowledged:demoAcknowledged.includes(id),synthetic:true})):events;
  const displayMaintenance=demo?[{maintenance_id:-1,asset_id:'L03-MEET',event_date:new Date(demoEnd-86400000).toISOString(),event_type:'Demo record',maintenance_status:'Illustration',description:'Synthetic ventilation review for the guided demonstration; no physical work recorded.'}]:maintenance;
- const value=useMemo(()=>({weather,setWeather,weatherMotion,setWeatherMotion,mode,setMode,running,setRunning,intervalMs,setIntervalMs,readings:shownReadings,history:shownHistory,liveHistory,liveReadings,replayTime,setReplayTime,demo,setDemo,scenario,setScenario,scenarioConfig,setScenarioConfig,horizon,setHorizon,selectedRoom,setSelectedRoom,assistantOpen,setAssistantOpen,events:displayEvents,acknowledge,addTestEvent,assets,maintenance:displayMaintenance,backendConnected,storage,mqttCoverage,resetSimulator}),
-  [weather,weatherMotion,mode,running,intervalMs,shownReadings,shownHistory,liveHistory,liveReadings,replayTime,demo,scenario,scenarioConfig,horizon,selectedRoom,assistantOpen,displayEvents,displayMaintenance,events,acknowledge,addTestEvent,assets,maintenance,backendConnected,storage,mqttCoverage,resetSimulator]);
+ const value=useMemo(()=>({weather,setWeather,weatherMotion,setWeatherMotion,mode,setMode,running,setRunning,intervalMs,setIntervalMs,readings:shownReadings,history:shownHistory,liveHistory,liveReadings,replayTime,setReplayTime,demo,setDemo,scenario,setScenario,scenarioConfig,setScenarioConfig,horizon,setHorizon,selectedRoom,setSelectedRoom,assistantOpen,setAssistantOpen,events:displayEvents,acknowledge,addTestEvent,assets,maintenance:displayMaintenance,backendConnected,storage,httpCoverage,resetSimulator}),
+  [weather,weatherMotion,mode,running,intervalMs,shownReadings,shownHistory,liveHistory,liveReadings,replayTime,demo,scenario,scenarioConfig,horizon,selectedRoom,assistantOpen,displayEvents,displayMaintenance,events,acknowledge,addTestEvent,assets,maintenance,backendConnected,storage,httpCoverage,resetSimulator]);
  return <TwinContext.Provider value={value}>{children}</TwinContext.Provider>;
 }
 export function useTwin(){const context=useContext(TwinContext);if(!context)throw Error('TwinProvider is missing');return context;}

@@ -13,3 +13,13 @@ CREATE TABLE IF NOT EXISTS twin18.sensor_readings (
  quality TEXT NOT NULL, PRIMARY KEY(point_code,reading_timestamp)
 );
 CREATE INDEX IF NOT EXISTS twin18_reading_time ON twin18.sensor_readings(reading_timestamp DESC);
+
+-- Additive upgrade for isolated dataset replay sessions.
+ALTER TABLE twin18.sensor_readings ADD COLUMN IF NOT EXISTS replay_id TEXT;
+CREATE INDEX IF NOT EXISTS twin18_replay_time ON twin18.sensor_readings(replay_id,reading_timestamp DESC);
+
+-- A missing observation stays NULL, never a fabricated zero.
+ALTER TABLE twin18.sensor_readings ALTER COLUMN reading_value DROP NOT NULL;
+
+ALTER TABLE twin18.sensor_readings ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp();
+CREATE INDEX IF NOT EXISTS twin18_received_time ON twin18.sensor_readings(received_at DESC);

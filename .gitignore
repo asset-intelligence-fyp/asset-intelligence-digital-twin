@@ -42,3 +42,7 @@ storage/*.db
 # Benchmark runs, predictions and simulator runtime output
 runtime/
 tsconfig.tsbuildinfo
+
+# Supplied large datasets stay local, outside web assets and source control.
+data/
+generated/

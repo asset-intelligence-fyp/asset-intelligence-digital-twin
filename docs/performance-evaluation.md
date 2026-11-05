@@ -7,19 +7,15 @@ Live twin / replay / what-if / comfort panel is removed from the overview. The t
 toggle remains in the header. Browser-random source controls are removed; the normal
 website receives the Python HTTP stream. Decorative weather changes no sensor values.
 
-The intended teammate simulator and source dataset have not been supplied. The bundled
-`tools/level03_simulator` is the provisional 18-point SOP v1.4 generator; its configurable
-thermal/CO2/occupancy assumptions are not proof that it reproduces that dataset. Its
-default `normal` mode injects no faults. Do not recalibrate it or claim dataset fidelity
-without the original simulator, input data, configuration and expected outputs.
-
-Request from the teammate: simulator source and dependency versions, configuration,
-sensor inventory and units, a small expected-output sample, dataset provenance, seeds,
-normal/fault modes, and the separate injection/event labels. Do not provide labels to
-the inference path. Maintain the documented IFC demonstration aliases.
+The supplied `people_driven_v3.0` dataset is now audited and replayed by
+`tools/dataset_replay/replay.py`. The ZIP contains generated files, not the original
+generator code. See [dataset replay setup](dataset-replay.md) and
+[HTTP + SSE architecture](http-sse-architecture.md). The old SOP generator is a legacy
+reference. Exact sensor numeric values and missing observations are preserved, with
+synthetic fault annotations excluded from inference. Maintain the IFC demonstration aliases.
 
 The source adapter is `POST /api/sensor-readings`. It accepts `readings` containing
-`sensor_id`, `room_id`, `sensor_type`, `unit`, `timestamp` and numeric `value`. The
+`sensor_id`, `room_id`, `sensor_type`, `unit`, `timestamp` and numeric `value` (or NULL with `quality_flag: missing`). The
 registry in `shared/sensorRegistry.json` defines valid identities and aliases. Preserve
 dataset/simulation timestamps. For same-computer timing add top-level:
 
@@ -27,7 +23,7 @@ dataset/simulation timestamps. For same-computer timing add top-level:
 {
   "producer": "name-and-version-of-simulator",
   "clock_domain": "same_host",
-  "generated_at_utc": "wall-clock ISO timestamp recorded BEFORE generating the batch",
+  "generated_at_utc": "wall-clock ISO timestamp recorded when releasing the replay batch",
   "sequence": 1,
   "readings": []
 }
@@ -186,3 +182,13 @@ upper bound above five seconds does not identify the actual paint time. Source-t
 was at most 489 ms, so the unisolated remainder lies in transport/browser/return timing.
 Repeat on the final Mac/PostgreSQL setup with the viewer active and the intended
 simulator, including representative AI load. No AI accuracy percentage was measured.
+
+## Supplied dataset replay update (2026-11-05)
+
+The teammate dataset is now supplied and audited. The default launcher now uses exact
+CSV replay, not the earlier SOP generator. For current setup and the missing-value/label
+boundary see [dataset-replay.md](dataset-replay.md). The source timing boundary is now
+**batch release**, because generating the historical CSV occurred offline. See
+[HTTP + SSE architecture](http-sse-architecture.md) for the implemented stages and current
+research. Earlier generator-specific commands/results above are retained as historical
+context, not the current dataset's measured performance.
