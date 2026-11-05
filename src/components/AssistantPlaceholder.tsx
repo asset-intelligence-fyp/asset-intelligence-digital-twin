@@ -36,9 +36,11 @@ type ChatItem={id:string;role:'user'|'analysis'|'prediction'|'error';createdAt:s
 type ChatThread={id:string;roomId:string;title:string;createdAt:string;messages:ChatItem[]};
 type EvaluationMetric={sensor_id:string;unit:string;valid_predictions:number;planned_cases:number;
  MAE:number|null;RMSE:number|null;bias:number|null;WAPE_pct:number|null;
- accuracy_score_pct:number|null;skill_vs_persistence_pct:number|null;prediction_success_pct:number|null};
+ accuracy_score_pct:number|null;skill_vs_persistence_pct:number|null;prediction_success_pct:number|null;
+ skill_vs_seasonal_naive_pct?:number|null;skill_vs_recent_mean_pct?:number|null;
+ ground_truth_coverage_pct?:number|null};
 type EvaluationReport={status:string;horizon_months?:number;ground_truth_year?:number;
- summary?:EvaluationMetric[];message?:string};
+ summary?:EvaluationMetric[];message?:string;partial_run?:boolean;expected_planned_cases?:number;overall?:{planned_cases:number;valid_predictions:number}};
 
 const HISTORY_KEY='twinlabs_room_ai_history_v1';
 const SIZE_KEY='twinlabs_room_ai_size_v1';
@@ -369,6 +371,7 @@ export function AssistantPlaceholder(){
      <summary>One-month backtest accuracy · 2025</summary>
      <div className="twin-ai-evaluation-head">
       <small>Normal synthetic ground truth · predictions from Qwen3 1.7B</small>
+      {evaluation.partial_run&&<small>Partial/smoke-test evaluation: not a full-period accuracy result ({evaluation.overall?.planned_cases||0} / {evaluation.expected_planned_cases||'—'} scheduled cases).</small>}
       <button type="button" onClick={()=>void refreshEvaluation()}>Refresh</button>
      </div>
      {roomScores.length ? <div className="twin-ai-evaluation-grid">
@@ -378,6 +381,9 @@ export function AssistantPlaceholder(){
        <small>MAE: {formatValue(row.MAE,row.unit)} · RMSE: {formatValue(row.RMSE,row.unit)}</small>
        <small>{row.valid_predictions} valid / {row.planned_cases} planned cases · Success: {row.prediction_success_pct==null?'—':row.prediction_success_pct.toFixed(1)+'%'}</small>
        <small>Skill vs latest-reading baseline: {row.skill_vs_persistence_pct==null?'—':row.skill_vs_persistence_pct.toFixed(1)+'%'}</small>
+       {row.skill_vs_recent_mean_pct!==undefined&&<small>Skill vs 7-day mean: {row.skill_vs_recent_mean_pct==null?'—':row.skill_vs_recent_mean_pct.toFixed(1)+'%'}</small>}
+       {row.skill_vs_seasonal_naive_pct!==undefined&&<small>Skill vs weekday/time baseline: {row.skill_vs_seasonal_naive_pct==null?'—':row.skill_vs_seasonal_naive_pct.toFixed(1)+'%'}</small>}
+       {row.ground_truth_coverage_pct!==undefined&&<small>Ground-truth coverage: {row.ground_truth_coverage_pct==null?'—':row.ground_truth_coverage_pct.toFixed(1)+'%'}</small>}
       </div>)}
      </div> : <p className="twin-ai-predict-note"><strong>Not evaluated.</strong> {evaluation.message||'Run scripts/evaluate_llm_one_month.py with your 2023–2025 SQLite and Ollama, then refresh.'}</p>}
      <small>Accuracy index = max(0, 100 − WAPE%). This is not classification accuracy. MAE/RMSE are primary; these results are from synthetic data only, not installed sensors.</small>

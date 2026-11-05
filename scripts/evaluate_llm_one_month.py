@@ -92,6 +92,34 @@ def ground_truth_at(db, sensor_id, target, tolerance_minutes=30):
             'target_match_minutes':round(minutes,2)}
 
 
+
+def baseline_forecasts(history, origin, target):
+    """No-training baselines from observations at or before the forecast origin.
+
+    Seasonal naive: most recent reading matching the *target* weekday and clock
+    time (within 30 minutes); recent mean: available readings from last 7 days.
+    The function also enforces the cutoff independently of the SQL query.
+    """
+    observed = []
+    for row in history:
+        try:
+            stamp = datetime.fromisoformat(row['timestamp'])
+            val = float(row['value'])
+            if stamp.tzinfo is not None and stamp <= origin and math.isfinite(val):
+                observed.append((stamp, val))
+        except (KeyError, TypeError, ValueError):
+            continue
+    recent = [v for stamp, v in observed if stamp >= origin - timedelta(days=7)]
+    target_clock = target.hour * 60 + target.minute
+    seasonal = [(stamp, v) for stamp, v in observed
+                if stamp.weekday() == target.weekday()
+                and abs(stamp.hour * 60 + stamp.minute - target_clock) <= 30]
+    return {
+        'recent_mean': statistics.mean(recent) if recent else None,
+        'seasonal_naive': max(seasonal, key=lambda item: item[0])[1] if seasonal else None,
+    }
+
+
 def evaluate_case(db, point, origin, factory, db_path, tolerance=30):
     """One actual Qwen request from pre-cutoff evidence, followed by truth lookup."""
     code = point['code']
@@ -104,6 +132,7 @@ def evaluate_case(db, point, origin, factory, db_path, tolerance=30):
               'ground_truth_source':'held_out_normal_synthetic_reading'}
     history = pre_cutoff_history(db,code,origin)
     latest = history[-1]['value'] if history else None
+    baselines = baseline_forecasts(history, origin, target)
     response = None
     if not history:
         status, reason = 'insufficient_history','No matching pre-cutoff historical observations'
@@ -131,9 +160,21 @@ def evaluate_case(db, point, origin, factory, db_path, tolerance=30):
            'last_observed_value':latest,
            'actual':None,'ground_truth_timestamp':None,'target_match_minutes':None,
            'abs_error':None,'squared_error':None,'signed_error':None,
-           'persistence_abs_error':None,'scenario_contains_actual':None}
+           'persistence_abs_error':None,
+           'recent_mean_prediction':baselines['recent_mean'],
+           'recent_mean_abs_error':None,
+           'seasonal_naive_prediction':baselines['seasonal_naive'],
+           'seasonal_naive_abs_error':None,
+           'scenario_contains_actual':None}
     if actual_record is not None:
         row.update(actual_record)
+        actual = actual_record['actual']
+        if latest is not None:
+            row['persistence_abs_error'] = abs(float(latest) - actual)
+        for name in ('recent_mean', 'seasonal_naive'):
+            predicted = baselines[name]
+            if predicted is not None:
+                row[name + '_abs_error'] = abs(predicted - actual)
     if status=='llm_projection' and row['projected_value'] is not None and actual_record is not None:
         predicted, actual = float(row['projected_value']), actual_record['actual']
         row.update(abs_error=abs(predicted-actual),squared_error=(predicted-actual)**2,
@@ -147,49 +188,108 @@ def rnum(number, decimals=3):
     return round(number,decimals) if number is not None and math.isfinite(number) else None
 
 
+def _nearest_rank(values, percentile):
+    ordered = sorted(values)
+    return ordered[max(0, math.ceil(percentile * len(ordered)) - 1)] if ordered else None
+
+
+def _metrics_for(cases, year, mode):
+    paired = [r for r in cases if r.get('actual') is not None]
+    valid = [r for r in paired if r.get('status') == 'llm_projection'
+             and r.get('abs_error') is not None]
+    errors = [r['abs_error'] for r in valid]
+    total_actual = sum(abs(r['actual']) for r in valid)
+    mae = statistics.mean(errors) if errors else None
+    rmse = math.sqrt(statistics.mean(r['squared_error'] for r in valid)) if valid else None
+    bias = statistics.mean(r['signed_error'] for r in valid) if valid else None
+    wape_pct = 100 * sum(errors) / total_actual if total_actual > 0 else None
+    result = {
+        'sensor_id': cases[0]['sensor_id'],
+        'sensor_type': cases[0]['sensor_type'],
+        'unit': cases[0]['unit'],
+        'horizon_months': 1, 'ground_truth_year': year, 'evaluation_mode': mode,
+        'planned_cases': len(cases), 'cases_with_ground_truth': len(paired),
+        'ground_truth_coverage_pct': rnum(100 * len(paired) / len(cases)),
+        'valid_predictions': len(valid),
+        'prediction_success_pct': rnum(100 * len(valid) / len(paired)) if paired else None,
+        'MAE': rnum(mae), 'RMSE': rnum(rmse), 'bias': rnum(bias),
+        'median_AE': rnum(statistics.median(errors)) if errors else None,
+        'p90_AE': rnum(_nearest_rank(errors, 0.9)),
+        'WAPE_pct': rnum(wape_pct),
+        'accuracy_score_pct': rnum(max(0, 100 - wape_pct)) if wape_pct is not None else None,
+        'scenario_containment_pct_not_calibrated':
+            rnum(100 * sum(r.get('scenario_contains_actual') is True for r in valid) / len(valid))
+            if valid else None,
+        'failures': {status: sum(r['status'] == status for r in cases)
+                     for status in sorted({r['status'] for r in cases
+                                           if r['status'] != 'llm_projection'})},
+    }
+    for label, field in (
+        ('persistence', 'persistence_abs_error'),
+        ('recent_mean', 'recent_mean_abs_error'),
+        ('seasonal_naive', 'seasonal_naive_abs_error'),
+    ):
+        # Compare identical valid origins; do not penalize either method for
+        # missing baseline values by comparing different subsets.
+        matched = [r for r in valid if r.get(field) is not None]
+        baseline_mae = statistics.mean(r[field] for r in matched) if matched else None
+        paired_llm_mae = statistics.mean(r['abs_error'] for r in matched) if matched else None
+        result[label + '_MAE'] = rnum(baseline_mae)
+        result[label + '_matched_cases'] = len(matched)
+        result['skill_vs_' + label + '_pct'] = (
+            rnum(100 * (1 - paired_llm_mae / baseline_mae))
+            if baseline_mae is not None and baseline_mae > 0 else None
+        )
+    return result
+
+
 def summary_for(rows, year, mode):
-    """Compute metrics on paired, valid outcomes only; show skipped cases too."""
+    """Unit-aware sensor and target-month metrics; never pool raw error across units."""
     grouped = {}
+    grouped_months = {}
     for r in rows:
-        grouped.setdefault(r['sensor_id'],[]).append(r)
-    metrics=[]
-    for sensor, cases in sorted(grouped.items()):
-        paired=[r for r in cases if r.get('actual') is not None]
-        valid=[r for r in paired if r.get('status')=='llm_projection' and r.get('abs_error') is not None]
-        total_actual=sum(abs(r['actual']) for r in valid)
-        absolute_total=sum(r['abs_error'] for r in valid)
-        mae=statistics.mean(r['abs_error'] for r in valid) if valid else None
-        rmse=math.sqrt(statistics.mean(r['squared_error'] for r in valid)) if valid else None
-        bias=statistics.mean(r['signed_error'] for r in valid) if valid else None
-        baseline=statistics.mean(r['persistence_abs_error'] for r in valid) if valid else None
-        wape_pct=100*absolute_total/total_actual if total_actual>0 else None
-        accuracy_pct=max(0,100-wape_pct) if wape_pct is not None else None
-        skill_pct=100*(1-mae/baseline) if mae is not None and baseline is not None and baseline>0 else None
-        coverage_pct=100*sum(r['scenario_contains_actual'] is True for r in valid)/len(valid) if valid else None
-        metrics.append({'sensor_id':sensor,'sensor_type':cases[0]['sensor_type'],'unit':cases[0]['unit'],
-            'horizon_months':1,'ground_truth_year':year,'evaluation_mode':mode,
-            'planned_cases':len(cases),'cases_with_ground_truth':len(paired),
-            'valid_predictions':len(valid),
-            'prediction_success_pct':rnum(100*len(valid)/len(paired)) if paired else None,
-            'MAE':rnum(mae),'RMSE':rnum(rmse),'bias':rnum(bias),
-            'WAPE_pct':rnum(wape_pct),
-            'accuracy_score_pct':rnum(accuracy_pct),
-            'persistence_MAE':rnum(baseline),'skill_vs_persistence_pct':rnum(skill_pct),
-            'scenario_containment_pct_not_calibrated':rnum(coverage_pct),
-            'failures':{key:sum(r['status']==key for r in cases) for key in
-                        sorted({r['status'] for r in cases if r['status']!='llm_projection'})}})
-    return {'schema_version':1,'status':'evaluated' if any(x['valid_predictions'] for x in metrics) else 'no_valid_predictions',
-            'method':'one_month_rolling_origin_llm_only_backtest',
-            'model':'qwen3:1.7b','horizon_months':1,'ground_truth_year':year,
-            'evaluation_mode':mode,'metric_definition':{
-                'accuracy_score_pct':'max(0, 100 - WAPE_pct). WAPE = 100 * sum(|prediction - actual|) / sum(|actual|). Descriptive index, NOT classification accuracy.',
-                'MAE':'Mean absolute error, in sensor units.',
-                'RMSE':'Root mean squared error, in sensor units.',
-                'bias':'Mean(prediction - actual), in sensor units.',
-                'skill_vs_persistence_pct':'100 * (1 - LLM_MAE/persistence_MAE) on identical valid cases. Positive is better; null if baseline MAE=0.',
-                'prediction_success_pct':'Valid Qwen projections divided by cases with available ground truth.',
-                'scenario_containment_pct_not_calibrated':'Share of actual readings within LLM low/high scenarios; ranges are NOT calibrated intervals.'},
-            'summary':metrics}
+        grouped.setdefault(r['sensor_id'], []).append(r)
+        month = r['target_time'][:7] if r.get('target_time') else 'unknown'
+        grouped_months.setdefault((r['sensor_id'], month), []).append(r)
+    metrics = [_metrics_for(cases, year, mode) for _, cases in sorted(grouped.items())]
+    by_month = [
+        {'target_month': month, **_metrics_for(cases, year, mode)}
+        for (_, month), cases in sorted(grouped_months.items())
+    ]
+    truth_count = sum(r.get('actual') is not None for r in rows)
+    valid_count = sum(r.get('actual') is not None and
+                      r.get('status') == 'llm_projection' and r.get('abs_error') is not None
+                      for r in rows)
+    return {
+        'schema_version': 1,
+        'status': 'evaluated' if valid_count else 'no_valid_predictions',
+        'method': 'one_month_rolling_origin_llm_only_backtest',
+        'model': 'qwen3:1.7b', 'horizon_months': 1,
+        'ground_truth_year': year, 'evaluation_mode': mode,
+        'metric_definition': {
+            'accuracy_score_pct': 'max(0, 100 - WAPE_pct). WAPE = 100 * sum(|prediction - actual|) / sum(|actual|). Descriptive index, NOT classification accuracy.',
+            'MAE': 'Mean absolute error, in sensor units.',
+            'RMSE': 'Root mean squared error, in sensor units.',
+            'bias': 'Mean(prediction - actual), in sensor units.',
+            'median_AE': 'Median absolute error, in sensor units.',
+            'p90_AE': 'Nearest-rank 90th percentile absolute error, in sensor units.',
+            'skill_vs_persistence_pct': '100 * (1 - LLM_MAE/persistence_MAE) on identical valid cases. Positive is better; null if baseline MAE=0.',
+            'skill_vs_recent_mean_pct': 'Same paired-case skill versus trailing seven-day observed mean.',
+            'skill_vs_seasonal_naive_pct': 'Same paired-case skill versus most recent pre-cutoff reading at target weekday and clock time.',
+            'prediction_success_pct': 'Valid Qwen projections divided by cases with available ground truth.',
+            'ground_truth_coverage_pct': 'Cases with held-out target observations divided by scheduled cases.',
+            'scenario_containment_pct_not_calibrated': 'Share of actual readings within LLM low/high scenarios; ranges are NOT calibrated intervals.'
+        },
+        'overall': {
+            'planned_cases': len(rows), 'cases_with_ground_truth': truth_count,
+            'valid_predictions': valid_count,
+            'ground_truth_coverage_pct': rnum(100 * truth_count / len(rows)) if rows else None,
+            'prediction_success_pct': rnum(100 * valid_count / truth_count) if truth_count else None,
+            'note': 'Only counts are pooled across sensor units; errors stay per sensor.'
+        },
+        'summary': metrics,
+        'by_target_month': by_month,
+    }
 
 
 def run(args, factory=None):
@@ -199,7 +299,8 @@ def run(args, factory=None):
     repo_registry=ROOT/'shared'/'sensorRegistry.json'
     points={p['code']:p for p in json.loads(repo_registry.read_text(encoding='utf8'))
             if p['sensorType'] in ('temperature','humidity','co2')}
-    selected=[x.strip() for x in args.sensors.split(',') if x.strip()]
+    selected=(list(points) if args.sensors.strip().lower()=='all' else
+              [x.strip() for x in args.sensors.split(',') if x.strip()])
     if not selected or any(code not in points for code in selected):
         raise ValueError('Sensors must be canonical temperature, humidity or CO2 IDs from shared/sensorRegistry.json')
     if args.target_year<2024:
@@ -212,6 +313,13 @@ def run(args, factory=None):
         raise ValueError('Invalid limit or tolerance')
     if args.origin_from > args.origin_to:
         raise ValueError('Origin period must be chronological')
+    expected_cases=sum(
+        add_months(datetime(year,month,day,hour,tzinfo=MYT),1).year==args.target_year
+        for code in selected
+        for year,month in months_between(args.origin_from,args.origin_to)
+        if args.mode!='strict' or year<args.target_year
+        for day in days for hour in hours
+    )
     output=Path(args.output).expanduser().resolve()
     output.mkdir(parents=True,exist_ok=True)
     if factory is None:
@@ -256,6 +364,10 @@ def run(args, factory=None):
     report['origin_months']=[args.origin_from,args.origin_to]
     report['origin_days']=days
     report['origin_hours']=hours
+    report['configured_sensors']=selected
+    report['expected_planned_cases']=expected_cases
+    report['partial_run']=len(results)<expected_cases
+    report['evaluation_scope']='smoke_test' if args.limit_cases else 'configured_full_period'
     (output/'summary.json').write_text(json.dumps(report,indent=2,allow_nan=False),encoding='utf8')
     (output/'protocol.json').write_text(json.dumps({
         'evidence_database':str(path),'dataset_year_coverage':coverage,
@@ -265,13 +377,22 @@ def run(args, factory=None):
         'data_cutoff':'All observations supplied to Qwen have timestamps at or before the origin; target read separately afterwards.',
         'origin_period':[args.origin_from,args.origin_to],
         'target_year':args.target_year,'mode':args.mode,'origin_days':days,'origin_hours':hours,
+        'configured_sensors':selected,'expected_planned_cases':expected_cases,
+        'completed_cases':len(results),'partial_run':report['partial_run'],
+        'evaluation_scope':report['evaluation_scope'],
+        'baseline_definitions':{
+          'persistence':'Last pre-cutoff sensor reading',
+          'recent_mean':'Mean of available pre-cutoff readings in trailing 7 days',
+          'seasonal_naive':'Most recent pre-cutoff reading matching target weekday and time within 30 minutes'},
         'historical_lookback_days':1095,'http_replay_max_samples':18000,
         'synthetic_data_warning':'These values are from generated building data, not installed physical sensors.',
         'note':'Earlier observations from the target year MAY be visible in rolling mode, but NEVER target or later values. No model training occurs.'
     },indent=2),encoding='utf8')
     print('\nSummary (actual calculated metrics):')
     for metric in report['summary']:
-        print(json.dumps({k:metric[k] for k in ('sensor_id','valid_predictions','MAE','RMSE','accuracy_score_pct','skill_vs_persistence_pct')},ensure_ascii=False))
+        print(json.dumps({k:metric[k] for k in ('sensor_id','planned_cases','valid_predictions','MAE','RMSE','accuracy_score_pct','skill_vs_persistence_pct','skill_vs_seasonal_naive_pct')},ensure_ascii=False))
+    if report['partial_run']:
+        print('WARNING: This is a partial/smoke-test report, NOT a full-period accuracy evaluation.')
     print(f'\nFiles saved in: {output}')
     return report
 
@@ -279,11 +400,11 @@ def run(args, factory=None):
 def main():
     parser=argparse.ArgumentParser(description=__doc__,formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--db',default=os.environ.get('LLM_HISTORY_DB','storage/digital_twin.sqlite'))
-    parser.add_argument('--sensors',default='TEMP-L03-MEET-01,RH-L03-MEET-01,CO2-L03-MEET-01')
+    parser.add_argument('--sensors',default='all',help='all = every supported temperature/humidity/CO2 registry sensor; or comma-separated IDs')
     parser.add_argument('--target-year',type=int,default=2025)
     parser.add_argument('--origin-from',default='2024-12')
     parser.add_argument('--origin-to',default='2025-11')
-    parser.add_argument('--origin-days',default='15',help='Comma-separated month days, e.g. 1,8,15,22')
+    parser.add_argument('--origin-days',default='1,8,15,22',help='Comma-separated month days, e.g. 1,8,15,22')
     parser.add_argument('--origin-hours',default='14',help='Comma-separated hours (Malaysia time), e.g. 10,14')
     parser.add_argument('--mode',choices=['rolling','strict'],default='rolling')
     parser.add_argument('--limit-cases',type=int,default=0,help='Run first N eligible cases for smoke testing')

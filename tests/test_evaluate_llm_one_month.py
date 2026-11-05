@@ -90,6 +90,65 @@ class EvaluationTests(unittest.TestCase):
         self.assertIn('abs_error',(output/'cases.csv').read_text())
         self.assertEqual(len((output/'cases.partial.jsonl').read_text().splitlines()),1)
 
+
+    def test_baselines_use_only_pre_cutoff_values(self):
+        hist=m.pre_cutoff_history(self.db,SENSOR['code'],ORIGIN)
+        hist.append({'timestamp':(ORIGIN+timedelta(days=3)).isoformat(),'value':9999})
+        values=m.baseline_forecasts(hist,ORIGIN,m.add_months(ORIGIN,1))
+        self.assertEqual(values['recent_mean'],650)
+        self.assertEqual(values['seasonal_naive'],650)
+
+    def test_summary_counts_failed_and_missing_cases(self):
+        rows=[
+            {'sensor_id':SENSOR['code'],'sensor_type':'co2','unit':'ppm',
+             'target_time':'2025-01-15T14:00:00+08:00','status':'llm_projection',
+             'actual':640,'abs_error':40,'squared_error':1600,'signed_error':40,
+             'persistence_abs_error':10,'recent_mean_abs_error':10,
+             'seasonal_naive_abs_error':10,'scenario_contains_actual':True},
+            {'sensor_id':SENSOR['code'],'sensor_type':'co2','unit':'ppm',
+             'target_time':'2025-02-15T14:00:00+08:00','status':'validation_failed',
+             'actual':630,'abs_error':None},
+            {'sensor_id':SENSOR['code'],'sensor_type':'co2','unit':'ppm',
+             'target_time':'2025-03-15T14:00:00+08:00','status':'insufficient_history',
+             'actual':None,'abs_error':None},
+        ]
+        report=m.summary_for(rows,2025,'rolling')
+        metric=report['summary'][0]
+        self.assertEqual(metric['planned_cases'],3)
+        self.assertEqual(metric['cases_with_ground_truth'],2)
+        self.assertEqual(metric['valid_predictions'],1)
+        self.assertEqual(metric['prediction_success_pct'],50)
+        self.assertEqual(metric['seasonal_naive_MAE'],10)
+        self.assertEqual(metric['skill_vs_seasonal_naive_pct'],-300)
+        self.assertEqual(report['overall']['valid_predictions'],1)
+        self.assertEqual(len(report['by_target_month']),3)
+
+    def test_all_selects_supported_registry_sensors(self):
+        root=Path(self.folder.name)
+        (root/'shared').mkdir(exist_ok=True)
+        second={**SENSOR,'code':'TEMP-L03-MEET-01','sensorType':'temperature','unit':'°C'}
+        (root/'shared'/'sensorRegistry.json').write_text(json.dumps([SENSOR,second]))
+        self.db.execute('''INSERT INTO sensor_readings
+                           SELECT dataset, ?, timestamp, 25.0, quality_flag
+                           FROM sensor_readings WHERE sensor_id=? AND dataset='normal' ''',
+                        (second['code'], SENSOR['code']))
+        self.db.commit()
+        output=root/'full'
+        opts=SimpleNamespace(db=str(self.path),sensors='all',target_year=2025,
+             origin_from='2024-12',origin_to='2024-12',origin_days='15',
+             origin_hours='14',mode='strict',limit_cases=0,tolerance_minutes=30,
+             output=str(output),ollama_url='http://127.0.0.1:11434')
+        def fake(req,config,factory):
+            return {'status':'llm_projection','projected_value':650,
+                    'lower_scenario':0,'upper_scenario':1000,
+                    'coverage':{'historical_normal_days':129}}
+        with patch.object(m,'ROOT',root),patch.object(m,'forecast_room_reading',fake):
+            report=m.run(opts,factory=lambda model:None)
+        self.assertEqual(report['overall']['planned_cases'],2)
+        self.assertEqual(report['expected_planned_cases'],2)
+        self.assertFalse(report['partial_run'])
+        self.assertEqual(len(report['summary']),2)
+
     def test_one_month_calendar_rollover(self):
         self.assertEqual(m.add_months(datetime(2024,12,31,14,tzinfo=TZ),1).date().isoformat(),'2025-01-31')
 
