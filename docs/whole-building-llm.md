@@ -54,29 +54,17 @@ The diagnostic reports each continuous sensor's number of matching prior normal-
 
 `GET /api/assistant/health` now distinguishes model connectivity from `historical_reference_available`; the latter only means the normal-history database exists and is readable, not that every room/cutoff has five matching days. The individual answer supplies `historical_days` and the actual source for each sensor.
 
-## Long-range Qwen-only sensor projections and Room assistant UX
+## One-month Qwen-only sensor projections and ground-truth accuracy evaluation
 
-The Room assistant now supports **exploratory long-range LLM projections** at **+1, +4, +6, +12 and +24 months**, for a selected room's temperature, humidity or CO₂ sensor. Both the **Project** button and conversational requests such as `Predict CO₂ in 4 months` call `POST /api/assistant/predict`. The model is **local Qwen3 1.7B with P2 Concise instructions**. This feature is separate from the validated room-anomaly assessment at `/api/assistant/ask`.
+The website offers **one-month LLM projections only** for a selected room's temperature, humidity and CO₂. Both the **Project** control and requests such as `Predict CO₂ in 1 month` call `POST /api/assistant/predict`. Requests for other forecast horizons are rejected by Express and Python. The independent verified room analysis `/api/assistant/ask`, resizable chat panel and local browser conversation history are preserved.
 
-**Method:** The backend retrieves selected-sensor, time-bounded **connected HTTP** observations, excludes invalid/future readings, and prepares descriptive monthly means, counts and the most recent actual sensor value. If the local `normal` synthetic SQLite database contains the **same canonical sensor ID**, a separate read-only aggregation contributes earlier monthly averages and dated coverage. These are different evidence sources and are explicitly distinguished in the payload. **Qwen3 alone proposes the future central value and low/high scenarios** from these observed trends. No fitted regression, ARIMA, LSTM, deterministic numerical extrapolator or other trained sensor forecasting model generates future values.
+The backend prepares pre-cutoff monthly observed readings from connected HTTP and compatible local normal-history SQLite records. **Qwen3 1.7B (P2 Concise) alone generates the future value and illustrative scenarios.** There is no fitted numerical forecasting algorithm or separately trained forecasting model. At least 14 distinct historical days in one month from a consistent source and a fresh HTTP reading are required. Predictions are speculative and constrained only by response-schema and physical-value checks.
 
-**History sufficiency gates:** At least 1 month / 14 distinct dates for a 1-month projection; 3 months / 60 dates for 4 months; 4 months / 90 dates for 6 months; 5 months / 120 dates for 1 year; and 9 months / 240 dates for 2 years, from a consistent source. A recent connected reading no older than 2 hours is also required. When history is short or incompatible, the result is `insufficient_history` **without a fabricated future number**. A short live session alone does not establish a historical trend.
+**Measured accuracy requires a separate ground-truth backtest, not just a successful model response.** Run `python3 scripts/evaluate_llm_one_month.py --db "$LLM_HISTORY_DB"` using the 2023–2025 synthetic normal SQLite dataset and a running local Ollama server. The default uses one-month forecasts from monthly 15th-day origins, December 2024 through November 2025, against target observations in 2025. The script reads future ground truth separately after each model response and never includes readings after the origin in Qwen input. A larger sample is available with `--origin-days 1,8,15,22`.
 
-**Validation and reporting:** Qwen returns JSON with `projected_value`, `lower_scenario`, `upper_scenario`, direction, explanation, assumptions and limitations. Code checks the JSON structure, that the range is ordered, and basic physical sensor bounds; malformed values are discarded with `validation_failed`. **Future accuracy cannot be verified at prediction time**: this is not the same numerical verification as the current-reading anomaly assistant. The scenario bounds are not calibrated prediction or confidence intervals. The result shows provenance, coverage, observed monthly values and uncertainty. A multi-month LLM projection should not be described as a proven accurate forecasting model.
+Outputs appear in `reports/llm_one_month_eval/`: `cases.csv`, `summary.json`, `protocol.json` and incremental `cases.partial.jsonl`. The loopback-only `GET /api/assistant/evaluation` endpoint serves the summary to the Room Assistant's **One-month backtest accuracy** panel. Until a real evaluation is run, the UI displays **Not evaluated**. Report MAE, RMSE, bias, WAPE, prediction coverage and persistence skill alongside the **accuracy index = max(0, 100 − WAPE%)**, not classification accuracy. Scores are relative to synthetic ground truth; physical-sensor forecasting has not been validated.
 
-Projections require **Live connected HTTP** data; browser random mode, 24-hour demo, historical replay and what-if snapshots are intentionally excluded. Forecast numbers are generated only when Qwen actually returns a structurally valid response; the model is not invoked when required source history is insufficient. The normal-history database is never uploaded to GitHub and may not contain every website sensor's exact code.
-
-The assistant retains the previous features: at-a-glance findings, recommended checks, expandable source evidence, browser-local per-room chat history with New/Delete, drag resizing, Expand/Restore, and JSON downloads. Older conversations with deterministic +1/+24-hour estimates remain labelled as **legacy historical estimates**, not rebranded as LLM forecasts.
-
-Run focused tests without Ollama (tests mock the LLM):
-
-```bash
-python3 -m unittest discover -s tests -p 'test_room_prediction.py' -v
-node --test tests/roomPrediction.test.mjs tests/roomAssistantUX.test.mjs
-python3 tests/bridge_longterm_smoke.py
-```
-
-Run a real Qwen projection on your Mac after `ollama pull qwen3:1.7b`, `npm run dev` and the appropriate local historical source are available. The local smoke test validates the HTTP bridge with a **mocked** Ollama response; it is not proof of real-model accuracy.
+See [README_ONE_MONTH_EVALUATION.md](../README_ONE_MONTH_EVALUATION.md) for step-by-step commands, definitions, provenance rules, evaluation modes and tests.
 
 The website's room assistant is in the lower-right corner. Select a room using the BIM viewer or location list. A request uses the **selected room's original canonical sensor codes**. The same component supports the existing replay and what-if controls without altering their logic.
 

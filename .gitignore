@@ -38,3 +38,5 @@ storage/*.db
 # Private evaluation results
 **/*_PRIVATE.json
 **/*_PRIVATE.jsonl
+# Local ground-truth backtesting outputs (not source code)
+reports/llm_one_month_eval/

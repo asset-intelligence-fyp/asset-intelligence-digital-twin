@@ -18,10 +18,10 @@ from pathlib import Path
 from .validated_room import MYT, parse_myt, resolve_history_path, rounded
 
 PREDICTABLE = {'temperature', 'humidity', 'co2'}
-HORIZONS_MONTHS = (1, 4, 6, 12, 24)
+HORIZONS_MONTHS = (1,)
 BAD_QUALITY = {'invalid', 'bad', 'error', 'fault'}
 # Minimum historical coverage before even asking a small LLM to extrapolate.
-MIN_COVERAGE = {1: (14, 1), 4: (60, 3), 6: (90, 4), 12: (120, 5), 24: (240, 9)}
+MIN_COVERAGE = {1: (14, 1)}
 BOUNDS = {'temperature': (-20, 65), 'humidity': (0, 100), 'co2': (0, 10000)}
 SCHEMA = {
     'type': 'object',
@@ -127,7 +127,7 @@ def forecast_room_reading(request, config, client_factory):
         raise ValueError('Sensor and room mismatch')
     horizon=request.get('horizon_months')
     if type(horizon) is not int or horizon not in HORIZONS_MONTHS:
-        raise ValueError('Horizon must be 1, 4, 6, 12 or 24 months')
+        raise ValueError('Only one-month sensor projections are supported')
     if request.get('source')!='http':
         raise ValueError('Long-range projections require connected HTTP readings, not replay or what-if values')
     cutoff=parse_myt(request.get('as_of'))
@@ -140,14 +140,14 @@ def forecast_room_reading(request, config, client_factory):
     enough_reference=reference['distinct_days']>=cdays and len(reference['months'])>=cmonths
     enough_stream=stream['distinct_days']>=cdays and len(stream['months'])>=cmonths and stream['span_days']>=max(7,cdays*0.7)
     basis='historical_normal_synthetic' if enough_reference else 'connected_http_trend' if enough_stream else 'insufficient'
-    result={'status':'insufficient_history','method':'llm_only_long_range_trend_projection',
+    result={'status':'insufficient_history','method':'llm_only_one_month_trend_projection',
             'trained_forecast':False,'model':'qwen3:1.7b','sensor_id':point['code'],
             'sensor_type':kind,'unit':point.get('unit'),'room_id':request.get('room_id'),
             'as_of':cutoff.isoformat(),'target_time':target.isoformat(),'horizon_months':horizon,
             'projected_value':None,'lower_scenario':None,'upper_scenario':None,'direction':'uncertain',
             'explanation':'','assumptions':[],'limitations':[
               'Synthetic building sensor history; not verified physical measurements.',
-              'Long-term LLM projections are speculative and unvalidated.',
+              'One-month LLM projections are speculative and unvalidated.',
               'Scenario bounds are not statistical prediction or confidence intervals.',
               'Weather, schedules, occupancy, faults and future HVAC changes are not known.'
             ],
@@ -182,13 +182,13 @@ def forecast_room_reading(request, config, client_factory):
               'as_of':cutoff.isoformat(),'target':target.isoformat(),
               'current_stream':stream,'historical_normal':reference,'basis':basis,
               'user_horizon_months':horizon}
-    system=('You are Qwen3 1.7B, a speculative long-range sensor trend projection assistant for a synthetic office Digital Twin. '
+    system=('You are Qwen3 1.7B, a speculative one-month sensor trend projection assistant for a synthetic office Digital Twin. '
             'Using ONLY the supplied measured historical summaries and current reading, propose a plausible central value '
             'at the future target timestamp and a wider lower/upper SCENARIO span. No trained forecasting model, statistics-based '
             'extrapolator, physical forecast, or external weather forecast is being used. You alone propose future numbers. '
             'Monthly history is descriptive, not a promise of continued trends; avoid blindly projecting a steep linear increase. '
             'Distinguish the source of older synthetic history from the current HTTP stream. '
-            'Be conservative for 4–24 months; acknowledge unknown seasonal, weather, occupancy and operational changes. '
+            'Be conservative when extrapolating a month ahead; acknowledge unknown weather, occupancy and operational changes. '
             'Return only the specified JSON fields. Do not claim calibrated accuracy, probabilities, confidence intervals, '
             'or confirmed future faults. Include one concise explanation, assumptions and limitations.')
     client=client_factory(config['model'])

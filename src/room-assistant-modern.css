@@ -127,3 +127,21 @@
 .twin-ai-chat .twin-ai-trend-row:last-child{border-bottom:none}
 .twin-ai-chat .twin-ai-trend-row.twin-ai-trend-header{background:#e9f4f6;color:#234f5d}
 .twin-ai-chat .twin-ai-trend-row span{overflow-wrap:anywhere}
+
+/* One-month forecasting and evidence-based local backtest scorecards */
+.twin-ai-chat .twin-ai-horizon-label{font-size:11px;font-weight:700;color:#145562;white-space:nowrap;padding:8px 10px;border-radius:8px;background:#e4f4f5;border:1px solid #c5e3e5}
+.twin-ai-chat .twin-ai-evaluation{margin-bottom:10px;padding:10px;border:1px solid #d7e4df;background:#f8fbf9;border-radius:11px}
+.twin-ai-chat .twin-ai-evaluation>summary{cursor:pointer;font-size:12px;font-weight:700;color:#27505c}
+.twin-ai-chat .twin-ai-evaluation-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0}
+.twin-ai-chat .twin-ai-evaluation-head button{border:1px solid #bfd4d6;color:#1e626b;background:white;padding:5px 9px;border-radius:7px;cursor:pointer;font-size:10px}
+.twin-ai-chat .twin-ai-evaluation-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:8px;margin:9px 0}
+.twin-ai-chat .twin-ai-evaluation-metric{background:white;padding:11px;border:1px solid #dce8e4;border-radius:10px;display:flex;flex-direction:column;gap:5px}
+.twin-ai-chat .twin-ai-evaluation-metric strong{font-size:11px;color:#234c57}
+.twin-ai-chat .twin-ai-evaluation-score{font-size:24px;font-weight:700;color:#126c60}
+.twin-ai-chat .twin-ai-evaluation-score small{font-size:10px;font-weight:400;color:#638582}
+.twin-ai-chat .twin-ai-evaluation small{font-size:10px;color:#658086;line-height:1.45}
+:root[data-theme=dark] .twin-ai-chat .twin-ai-evaluation{background:#243c44;border-color:#3d5d62}
+:root[data-theme=dark] .twin-ai-chat .twin-ai-evaluation-metric{background:#1d343b;border-color:#466069}
+:root[data-theme=dark] .twin-ai-chat .twin-ai-evaluation-metric strong,:root[data-theme=dark] .twin-ai-chat .twin-ai-evaluation>summary{color:#d4ebee}
+:root[data-theme=dark] .twin-ai-chat .twin-ai-evaluation-score{color:#9adccc}
+:root[data-theme=dark] .twin-ai-chat .twin-ai-horizon-label{background:#234955;border-color:#44656b;color:#c1edf3}

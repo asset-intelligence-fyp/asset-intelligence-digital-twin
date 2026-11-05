@@ -34,6 +34,12 @@ type Prediction={
 type ChatItem={id:string;role:'user'|'analysis'|'prediction'|'error';createdAt:string;
  text?:string;answer?:Answer;prediction?:Prediction};
 type ChatThread={id:string;roomId:string;title:string;createdAt:string;messages:ChatItem[]};
+type EvaluationMetric={sensor_id:string;unit:string;valid_predictions:number;planned_cases:number;
+ MAE:number|null;RMSE:number|null;bias:number|null;WAPE_pct:number|null;
+ accuracy_score_pct:number|null;skill_vs_persistence_pct:number|null;prediction_success_pct:number|null};
+type EvaluationReport={status:string;horizon_months?:number;ground_truth_year?:number;
+ summary?:EvaluationMetric[];message?:string};
+
 const HISTORY_KEY='twinlabs_room_ai_history_v1';
 const SIZE_KEY='twinlabs_room_ai_size_v1';
 const newId=()=>`${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
@@ -118,9 +124,9 @@ function PredictionCard({prediction:p}:{prediction:Prediction}){
  </article>;
  const available=p.status==='llm_projection'&&typeof p.projected_value==='number';
  const label=p.sensor_type==='co2'?'CO₂':p.sensor_type;
- return <article className="twin-ai-result" aria-label="Long-range LLM sensor projection">
+ return <article className="twin-ai-result" aria-label="One-month LLM sensor projection">
   <div className={`twin-ai-status ${available?'twin-ai-status-estimate':'twin-ai-status-insufficient_evidence'}`}>
-   <strong>{available?'Speculative LLM trend projection':p.status==='validation_failed'?'Projection output not valid':'Insufficient data for a projection'}</strong>
+   <strong>{available?'Speculative LLM sensor projection':p.status==='validation_failed'?'Projection output not valid':'Insufficient data for a projection'}</strong>
    <span>{label} · +{p.horizon_months} month{p.horizon_months===1?'':'s'} · {readableDate(p.target_time)}</span>
   </div>
   {available&&<div className="twin-ai-prediction-value">
@@ -168,7 +174,7 @@ export function AssistantPlaceholder(){
  const [expanded,setExpanded]=useState(false);
  const [panelSize,setPanelSize]=useState(loadSize);
  const [predictionCode,setPredictionCode]=useState('');
- const [predictionHorizon,setPredictionHorizon]=useState<1|4|6|12|24>(4);
+ const [evaluation,setEvaluation]=useState<EvaluationReport>({status:'not_evaluated',summary:[]});
  const [health,setHealth]=useState<{connected:boolean;model:string;historical_reference_available?:boolean;error?:string}>({connected:false,model:'qwen3:1.7b'});
  const request=useRef(0);
  const abort=useRef<AbortController|null>(null);
@@ -179,6 +185,7 @@ export function AssistantPlaceholder(){
  const roomThreads=useMemo(()=>threads.filter(x=>x.roomId===t.selectedRoom),[threads,t.selectedRoom]);
  const currentThread=activeId==='__new__'?null:
   (roomThreads.find(x=>x.id===activeId)||roomThreads[0]||null);
+ const roomScores=(evaluation.summary||[]).filter(x=>eligible.some(p=>p.code===x.sensor_id));
  const source=t.scenario?'what_if':t.replayTime!==null?'historical_replay':t.demo||t.mode==='random'?'browser_demo':'http';
  const evidence=roomEvidence(POINTS,t.readings,t.selectedRoom);
 
@@ -195,6 +202,21 @@ export function AssistantPlaceholder(){
  useEffect(()=>{
   request.current++;abort.current?.abort();setBusy(false);setError('');setQuestion('');setShowHistory(false);setActiveId(null);
  },[t.selectedRoom,source,t.replayTime]);
+ const refreshEvaluation=async()=>{
+  try{
+   const response=await fetch('/api/assistant/evaluation',{cache:'no-store'});
+   if(!response.ok)throw Error('The evaluation report is unavailable.');
+   setEvaluation(await response.json());
+  }catch{setEvaluation({status:'not_evaluated',summary:[],message:'No valid evaluation report found. Run the local one-month backtest first.'});}
+ };
+ useEffect(()=>{
+  if(!t.assistantOpen)return;
+  let active=true;
+  fetch('/api/assistant/evaluation',{cache:'no-store'}).then(response=>{
+   if(!response.ok)throw Error('Evaluation service unavailable');return response.json();
+  }).then(data=>{if(active)setEvaluation(data)}).catch(()=>{if(active)setEvaluation({status:'not_evaluated',summary:[]})});
+  return()=>{active=false};
+ },[t.assistantOpen]);
  useEffect(()=>()=>{request.current++;abort.current?.abort()},[]);
  useEffect(()=>{
   if(!busy)return;const timer=window.setInterval(()=>setSeconds(s=>s+1),1000);return()=>window.clearInterval(timer);
@@ -240,10 +262,10 @@ export function AssistantPlaceholder(){
  };
  const forecastFromQuestion=(text:string)=>{
   if(!/\b(predict|forecast|project|estimate)\b/i.test(text))return null;
-  const m=text.match(/\b(1|2|4|6|12|24)\s*(months?|years?)\b/i);
+  const m=text.match(/\b(\d+)\s*(months?|years?)\b/i);
   if(!m)return null;
   const horizon=m[2].toLowerCase().startsWith('year')?Number(m[1])*12:Number(m[1]);
-  if(![1,4,6,12,24].includes(horizon))return null;
+  if(horizon!==1)return {error:'Only +1 month projections are supported. Choose one month to request an LLM projection.'};
   const lower=text.toLowerCase().replaceAll('co₂','co2');
   const requestedType=lower.includes('co2')||lower.includes('carbon dioxide')?'co2':
    lower.includes('temperature')?'temperature':lower.includes('humid')?'humidity':null;
@@ -254,7 +276,8 @@ export function AssistantPlaceholder(){
   try {
    const forecast=forecastFromQuestion(text);
    if(forecast){
-    if(source!=='http')throw Error('Long-range projections require Live connected HTTP sensor data.');
+    if('error' in forecast)throw Error(forecast.error);
+    if(source!=='http')throw Error('One-month projections require Live connected HTTP sensor data.');
     void run(text,'prediction',{room_id:t.selectedRoom,...forecast,source,as_of:cutoff()});
     return;
    }
@@ -270,8 +293,8 @@ export function AssistantPlaceholder(){
   try{
    const as_of=cutoff();const target=eligible.find(p=>p.code===selectedPredictionCode)!;
    const label=target.sensorType==='co2'?'CO₂':target.label.toLowerCase();
-   void run(`Project ${label} trend in +${predictionHorizon} month${predictionHorizon===1?'':'s'} using current and historical sensor trends.`,
-    'prediction',{room_id:t.selectedRoom,sensor_id:selectedPredictionCode,horizon_months:predictionHorizon,source,as_of});
+   void run(`Project ${label} trend in +1 month using current and historical sensor trends.`,
+    'prediction',{room_id:t.selectedRoom,sensor_id:selectedPredictionCode,horizon_months:1,source,as_of});
   }catch(ex){setError(ex instanceof Error?ex.message:'No observations available.');}
  };
  const newChat=()=>{request.current++;abort.current?.abort();setBusy(false);setError('');setQuestion('');setActiveId('__new__');setShowHistory(false)};
@@ -315,7 +338,7 @@ export function AssistantPlaceholder(){
    <div className="assistant-messages twin-ai-scroll">
     {!currentThread?.messages.length&&<div className="twin-ai-intro">
      <strong>Ask about this room</strong>
-     <p>Get source-backed room analysis or an exploratory Qwen3 long-range sensor projection based on available trends.</p>
+     <p>Get source-backed room analysis or an exploratory Qwen3 one-month sensor projection based on available trends.</p>
     </div>}
     {currentThread?.messages.map(item=><div key={item.id} className={`twin-ai-turn twin-ai-turn-${item.role}`}>
      {item.role==='user'&&<p>{item.text}</p>}
@@ -329,21 +352,36 @@ export function AssistantPlaceholder(){
    </div>
    <div className="twin-ai-controls">
     <div className="prompt-chips twin-ai-prompts">
-     {['Summarise this room','Are any readings unusual?','Predict CO₂ in 4 months'].map(q=><button key={q} disabled={busy} onClick={()=>ask(q)}>{q}</button>)}
+     {['Summarise this room','Are any readings unusual?','Predict CO₂ in 1 month'].map(q=><button key={q} disabled={busy} onClick={()=>ask(q)}>{q}</button>)}
     </div>
     {eligible.length>0&&<div className="twin-ai-predict-controls" aria-label="LLM-only long-range sensor projection">
-     <div className="twin-ai-predict-heading"><strong>LLM long-range sensor projection</strong><small>Qwen3 interprets monthly trends · speculative, not a trained forecast</small></div>
-     {source!=='http'&&<p className="twin-ai-predict-note">Switch to Live connected HTTP readings to project future trends. Demo, replay and what-if values are not accepted.</p>}
+     <div className="twin-ai-predict-heading"><strong>One-month LLM sensor projection</strong><small>Qwen3 interprets monthly trends · speculative, not a trained forecast</small></div>
+     {source!=='http'&&<p className="twin-ai-predict-note">Switch to Live connected HTTP readings to project a one-month trend. Demo, replay and what-if values are not accepted.</p>}
      <div className="twin-ai-predict-row">
       <select aria-label="Sensor for trend projection" disabled={busy||source!=='http'} value={selectedPredictionCode} onChange={e=>setPredictionCode(e.target.value)}>
        {eligible.map(p=><option key={p.code} value={p.code}>{p.sensorType==='co2'?'CO₂':p.label}</option>)}
       </select>
-      <select aria-label="Projection horizon" disabled={busy||source!=='http'} value={predictionHorizon} onChange={e=>setPredictionHorizon(Number(e.target.value) as 1|4|6|12|24)}>
-       <option value={1}>+1 month</option><option value={4}>+4 months</option><option value={6}>+6 months</option><option value={12}>+1 year</option><option value={24}>+2 years</option>
-      </select>
+      <span className="twin-ai-horizon-label" aria-label="Projection horizon: one month">+1 month</span>
       <button type="button" disabled={busy||source!=='http'} onClick={predict}>Project</button>
      </div>
     </div>}
+    <details className="twin-ai-evaluation" aria-label="One-month ground-truth backtest accuracy">
+     <summary>One-month backtest accuracy · 2025</summary>
+     <div className="twin-ai-evaluation-head">
+      <small>Normal synthetic ground truth · predictions from Qwen3 1.7B</small>
+      <button type="button" onClick={()=>void refreshEvaluation()}>Refresh</button>
+     </div>
+     {roomScores.length ? <div className="twin-ai-evaluation-grid">
+      {roomScores.map(row=><div className="twin-ai-evaluation-metric" key={row.sensor_id}>
+       <strong>{eligible.find(p=>p.code===row.sensor_id)?.label||row.sensor_id}</strong>
+       <div className="twin-ai-evaluation-score">{row.accuracy_score_pct==null?'—':row.accuracy_score_pct.toFixed(1)+'%'} <small>accuracy index</small></div>
+       <small>MAE: {formatValue(row.MAE,row.unit)} · RMSE: {formatValue(row.RMSE,row.unit)}</small>
+       <small>{row.valid_predictions} valid / {row.planned_cases} planned cases · Success: {row.prediction_success_pct==null?'—':row.prediction_success_pct.toFixed(1)+'%'}</small>
+       <small>Skill vs latest-reading baseline: {row.skill_vs_persistence_pct==null?'—':row.skill_vs_persistence_pct.toFixed(1)+'%'}</small>
+      </div>)}
+     </div> : <p className="twin-ai-predict-note"><strong>Not evaluated.</strong> {evaluation.message||'Run scripts/evaluate_llm_one_month.py with your 2023–2025 SQLite and Ollama, then refresh.'}</p>}
+     <small>Accuracy index = max(0, 100 − WAPE%). This is not classification accuracy. MAE/RMSE are primary; these results are from synthetic data only, not installed sensors.</small>
+    </details>
     <form className="assistant-composer twin-ai-compose" onSubmit={e=>{e.preventDefault();ask(question)}}>
      <input maxLength={900} disabled={busy} aria-label="Ask about selected room" placeholder={`Ask about ${roomTitle(point)}…`}
       value={question} onChange={e=>setQuestion(e.target.value)}/>

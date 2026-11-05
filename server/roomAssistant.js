@@ -1,3 +1,4 @@
+import {readFile} from 'node:fs/promises';
 import {registry} from './sensorContract.js';
 
 // Active whole-building Room assistant; never use the archived Level 5 /api/ai route.
@@ -19,7 +20,7 @@ function replyError(res,status,message) { return res.status(status).json({error:
 function validCutoff(value) {
  return typeof value==='string' && /(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value));
 }
-export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
+export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluationPath=new URL('../reports/llm_one_month_eval/summary.json',import.meta.url)}={}) {
  const allowed = (req,res,next) => {
   if (!LOOPBACK.has(req.socket?.remoteAddress)) return replyError(res,403,'Room AI is available only on this computer');
   const origin = req.headers?.origin;
@@ -49,9 +50,21 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
              history_configured:!!h.normal_history_database_ready,
              historical_reference_available:!!h.normal_history_database_ready,
              history_status:h.history_status||'unavailable',
-             prediction_supported:true,
+             prediction_supported:true, prediction_horizons_months:[1],
              error:available?null:'Run ollama pull '+model});
   }catch(e){res.json({connected:false,model,prompt:'concise',retrieval:'validated',validation_mode:'hybrid_semantic',error:'Start the Python bridge and Ollama: '+e.message});}
+ });
+ app.get('/api/assistant/evaluation',allowed,async(_req,res)=>{
+  try {
+   const report=JSON.parse(await readFile(evaluationPath,'utf8'));
+   if(report.schema_version!==1||report.horizon_months!==1||!Array.isArray(report.summary))
+    throw Error('Invalid one-month evaluation report');
+   res.json(report);
+  }catch(e){
+   if(e?.code==='ENOENT')return res.json({status:'not_evaluated',horizon_months:1,summary:[],
+    message:'Run python3 scripts/evaluate_llm_one_month.py with a local normal-history SQLite database and Ollama.'});
+   return replyError(res,503,'Evaluation report unavailable or invalid. Rerun the one-month backtest.');
+  }
  });
  app.post('/api/assistant/ask',allowed,async(req,res)=>{
   try {
@@ -78,7 +91,7 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
    res.status(response.status).json(data);
   }catch(e){replyError(res,503,'Room AI unavailable: '+e.message+'. Check your Python bridge/Ollama terminals.');}
  });
- // A separate LLM-only exploratory long-range projection. The backend provides observed
+ // A separate LLM-only exploratory one-month projection. The backend provides observed
  // trend evidence, never a trained model or deterministic future-value estimator.
  app.post('/api/assistant/predict',allowed,async(req,res)=>{
   try {
@@ -88,9 +101,9 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
    const point=points.find(p=>p.code===sensor_id);
    if(!point||!PREDICTABLE.has(point.sensorType))
     return replyError(res,400,'Select a temperature, humidity or CO2 sensor in this room');
-   if(![1,4,6,12,24].includes(horizon_months)||!Number.isInteger(horizon_months))
-    return replyError(res,400,'Projection horizon must be 1, 4, 6, 12 or 24 months');
-   if(source!=='http')return replyError(res,400,'Long-range projections require connected HTTP data, not browser simulation/replay/what-if');
+   if(horizon_months!==1)
+    return replyError(res,400,'Only one-month sensor projections are supported');
+   if(source!=='http')return replyError(res,400,'One-month projections require connected HTTP data, not browser simulation/replay/what-if');
    if(!validCutoff(as_of))return replyError(res,400,'Prediction cutoff must include a timezone offset');
    const cutoff=Date.parse(as_of);
    const raw=await getHistory([point.code]);
