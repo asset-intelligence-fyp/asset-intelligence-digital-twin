@@ -2,20 +2,23 @@
 
 The current website uses an 18-point **synthetic Python HTTP stream**, the whole-building
 IFC/XKT model, and a local Qwen3 room assistant. No physical building feed is connected.
-Scene weather is decorative and does not alter the readings. The overview no longer
+Generated outdoor weather drives the simulator; optional scene-only previews are decorative. The overview no longer
 contains the Live twin / replay / what-if / comfort panel or a browser-random source switch.
 The theme toggle remains in the header.
 
 ## Source status
 
-The supplied dataset has been audited: 6,148,224 sensor rows, in complete 18-point
-five-minute batches. `tools/dataset_replay/replay.py` now replays the actual CSV values
-and timestamps from the supplied ZIP. The old SOP generator remains a legacy reference;
-it is not the default feed. Fault labels are excluded from the online path. Missing values
-remain unavailable, not zero. IFC room mappings remain demonstration aliases.
+The default is now a **calibrated hybrid simulator** that generates NEW synthetic
+observations, rather than replaying dataset rows. It uses aggregate normal 2023–2024
+patterns, independent normal 2025 regression diagnostics, stateful weather/room dynamics,
+Sarawak holidays and seeded variation. The fitted profile is included; no dataset ZIP
+or weather website is required to run it. Four virtual outdoor channels are shown separately
+from the existing 18 IFC-linked indoor channels.
 
-See **[dataset setup and operation](docs/dataset-replay.md)** and
-**[architecture research and latency method](docs/http-sse-architecture.md)**.
+Start with **[hybrid simulator setup, weather and holidays](docs/hybrid-simulator.md)**.
+Exact **[dataset replay](docs/dataset-replay.md)** remains an explicitly selected testing
+mode. IFC mappings remain demonstration aliases; neither transport nor calibration proves
+physical building fidelity or AI accuracy.
 
 ## Run on a Mac
 
@@ -25,15 +28,20 @@ browser for the BIM viewer. From the project folder:
 ```bash
 git lfs pull
 npm ci
-# Configure DATASET_PATH in .env first; see dataset setup above.
+# Set SIMULATOR_MODE=hybrid in .env (the default).
 TWIN_STORAGE=memory npm run dev
 ```
 
 Open http://localhost:5173/. This starts the website, API and Python assistant bridge.
-It also starts dataset replay when DATASET_PATH is configured; otherwise the dashboard
-waits for a source. Temporary memory resets at API shutdown. Use Control+C to stop.
-Run only one publisher per API. Default replay releases five minutes of source time every
-two real seconds, with no random replacement or automatic loop.
+It also starts the hybrid simulator by default. A fresh seed creates a different run.
+Default simulation step and release interval are both five seconds. Use SIM_STEP_SECONDS=300
+and SIM_INTERVAL_SECONDS=2 for an explicitly accelerated demonstration. Stop with Control+C.
+Run one publisher per API. Temporary memory resets at API shutdown.
+
+The Overview shows a virtual weather station. Simulator controls change actual generated
+weather and attendance; the overview can follow the generated weather or show a decorative
+scene preview. Holidays use Malaysia dates, not UTC dates. See the setup guide for calendar
+coverage and manual demonstration overrides.
 
 For local Qwen inference, run Ollama and download `qwen3:1.7b`. Defaults are
 `http://127.0.0.1:11434` for Ollama and `http://127.0.0.1:8011` for the bridge.
@@ -53,11 +61,11 @@ whether storage is temporary memory or PostgreSQL.
 
 Open **Simulator** for source-to-browser latency. Start a fresh measurement run, keep one
 browser tab visible for at least 30 complete batches, and download the result. AI response
-time is a separate measurement. The new dataset-replay preview recorded 102 acknowledged
+time is a separate measurement. The earlier dataset-replay preview recorded 102 acknowledged
 batches out of 105: median 1.450 s, p95 1.954 s, maximum 2.000 s. Three unacknowledged
 batches mean the trial is **incomplete**, so it does not establish the ≤5 s criterion.
 It used temporary memory and lacked WebGL 2, not the final Mac/PostgreSQL configuration.
-See [trial summary](docs/benchmarks/2026-11-05-dataset-replay-summary.json).
+These are not hybrid-generator latency results. See [trial summary](docs/benchmarks/2026-11-05-dataset-replay-summary.json).
 
 AI accuracy is **not measured**. The brief requires ≥85% anomaly accuracy against logged
 maintenance events. The evaluator needs frozen, independently labelled held-out cases;

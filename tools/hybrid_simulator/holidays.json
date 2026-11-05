@@ -1,0 +1,30 @@
+{
+  "jurisdiction": "Sarawak, Malaysia",
+  "reviewed_on": "2026-11-05",
+  "covered_years": [2026],
+  "sources": ["https://talikhidmat.sarawak.gov.my/talikhidmat/web/home/list_holiday_ajax/", "https://sag.sarawak.gov.my/web/attachment/show/?docid=cjc4MDlNUTZ5aXcvazJQNjVxSTRQUT09OjqnQJkZyskdlU9CUp_IytIN"],
+  "holidays": {
+    "2026-01-01": "New Year",
+    "2026-02-17": "Chinese New Year",
+    "2026-02-18": "Chinese New Year holiday",
+    "2026-03-20": "Additional Aidilfitri holiday (gazetted for Raya on 21 March)",
+    "2026-03-21": "Hari Raya Aidilfitri",
+    "2026-03-22": "Aidilfitri holiday",
+    "2026-03-23": "Aidilfitri replacement holiday",
+    "2026-04-03": "Good Friday",
+    "2026-05-01": "Labour Day",
+    "2026-05-27": "Hari Raya Aidiladha",
+    "2026-05-31": "Wesak Day",
+    "2026-06-01": "Gawai Dayak / Agong birthday / Wesak holiday",
+    "2026-06-02": "Gawai holiday",
+    "2026-06-03": "Wesak replacement holiday",
+    "2026-06-04": "Gawai replacement holiday",
+    "2026-06-17": "Awal Muharam",
+    "2026-07-22": "Sarawak Day",
+    "2026-08-25": "Maulidur Rasul",
+    "2026-08-31": "National Day",
+    "2026-09-16": "Malaysia Day",
+    "2026-10-10": "Sarawak Governor birthday",
+    "2026-12-25": "Christmas Day"
+  }
+}

@@ -1,5 +1,8 @@
 # Simulation, synchronisation latency and AI evaluation
 
+> Current source update: the default is now the [calibrated hybrid generator](hybrid-simulator.md), which creates new readings with virtual weather and holidays. Dataset replay remains a separate testing mode (`SIMULATOR_MODE=replay`). The same HTTP/SSE transport is reused; earlier replay latency numbers do not benchmark the hybrid generator.
+
+
 ## Current status and source boundary
 
 The PoC uses synthetic data only. No physical building feed is connected. The former

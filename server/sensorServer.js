@@ -1,4 +1,5 @@
 import express from 'express';
+import {normalizeSimulation,registerSimulationControls} from './hybridContract.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {createLatencyMetrics} from './latencyMetrics.js';
 import {registerRoomAssistant} from './roomAssistant.js';
@@ -8,6 +9,7 @@ import {registry,normalizeReadings} from './sensorContract.js';
 dotenv.config();
 export function createSensorApp({pool=null}={}) {
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
+ registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
  const latency=createLatencyMetrics({storage:pool?'postgresql':'temporary_memory'});latency.routes(app);
@@ -34,12 +36,14 @@ export function createSensorApp({pool=null}={}) {
  });
  app.post('/api/sensor-readings',async(req,res)=>{
   const receivedAt=Date.now();let release;const priorIngestion=ingestion;ingestion=new Promise(resolve=>{release=resolve});await priorIngestion;try{
-  let batch,replay=null,batchKey=null,bodyHash=null;
+  let batch,replay=null,batchKey=null,bodyHash=null,simulation=null;
   try{
    batch=normalizeReadings(req.body);
    if(req.body.replay_id!==undefined){
     replay=req.body.replay_id;
-    if(typeof replay!=='string'||!/^[a-f0-9]{32}$/.test(replay)||req.body.producer!=='people_driven_v3.0_dataset_replay'||!['normal_weather_2023_2025','fault_weather_2026_q1'].includes(req.body.dataset)||!Number.isSafeInteger(req.body.sequence)||req.body.sequence<1||req.body.batch_id!==`${replay}:${req.body.sequence}`||batch.length!==18||new Set(batch.map(r=>r.timestamp)).size!==1)throw Error('Invalid 18-point dataset replay envelope');
+    const hybrid=req.body.producer==='calibrated_hybrid_v1';
+    if(hybrid){simulation=normalizeSimulation(req.body.simulation);if(req.body.dataset!=='generated_hybrid'||Date.parse(simulation.weather.timestamp)!==Date.parse(batch[0]?.timestamp))throw Error('Hybrid context timestamp/source mismatch')}
+    if(typeof replay!=='string'||!/^[a-f0-9]{32}$/.test(replay)||(!hybrid&&(req.body.producer!=='people_driven_v3.0_dataset_replay'||!['normal_weather_2023_2025','fault_weather_2026_q1'].includes(req.body.dataset)))||!Number.isSafeInteger(req.body.sequence)||req.body.sequence<1||req.body.batch_id!==`${replay}:${req.body.sequence}`||batch.length!==18||new Set(batch.map(r=>r.timestamp)).size!==1)throw Error('Invalid 18-point simulation envelope');
     batchKey=req.body.batch_id;bodyHash=createHash('sha256').update(JSON.stringify(req.body)).digest('hex');
     const prior=completed.get(batchKey);
     if(prior){if(prior.hash!==bodyHash)return res.status(409).json({error:'Batch ID reused with different contents'});return res.status(201).json({...prior.response,duplicate:true})}
@@ -60,7 +64,7 @@ export function createSensorApp({pool=null}={}) {
    }
    const changed=replay!==activeReplay;
    if(changed){activeReplay=replay;received.clear();ring.length=0;control('source-reset',{replay_id:replay})}
-   lastSource={name:req.body.producer||'external_simulator_unverified',replay_id:replay,dataset:req.body.dataset||null,sequence:req.body.sequence??null,source_sequence:req.body.source_sequence??null,dataset_timestamp:req.body.dataset_timestamp??batch[0]?.timestamp,dataset_sampling_minutes:req.body.dataset_sampling_minutes??null,release_interval_seconds:req.body.release_interval_seconds??null,generated_at_utc:req.body.generated_at_utc??null,received_at_utc:new Date(receivedAt).toISOString()};
+   lastSource={simulation,name:req.body.producer||'external_simulator_unverified',replay_id:replay,dataset:req.body.dataset||null,sequence:req.body.sequence??null,source_sequence:req.body.source_sequence??null,dataset_timestamp:req.body.dataset_timestamp??batch[0]?.timestamp,dataset_sampling_minutes:req.body.dataset_sampling_minutes??null,release_interval_seconds:req.body.release_interval_seconds??null,generated_at_utc:req.body.generated_at_utc??null,received_at_utc:new Date(receivedAt).toISOString()};
    latency.commit(trace,batch);
    for(const row of batch){row.replay_id=replay;if(trace)row.trace={trace_id:trace.trace_id,batch_size:batch.length};received.set(row.point_code,new Date(receivedAt).toISOString())}
    const eventId=`${streamEpoch}:${++eventSequence}`;

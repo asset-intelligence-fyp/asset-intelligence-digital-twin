@@ -1,5 +1,8 @@
 # Simulation-only synchronisation architecture
 
+> Current source update: the default is now the [calibrated hybrid generator](hybrid-simulator.md), which creates new readings with virtual weather and holidays. Dataset replay remains a separate testing mode (`SIMULATOR_MODE=replay`). The same HTTP/SSE transport is reused; earlier replay latency numbers do not benchmark the hybrid generator.
+
+
 Research reviewed against current official documentation on 5 November 2026.
 
 ## Recommendation for this PoC

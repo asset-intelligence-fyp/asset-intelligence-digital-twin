@@ -1,5 +1,8 @@
 # Exact dataset replay and website setup
 
+> Current source update: the default is now the [calibrated hybrid generator](hybrid-simulator.md), which creates new readings with virtual weather and holidays. Dataset replay remains a separate testing mode (`SIMULATOR_MODE=replay`). The same HTTP/SSE transport is reused; earlier replay latency numbers do not benchmark the hybrid generator.
+
+
 The supplied `generated(1).zip` contains generated CSVs/manifests, not the original
 `people_driven_v3.0` generator implementation. The new simulator replays its observations
 exactly; it does not reproduce the unavailable stochastic generator or invent intermediate
