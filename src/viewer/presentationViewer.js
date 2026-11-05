@@ -8,7 +8,8 @@ export function createPresentationViewer(canvas,{onReady,onError}){
  loader.globalizeObjectIds=true;
  viewer.cameraControl.navMode='orbit';viewer.cameraControl.doublePickFlyTo=false;
  viewer.camera.perspective.fov=35;
- Object.assign(scene.xrayMaterial,{fill:true,fillColor:[.06,.48,.62],fillAlpha:.15,edges:true,edgeColor:[.12,.85,1],edgeAlpha:.9,edgeWidth:1,glowThrough:false});
+ // Saturated blue edges retain definition when the transparent PNG is placed on white.
+ Object.assign(scene.xrayMaterial,{fill:true,fillColor:[.04,.36,.58],fillAlpha:.32,edges:true,edgeColor:[.025,.32,.56],edgeAlpha:1,edgeWidth:1,glowThrough:false});
  Object.assign(scene.edgeMaterial,{edgeColor:[.24,.33,.43],edgeAlpha:.55,edgeWidth:1});
  let dead=false,loaded=0,ready=false,progress=0,playing=!matchMedia('(prefers-reduced-motion: reduce)').matches,paired=true,elapsed=0,last=0,box=null,shift=0,span=1;
  let sourceIds=[],twinIds=[];const beacons=[];
@@ -20,8 +21,8 @@ export function createPresentationViewer(canvas,{onReady,onError}){
   const separation=paired?shift*progress:0;
   source.position=[-separation,0,0];twin.position=[separation,0,0];
   scene.setObjectsVisible(sourceIds,paired);
-  scene.xrayMaterial.fillAlpha=paired?.18*progress:.18;
-  scene.xrayMaterial.edgeAlpha=paired?.92*progress:.92;
+  scene.xrayMaterial.fillAlpha=paired?.32*progress:.32;
+  scene.xrayMaterial.edgeAlpha=paired?progress:1;
   for(const b of beacons)b.mesh.position=[b.position[0]+separation,b.position[1],b.position[2]];
  }
  function fit(){
@@ -37,12 +38,12 @@ export function createPresentationViewer(canvas,{onReady,onError}){
  function loadedModel(){
   if(dead||++loaded!==2)return;
   sourceIds=Object.keys(source.objects);twinIds=Object.keys(twin.objects);
-  box=Array.from(scene.getAABB(sourceIds));span=Math.max(box[3]-box[0],box[5]-box[2]);shift=span*.58;
+  box=Array.from(scene.getAABB(sourceIds));span=Math.max(box[3]-box[0],box[5]-box[2]);shift=span*.52;
   scene.setObjectsColorized(sourceIds,[.58,.64,.71]);scene.setObjectsEdges(sourceIds,true);
   scene.setObjectsXRayed(twinIds,true);
   const geometry=new ReadableGeometry(scene,buildSphereGeometry({radius:Math.max(.22,span*.0038),widthSegments:12,heightSegments:8}));
   for(const [i,s] of navigation.sensors.entries()){
-   const material=new PhongMaterial(scene,{diffuse:[.02,.8,1],emissive:[.08,.9,1],ambient:[.1,.9,1],alphaMode:'blend',alpha:.9,shininess:0});
+   const material=new PhongMaterial(scene,{diffuse:[.01,.4,.68],emissive:[.01,.28,.48],ambient:[.02,.3,.5],specular:[0,0,0],alphaMode:'blend',alpha:.9,shininess:0});
    const mesh=new Mesh(scene,{geometry,material,position:s.position,pickable:false,clippable:false,collidable:false,isObject:false});
    beacons.push({mesh,material,position:s.position,index:i});
   }
