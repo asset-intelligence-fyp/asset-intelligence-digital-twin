@@ -7,7 +7,7 @@ test('Whole-building facts cover all locations and preserve missing values, unit
  const ranked=rankFacts(out.facts,'Compare office and meeting CO2');assert.ok(ranked.slice(0,7).filter(f=>f.category==='co2').length>=2);
  const scoped=buildingFacts(rows,null,{scope:registry[0].code});assert.equal(scoped.facts.filter(f=>f.id.startsWith('latest:')).length,1);
 });
-async function run(fetchImpl,fn){const app=express();app.use(express.json());registerBuildingAssistant(app,{getHistory:async()=>history,getSource:()=>null,fetchImpl});const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));try{await fn('http://127.0.0.1:'+server.address().port)}finally{server.closeAllConnections();await new Promise(r=>server.close(r))}}
+async function run(fetchImpl,fn,rows=history){const app=express();app.use(express.json());registerBuildingAssistant(app,{getHistory:async()=>rows,getSource:()=>null,fetchImpl});const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));try{await fn('http://127.0.0.1:'+server.address().port)}finally{server.closeAllConnections();await new Promise(r=>server.close(r))}}
 const ask=(base,body,headers={})=>fetch(base+'/api/assistant/building',{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
 test('Unavailable or invalid local model yields explicit evidence lookup, never fabricated prose',async()=>{
  await run(async()=>{throw Error('offline')},async base=>{const r=await ask(base,{question:'Summarise the whole building'}),d=await r.json();assert.equal(r.status,200);assert.equal(d.model_used,false);assert.equal(d.facts.filter(f=>f.category==='location').length,5);assert.match(d.model_note,/lookup/);
@@ -16,4 +16,13 @@ test('Unavailable or invalid local model yields explicit evidence lookup, never 
 });
 test('Qwen can select only existing evidence IDs; displayed measurements remain backend facts',async()=>{
  await run(async()=>({ok:true,json:async()=>({response:JSON.stringify({fact_ids:['latest:CO2-L03-OPEN-01','latest:CO2-L03-MEET-01']})})}),async base=>{const d=await(await ask(base,{question:'Compare CO2'})).json();assert.equal(d.model_used,true);assert.equal(d.facts.length,2);assert.match(d.facts[0].text,/ppm/);assert.ok(d.facts.every(f=>f.category==='co2'))});
+});
+test('Prediction endpoint exposes experimental Qwen forecasts separately and rejects invalid focus/horizon',async()=>{
+ const code=registry[0].code,rows=Array.from({length:7},(_,i)=>({point_code:code,timestamp:new Date(Date.parse('2026-11-05T01:00:00Z')+i*5*60000).toISOString(),value:22+i*.2,quality:'synthetic'}));
+ const model=async()=>({ok:true,json:async()=>({response:JSON.stringify({needs_investigation:null,assessment:'insufficient_evidence',rationale:'The recent gradual trend may continue if the operating conditions remain unchanged.',evidence_ids:['latest:'+code],inspection_actions:[],forecast_value:24})})});
+ await run(model,async base=>{
+  const d=await(await ask(base,{question:'Forecast temperature',task:'forecast',point_code:code,horizon_minutes:15})).json();assert.equal(d.prediction.forecast.value,24);assert.equal(d.model_used,true);assert.match(d.facts.find(f=>f.id==='latest:'+code).text,/23.20/);assert.match(d.model_note,/experimental/);
+  assert.equal((await ask(base,{question:'Predict',task:'forecast',point_code:'unknown'})).status,400);assert.equal((await ask(base,{question:'Predict',horizon_minutes:120})).status,400);
+  const missing=await(await ask(base,{question:'Predict',task:'forecast'})).json();assert.equal(missing.prediction.status,'insufficient_evidence');
+ },rows);
 });

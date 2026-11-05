@@ -1,4 +1,5 @@
 import {registry} from './sensorContract.js';
+import {PREDICTION_TASKS,predictionTask,predictWithQwen} from './qwenPrediction.js';
 const local=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const metrics={temperature:/temperature|\btemp\b|hot|cold/i,humidity:/humidity|\brh\b|damp/i,co2:/co.?2|carbon|ventilat/i,light:/light|lux|solar/i,power:/power|energy|electric/i,water_leakage:/leak|water/i,occupancy:/occup|people|attendance/i};
 export function buildingFacts(rows,source,{scope='building',window_minutes=60}={}){
@@ -47,7 +48,17 @@ export function registerBuildingAssistant(app,{getHistory,getSource,fetchImpl=fe
    const b=req.body||{};if(typeof b.question!=='string'||!b.question.trim()||b.question.length>900)return res.status(400).json({error:'Enter a question up to 900 characters'});
    if(b.window_minutes!==undefined&&![15,60,240].includes(b.window_minutes))return res.status(400).json({error:'Unsupported history window'});
    const scope=b.scope||'building';if(scope!=='building'&&!registry.some(p=>p.assetId===scope||p.code===scope))return res.status(400).json({error:'Unknown scope'});
-   const snapshot=buildingFacts(await getHistory(),getSource(),{scope,window_minutes:b.window_minutes||60});
+   if(!PREDICTION_TASKS.includes(b.task||'auto'))return res.status(400).json({error:'Unknown assistant task'});
+   if(b.horizon_minutes!==undefined&&![5,15,30].includes(b.horizon_minutes))return res.status(400).json({error:'Unsupported forecast horizon'});
+   if(b.point_code!==undefined&&!registry.some(p=>p.code===b.point_code&&(scope==='building'||p.code===scope||p.assetId===scope)))return res.status(400).json({error:'Prediction sensor is outside the selected scope'});
+   const rows=await getHistory(),snapshot=buildingFacts(rows,getSource(),{scope,window_minutes:b.window_minutes||60});
+   const task=predictionTask(b.question,b.task||'auto');
+   if(task!=='evidence'){
+    const focus=b.point_code||(registry.some(p=>p.code===scope)?scope:undefined);
+    const prediction=b.use_model===false?{status:'model_disabled',task,model_used:false,needs_investigation:null,forecast:null,reason:'Qwen is disabled; a prediction cannot be generated.'}:await predictWithQwen({rows,facts:snapshot.facts,scope,as_of:snapshot.as_of,task,point_code:focus,horizon_minutes:b.horizon_minutes||15,window_minutes:b.window_minutes||60,question:b.question,fetchImpl});
+    const facts=snapshot.facts.filter(f=>f.point_code===focus||['coverage','weather','calendar','operation'].includes(f.id));
+    res.setHeader('Cache-Control','no-store');return res.json({...snapshot,facts,prediction,model_used:prediction.model_used,model_note:prediction.model_used?'Qwen generated an experimental prediction from past observations. Backend checks do not establish predictive accuracy.':'No Qwen prediction accepted. '+prediction.reason,answer:prediction.model_used?'Experimental Qwen prediction — '+(registry.find(p=>p.code===focus)?.locationLabel||focus):'Prediction unavailable',limitations:['Predictions are model estimates, not measured readings or confirmed faults.','Qwen weights are not trained or fine-tuned on this project dataset. Accuracy is not yet evaluated.','Forecast horizons use simulated minutes and assume unchanged operating conditions.','Schema, ID and plausibility checks do not independently validate model reasoning.'],model:'qwen3:1.7b'});
+   }
    const ranked=rankFacts(snapshot.facts,b.question);let chosen=ranked.slice(0,10),model_used=false,model_note='Evidence lookup; local model was not requested.';
    if(b.use_model!==false){
     try{

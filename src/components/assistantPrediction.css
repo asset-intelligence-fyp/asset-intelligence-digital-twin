@@ -1,0 +1,7 @@
+.assistant-prediction-controls{padding:12px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.assistant-prediction-controls label{display:grid;gap:5px;font-size:11px;min-width:0}
+.assistant-prediction-controls select{max-width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:7px;padding:8px}
+.assistant-prediction-controls small{font-size:10px;color:var(--muted);flex-basis:100%}
+.assistant-prediction-controls button[aria-pressed=true]{border-color:#28c6d2;box-shadow:inset 0 0 0 1px #28c6d2}
+.assistant-prediction-card{margin:16px 0;padding:16px;border:1px solid var(--border);border-left:3px solid #d2ac64;border-radius:10px;background:var(--surface)}
+.assistant-prediction-card p{margin:8px 0}.assistant-prediction-card ul{padding-left:20px}
