@@ -32,7 +32,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   // A controlled, unlit emphasis material prevents source lighting/materials bleaching the shell.
   Object.assign(scene.xrayMaterial,{fill:true,fillColor:style.fillColor,fillAlpha:style.alpha,edges:true,edgeColor:style.edgeColor,edgeAlpha:style.edgeAlpha,edgeWidth:1,glowThrough:false});
   scene.setObjectsOpacity(architectureIds,1);
-  scene.setObjectsColorized(architectureIds,ghost?null:[.42,.46,.86]);
+  scene.setObjectsColorized(architectureIds,ghost?null:[.73,.78,.77]);
   scene.setObjectsXRayed(architectureIds,ghost);
   scene.setObjectsXRayed(markerIds,false);
   scene.setObjectsEdges(architectureIds,ghost);

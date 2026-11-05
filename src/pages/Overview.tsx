@@ -7,7 +7,6 @@ import { DemoBuilding } from '../components/DemoBuilding';
 import { TelemetryChart } from '../components/TelemetryChart';
 import { Eyebrow, Pill, StatusPill } from '../components/UI';
 import {roomTitle} from '../viewer/sensorPresentation.js';
-import {WeatherControls} from '../components/WeatherControls';
 import type { Page } from '../components/Shell';
 
 export function Overview({externalFocusRequest=0,setPage,selectedAsset,onSelectAsset,selectedCode,onSelectCode}:{externalFocusRequest?:number;setPage:(page:Page)=>void;selectedAsset:AssetId;onSelectAsset:(id:AssetId)=>void;selectedCode:string;onSelectCode:(id:string)=>void}){
@@ -24,7 +23,6 @@ export function Overview({externalFocusRequest=0,setPage,selectedAsset,onSelectA
  const updated=useMemo(()=>Object.values(readings).map(x=>x.timestamp).sort().at(-1),[readings]);
  return <div className="overview-page">
   <div className="page-heading overview-heading"><div><Eyebrow>ASSET INTELLIGENCE / SIMULATION</Eyebrow><h1>Building overview</h1><p>FYP whole building · Levels 2–5 — simulation timestamp {displayTime(updated)}</p></div><div className="heading-actions"><Pill tone={mode==='http'&&httpCoverage<18?'warning':'teal'}><span className="status-dot"/>{mode==='random'?'Synthetic readings':`HTTP · ${httpCoverage}/18`}</Pill><button className="dark-button" onClick={()=>document.querySelector<HTMLElement>('.model-card .small-outline')?.click()}><Maximize2 size={14}/> Twin view</button></div></div>
-  <WeatherControls/>
   <WeatherStation/>
   <div className="overview-workbench"><section className="zone-list surface"><div className="zone-list-title"><span><Layers size={14}/> MONITORING LOCATIONS</span><span>5</span></div><div className="zone-items">{ASSETS.map(asset=>{
    const channels=POINTS.filter(p=>p.assetId===asset),current=channels.filter(p=>readings[p.code]).length;

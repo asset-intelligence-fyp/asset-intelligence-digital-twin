@@ -7,7 +7,7 @@ export type PointCode = string;
 export type AssetId = string;
 export const ASSETS: AssetId[] = [...new Set(POINTS.map(p=>p.assetId))];
 export interface Reading { point_code:string; value:number|null; timestamp:string; quality:string; source:'random'|'http'|'stored'; trace?:{trace_id:string;batch_size:number} }
-export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean }
+export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean;point_code?:string;reading_snapshot?:{value:number|null;timestamp:string;quality:string} }
 interface Bootstrap {storage?:string;simulation?:{replay_id:string|null};data?:{
   Assets?: Array<{asset_id:string;asset_name:string;asset_type:string;status:string;ifc_global_id?:string;manufacturer?:string;model?:string}>;
   Maintenance_Events?: Array<{maintenance_id:number;asset_id:string;event_date:string;event_type:string;maintenance_status:string;description:string}>;
@@ -20,7 +20,7 @@ type Mode = 'random'|'http';
 type TwinContext = {
  weather:Weather;setWeather:(v:Weather)=>void;weatherMotion:boolean;setWeatherMotion:(v:boolean)=>void;
  mode:Mode;setMode:(v:Mode)=>void;running:boolean;setRunning:(v:boolean)=>void;intervalMs:number;setIntervalMs:(v:number)=>void;
- readings:Record<string,Reading>;history:Reading[];events:EventRecord[];acknowledge:(id:number)=>Promise<void>;addTestEvent:()=>void;
+ readings:Record<string,Reading>;history:Reading[];events:EventRecord[];acknowledge:(id:number)=>Promise<void>;addTestEvent:(code?:string)=>void;
  assets:NonNullable<NonNullable<Bootstrap['data']>['Assets']>;maintenance:NonNullable<NonNullable<Bootstrap['data']>['Maintenance_Events']>;
  liveHistory:Reading[];liveReadings:Record<string,Reading>;replayTime:number|null;setReplayTime:(time:number|null)=>void;demo:boolean;setDemo:(value:boolean)=>void;scenario:boolean;setScenario:(value:boolean)=>void;scenarioConfig:typeof DEFAULT_SCENARIO;setScenarioConfig:(value:typeof DEFAULT_SCENARIO)=>void;horizon:number;setHorizon:(value:number)=>void;selectedRoom:string;setSelectedRoom:(value:string)=>void;assistantOpen:boolean;setAssistantOpen:(value:boolean)=>void;
  backendConnected:boolean; storage:string; httpCoverage:number; resetSimulator:()=>void;
@@ -87,7 +87,7 @@ export function TwinProvider({children}:{children:ReactNode}){
   });});
   return()=>{cancelAnimationFrame(first);if(second)cancelAnimationFrame(second)};
  },[readings,mode]);
- const randomEventId=useRef(-1);
+ const randomEventId=useRef(Math.min(0,...events.map(e=>e.id).filter(Number.isFinite))-1);
  const setMode=useCallback((value:Mode)=>{setModeState(value);setDemo(false);setReplayTime(null);setReadings({});setHistory([]);generator.current={...initial};},[]);
  const ingest=useCallback((batch:Reading[])=>{
   const accepted=batch.filter(x=>POINTS.some(p=>p.code===x.point_code)&&(Number.isFinite(x.value)||(x.value===null&&x.quality==='missing'))&&Boolean(x.timestamp));
@@ -123,7 +123,7 @@ export function TwinProvider({children}:{children:ReactNode}){
  },[ingest,mode,bootstrapVersion]);
  useEffect(()=>{
   let cancelled=false;
-  const check=async()=>{try{const response=await fetch('/api/live-status',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(!cancelled)setHttpCoverage(Number(data.received_points)||0)}catch{if(!cancelled)setHttpCoverage(0)}};
+  const check=async()=>{try{const response=await fetch('/api/live-status',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(!cancelled){setHttpCoverage(Number(data.received_points)||0);const scene=data.producer?.simulation?.weather?.scene;if(['clear','cloudy','rain','night'].includes(scene))setWeather(scene)}}catch{if(!cancelled)setHttpCoverage(0)}};
   void check();const timer=setInterval(check,5000);return()=>{cancelled=true;clearInterval(timer)};
  },[]);
  useEffect(()=>{
@@ -170,21 +170,23 @@ export function TwinProvider({children}:{children:ReactNode}){
   }
   setEvents(prev=>prev.map(e=>e.id===id?{...e,acknowledged:!e.acknowledged}:e));
  },[events,demo]);
- const addTestEvent=useCallback(()=>{
-  const point=POINTS[Math.floor(Math.random()*POINTS.length)];
+ const addTestEvent=useCallback((code?:string)=>{
+  const point=POINTS.find(p=>p.code===code)||POINTS[0];
   const event: EventRecord = {
     id: randomEventId.current--,
+    point_code:point.code,
+    reading_snapshot:readings[point.code]?{value:readings[point.code].value,timestamp:readings[point.code].timestamp,quality:readings[point.code].quality}:undefined,
     title: `${point.code} · simulated threshold alert`,
     level: 'Warning',
     description: `Synthetic test alert for ${point.label}. No fault diagnosis is implied.`,
     source: point.assetId,
     zone: point.floor,
-    time: nowIso(),
+    time: readings[point.code]?.timestamp||nowIso(),
     acknowledged: false,
     synthetic: true
   };
   setEvents(prev => [event, ...prev].slice(0, 100));
- },[]);
+ },[readings]);
  const resetSimulator=useCallback(()=>{generator.current={...initial};const timestamp=nowIso();const batch=POINTS.map(p=>({point_code:p.code,value:initial[p.code],timestamp,quality:'simulated',source:'random' as const}));setReadings(Object.fromEntries(batch.map(row=>[row.point_code,row])));setHistory(batch);setEvents(prev=>prev.filter(e=>!e.synthetic));},[]);
  const liveHistory:Reading[]=useMemo(()=>demo?demoHistory(POINTS,demoOrigin.current+demoStep*900000) as Reading[]:history,[demo,demoStep,history]);
  const liveReadings=useMemo(()=>demo?readingsAt(liveHistory,Infinity) as Record<string,Reading>:readings,[demo,liveHistory,readings]);

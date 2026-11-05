@@ -19,7 +19,7 @@ class HybridSimulator:
   if self.profile.get('version')!='hybrid_v1' or set(self.profile['models'])!={p['code'] for p in self.registry if p['unit']!='binary'}:raise ValueError('Unsupported/incomplete calibration profile')
   if not math.isfinite(step_seconds) or not 1<=step_seconds<=900:raise ValueError('Simulation step must be 1–900 seconds')
   self.rng=random.Random(seed);self.seed=seed;self.time=stamp(start).astimezone(MYT) if isinstance(start,str) else (start or datetime.now(MYT)).astimezone(MYT)
-  self.start=self.time;self.dt=step_seconds;self.sequence=0;self.values={};self.heads={};self.meeting=False;self.weather_state={};self.wet=False;self.current_day=None;self.fault_mode=fault_mode
+  self.start=self.time;self.dt=step_seconds;self.sequence=0;self.values={};self.heads={};self.meeting=False;self.weather_state={};self.wet=False;self.current_day=None;self.fault_mode=fault_mode;self.manual_fault_id=None;self.manual_fault_start=None;self.stuck_value=None
   if fault_mode not in ('normal','demo'):raise ValueError('Unknown fault mode')
   self.holidays=json.loads((HERE/'holidays.json').read_text());self.custom_calendar=json.loads(Path(calendar_file).read_text()) if calendar_file else {}
   for date,row in self.custom_calendar.items():
@@ -95,7 +95,12 @@ class HybridSimulator:
  def step(self,controls=None):
   controls=controls or {};weather_mode=controls.get('weather_mode','auto');calendar_mode=controls.get('calendar_mode','auto')
   if weather_mode not in ('auto','clear','cloudy','rain') or calendar_mode not in ('auto','workday','holiday'):raise ValueError('Invalid simulation control')
-  t=self.time;cal=self.calendar(t,calendar_mode);w=self._weather(t,weather_mode);ratios,acs=self._occupancy(t,cal);rows=[];truth=[];elapsed=(t-self.start).total_seconds();self.sequence+=1
+  t=self.time;cal=self.calendar(t,calendar_mode);cal['attendance_factor']*=controls.get('attendance_factor',1);w=self._weather(t,weather_mode);ratios,acs=self._occupancy(t,cal);
+  ac_mode=controls.get('ac_mode','auto');setpoint=controls.get('setpoint_c',24);ventilation=controls.get('ventilation',1)
+  if ac_mode!='auto':acs={room:int(ac_mode=='on' and bool(self.profile['rooms'][room]['ac_zone_id'])) for room in acs}
+  manual=controls.get('fault')
+  if manual and manual.get('id')!=self.manual_fault_id:self.manual_fault_id=manual['id'];self.manual_fault_start=t;self.stuck_value=None
+  rows=[];truth=[];elapsed=(t-self.start).total_seconds();self.sequence+=1
   for p in self.registry:
    room=p['simulatorRoomId'];kind=p['sensorType']
    if p['unit']=='binary':value=int(self.heads.get(room,0)>=.5) if kind=='occupancy' else 0
@@ -105,6 +110,9 @@ class HybridSimulator:
     else:ratio=ratios.get(room,0);ac=acs.get(room,0)
     x=features(w,ratio,ac,t.hour+t.minute/60+t.second/3600);target=dot(model['coefficients'],x);low,high=BOUNDS[kind]
     if kind=='light' and self.heads.get(room,0)<.5:target=min(target,5+w['solar_radiation_w_m2']*.015*int(self.profile['rooms'][room]['has_window']))
+    if kind=='temperature' and ac:target+=.65*(setpoint-24)
+    if kind=='co2':target=420+max(0,target-420)/ventilation
+    if kind=='power':target+=ac*(.12*(24-setpoint)+.15*(ventilation-1))
     target=clamp(target,low,high);rho=min(RHO_CAP[kind],model['rho_per_5_minutes'])**(self.dt/300)
     sd=min(model['residual_sd'],model['observations']['sd']);previous=self.values.get(p['code'],target)
     candidate=previous+(1-rho)*(target-previous)+self.rng.gauss(0,sd)*math.sqrt(max(0,1-rho*rho))
@@ -118,7 +126,20 @@ class HybridSimulator:
     if p['code']=='LEAK-L03-WC-01' and 3600<=elapsed<5400:value=1;fault='leak'
     if p['code']=='CO2-L03-MEET-01' and 5700<=elapsed<6300:value=None;quality='missing';fault='missing'
     if fault:truth.append({'sensor_id':p['code'],'fault':fault})
+   if manual and manual.get('sensor_id')==p['code'] and 0<=(t-self.manual_fault_start).total_seconds()<manual['duration_minutes']*60:
+    kind_fault=manual['kind'];delta=manual['magnitude'];age=(t-self.manual_fault_start).total_seconds()
+    if kind_fault=='missing':value=None;quality='missing'
+    elif kind_fault=='leak':value=1
+    elif kind_fault=='stuck':
+     if self.stuck_value is None:self.stuck_value=value
+     value=self.stuck_value
+    elif kind_fault=='spike':value+=delta
+    elif kind_fault=='drift':value+=delta*min(1,(age+self.dt)/(manual['duration_minutes']*60))
+    if value is not None:
+     if p['unit']=='binary':value=int(bool(value))
+     else:value=clamp(value,*BOUNDS[p['sensorType']])
+    truth.append({'sensor_id':p['code'],'fault':kind_fault,'manual_id':manual['id']})
    rows.append(dict(sensor_id=p['code'],room_id=room,sensor_type=kind,unit=p['unit'],timestamp=t.isoformat(),value=round(value,2) if value is not None else None,quality_flag=quality))
   self.time+=timedelta(seconds=self.dt)
-  context={'kind':'hybrid','profile_id':self.profile['profile_id'],'fit_period':self.profile['fit_period'],'seed':self.seed,'simulation_step_seconds':self.dt,'calendar':cal,'weather':w,'simulated_headcounts':{k:round(v) for k,v in self.heads.items()},'synthetic':True}
+  context={'operation':{'attendance_factor':controls.get('attendance_factor',1),'ac_mode':ac_mode,'setpoint_c':setpoint,'ventilation':ventilation},'kind':'hybrid','profile_id':self.profile['profile_id'],'fit_period':self.profile['fit_period'],'seed':self.seed,'simulation_step_seconds':self.dt,'calendar':cal,'weather':w,'simulated_headcounts':{k:round(v) for k,v in self.heads.items()},'synthetic':True}
   return {'readings':rows,'dataset_timestamp':t.isoformat(),'simulation':context},truth

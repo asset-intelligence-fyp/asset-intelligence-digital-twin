@@ -1,5 +1,8 @@
 # Hybrid live-data simulator — current default
 
+> Workspace update: use **Simulation lab** for all generation controls. The overview's atmosphere bar and decorative scene switches are removed. X-ray remains. See [workspace guide](workspace-cleanup.md) for operating controls, manual faults, events and the building assistant.
+
+
 This replaces dataset replay as the default source. It learns aggregate statistical
 relationships from the supplied synthetic normal dataset, then creates new, continuously
 varying trajectories. It is not a copy of the unavailable people_driven_v3.0 generator,
@@ -108,11 +111,10 @@ They are retained in current source status / SSE context, not in the indoor sens
 as if they were real meters. No physical weather station or roof placement is claimed.
 For later longitudinal weather benchmarking add a separate context-history table.
 
-**Simulator → Weather input** changes the generator's actual weather scenario: automatic,
+**Simulation lab → Weather** changes the generator's actual weather scenario: automatic,
 clear, cloudy or rain. Indoor response is gradual. Rain does not automatically cause leaks.
-A dry sensor during rain is valid. The overview's **Follow virtual weather** checkbox
-makes the 3D scene follow the generated conditions. Disable it for a decorative preview;
-those scene-only buttons do not alter the Python generator. Night comes from simulation
+A dry sensor during rain is valid. The overview follows generated weather automatically;
+the decorative toolbar has been removed. Night comes from simulation
 time, rather than a button pretending to change the observation clock.
 
 ## Holidays and attendance
@@ -129,7 +131,7 @@ holidays.json before relying on a new year's holiday schedule. School-holiday fi
 the provided data are blank, so school holidays are represented as unknown, not fabricated.
 No assumption is made that a school break closes an office.
 
-**Simulator → Attendance calendar → Holiday demonstration** overrides the current date
+**Simulation lab → Calendar → Holiday demonstration** overrides the current date
 for a demonstration. It is labelled as a manual override, not as a real public holiday.
 Return both controls to Automatic after a demo. Overrides reset on API restart.
 

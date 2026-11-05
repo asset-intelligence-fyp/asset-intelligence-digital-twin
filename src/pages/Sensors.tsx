@@ -5,10 +5,10 @@ import {TelemetryChart} from '../components/TelemetryChart';
 import {roomTitle,sensorTitle} from '../viewer/sensorPresentation.js';
 import {Sparkline} from '../components/ValueMotion';
 import {Eyebrow} from '../components/UI';
-export function Sensors(){
+export function Sensors({initialCode}:{initialCode?:string}){
  const {readings,mode,history}=useTwin();
  const [search,setSearch]=useState('');const [asset,setAsset]=useState<string>('all');
- const [selected,setSelected]=useState<string>('TEMP-L03-OPEN-01');
+ const [selected,setSelected]=useState<string>(initialCode||'TEMP-L03-OPEN-01');
  const filtered=POINTS.filter(p=>(asset==='all'||p.assetId===asset)&&`${sensorTitle(p)} ${p.code} ${p.assetId} ${p.label}`.toLowerCase().includes(search.toLowerCase()));
  const point=POINTS.find(p=>p.code===selected)||POINTS[0];
  return <div className="assets-page"><div className="page-heading assets-heading"><div><Eyebrow>LIVE SENSOR DATA</Eyebrow><h1>Sensor monitoring</h1><p>18 whole-building sensor channels · {mode==='random'?'synthetic random values':'HTTP simulator stream'}</p></div><div className="asset-tools"><label className="searchbox"><Search size={18}/><input aria-label="Search sensors" placeholder="Search sensors" value={search} onChange={e=>setSearch(e.target.value)}/></label><select className="twin-select" aria-label="Filter by asset" value={asset} onChange={e=>setAsset(e.target.value)}><option value="all">All locations</option>{ASSETS.map(a=><option key={a} value={a}>{roomTitle(POINTS.find(p=>p.assetId===a)!)}</option>)}</select></div></div>

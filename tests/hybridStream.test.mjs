@@ -11,7 +11,7 @@ test('Generated hybrid observations share atomic ingestion, provenance, SSE and 
 }));
 test('Controls validate fields and reject cross-origin commands; weather context rejects fabricated/nonfinite channels',async()=>withServer(async base=>{
  assert.equal((await post(base,'/api/simulation/control',{weather_mode:'rain',calendar_mode:'holiday'})).status,200);
- assert.deepEqual(await(await fetch(base+'/api/simulation/control')).json(),{weather_mode:'rain',calendar_mode:'holiday'});
+ const settings=await(await fetch(base+'/api/simulation/control')).json();assert.equal(settings.weather_mode,'rain');assert.equal(settings.calendar_mode,'holiday');
  assert.equal((await post(base,'/api/simulation/control',{weather_mode:'tornado'})).status,400);
  assert.equal((await post(base,'/api/simulation/control',{calendar_mode:'workday'},{Origin:'https://unexpected.example'})).status,403);
  const b=sample();b.simulation.weather.outdoor_temp_c=null;assert.equal((await post(base,'/api/sensor-readings',b)).status,400);
@@ -24,4 +24,11 @@ test('Default launcher generates new data without the ZIP and applies weather an
  let error='';child.stdout.resume();child.stderr.on('data',d=>error+=d);const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve)});assert.equal(code,0,error);
  const state=await(await fetch(base+'/api/bootstrap')).json();assert.equal(state.data.Historical_Sensor_Readings.length,90);assert.equal(state.simulation.simulation.weather.mode,'rain');assert.equal(state.simulation.simulation.calendar.override,'holiday');assert.equal(state.simulation.simulation.calendar.is_workday,false);
  assert.ok(state.data.Sensor_Readings.filter(r=>r.point_code.startsWith('PIR-')).every(r=>r.value===0));
+}));
+test('Manual faults are one-shot requests; operating changes retain their IDs and reset clears them',async()=>withServer(async base=>{
+ let r=await post(base,'/api/simulation/control',{fault:{kind:'spike',sensor_id:'TEMP-L03-OPEN-01',duration_minutes:10,magnitude:3}});assert.equal(r.status,200);const first=await r.json();assert.ok(first.fault.id);
+ r=await post(base,'/api/simulation/control',{weather_mode:'rain',ventilation:1.5,ac_mode:'off',step_seconds:300});const next=await r.json();assert.equal(next.fault.id,first.fault.id);assert.equal(next.ventilation,1.5);
+ assert.equal((await post(base,'/api/simulation/control',{ventilation:0})).status,400);
+ assert.equal((await post(base,'/api/simulation/control',{fault:{kind:'leak',sensor_id:'TEMP-L03-OPEN-01',duration_minutes:10,magnitude:1}})).status,400);
+ const reset=await(await post(base,'/api/simulation/control',{reset:true})).json();assert.equal(reset.fault,null);assert.equal(reset.paused,false);assert.equal(reset.weather_mode,'auto');assert.equal(reset.step_seconds,5);
 }));

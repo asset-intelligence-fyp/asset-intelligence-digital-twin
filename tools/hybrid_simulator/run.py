@@ -27,10 +27,12 @@ def main(argv=None):
   publisher=ControlledPublisher(args.http_url);controls={};n=0
   print(f'Hybrid generator seed={seed} profile={profile["profile_id"]} step={args.step_seconds}s release={args.interval_seconds}s; fresh synthetic observations, not dataset replay',flush=True)
   while not args.ticks or n<args.ticks:
-   began=time.monotonic();released=datetime.now(timezone.utc).isoformat(timespec='milliseconds');batch,truth=sim.step(controls);n+=1
+   began=time.monotonic();controls=publisher.controls()
+   if controls.get('paused'):time.sleep(min(1,args.interval_seconds));continue
+   sim.dt=controls.get('step_seconds',sim.dt)
+   released=datetime.now(timezone.utc).isoformat(timespec='milliseconds');batch,truth=sim.step(controls);n+=1
    message={**batch,'producer':PRODUCER,'synthetic':True,'replay_id':run,'batch_id':f'{run}:{n}','sequence':n,'dataset':'generated_hybrid','clock_domain':args.clock_domain,'generated_at_utc':released,'release_interval_seconds':args.interval_seconds}
    publisher.send(message);logger.info(json.dumps({'run_id':run,'sequence':n,'timestamp':batch['dataset_timestamp'],'seed':seed,'profile_id':profile['profile_id'],'injected_faults':truth}))
-   controls=publisher.controls()
    print(f'hybrid batch={n} time={batch["dataset_timestamp"]} weather={batch["simulation"]["weather"]["scene"]} calendar={batch["simulation"]["calendar"]["day_type"]} readings=18',flush=True)
    if not args.ticks or n<args.ticks:time.sleep(max(0,args.interval_seconds-(time.monotonic()-began)))
   return 0

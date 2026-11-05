@@ -62,6 +62,30 @@ class HybridTests(unittest.TestCase):
   s=HybridSimulator(self.profile,1,'2025-12-31T18:00:00Z',300);b,_=s.step();self.assertEqual(b['simulation']['calendar']['date'],'2026-01-01');self.assertFalse(b['simulation']['calendar']['is_workday'])
   with tempfile.TemporaryDirectory() as folder:
    path=Path(folder)/'calendar.json';path.write_text(json.dumps({'2026-11-05':{'closed':True,'name':'Company day off'}}));s=self.sim(calendar_file=path);c=s.step()[0]['simulation']['calendar'];self.assertEqual(c['holiday_name'],'Company day off');self.assertFalse(c['is_workday']);self.assertIsNone(c['school_holiday'])
+ def test_rain_inputs_change_indoor_sensors_with_same_seed(self):
+  values=[]
+  for mode in ('clear','rain'):
+   sim=self.sim(seed=41,start='2026-11-05T08:00:00+08:00');tail=[]
+   for i in range(72):
+    b,truth=sim.step({'weather_mode':mode,'calendar_mode':'workday'})
+    if i>=48:tail.append({r['sensor_id']:r['value'] for r in b['readings']})
+    self.assertFalse(truth)
+   values.append({code:sum(b[code] for b in tail)/len(tail) for code in ('TEMP-L03-OPEN-01','RH-L03-OPEN-01','LUX-L03-OPEN-01')})
+  self.assertGreater(values[0]['TEMP-L03-OPEN-01'],values[1]['TEMP-L03-OPEN-01']);self.assertLess(values[0]['RH-L03-OPEN-01'],values[1]['RH-L03-OPEN-01']);self.assertGreater(values[0]['LUX-L03-OPEN-01'],values[1]['LUX-L03-OPEN-01'])
+ def test_manual_fault_expires_without_restarting_or_tainting_latent_state(self):
+  s=self.sim();n=self.sim();f={'id':'one','kind':'spike','sensor_id':'TEMP-L03-OPEN-01','duration_minutes':10,'magnitude':3}
+  for i in range(5):
+   a,truth=s.step({'fault':f});b,_=n.step();self.assertEqual(s.values,n.values)
+   if i<2:self.assertEqual(len(truth),1);self.assertAlmostEqual(a['readings'][0]['value']-b['readings'][0]['value'],3,delta=.02)
+   else:self.assertFalse(truth);self.assertEqual(a['readings'],b['readings'])
+ def test_ventilation_and_ac_controls_have_directional_effects(self):
+  tails=[]
+  for ventilation in (.5,2):
+   s=self.sim(start='2026-11-05T08:00:00+08:00');rows=[]
+   for i in range(72):
+    b,_=s.step({'ventilation':ventilation,'ac_mode':'on','setpoint_c':22});rows.append(b)
+   tails.append(sum(next(r['value'] for r in b['readings'] if r['sensor_id']=='CO2-L03-OPEN-01') for b in rows[-24:])/24)
+  self.assertGreater(tails[0],tails[1])
  def test_regression_learns_aggregate_response(self):
   r=Regression()
   for i in range(100):

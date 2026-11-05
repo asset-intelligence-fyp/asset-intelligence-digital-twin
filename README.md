@@ -6,6 +6,14 @@ Generated outdoor weather drives the simulator; optional scene-only previews are
 contains the Live twin / replay / what-if / comfort panel or a browser-random source switch.
 The theme toggle remains in the header.
 
+## Current workspace
+
+The atmosphere toolbar is removed. X-ray and heatmap remain. The six labelled pages are
+Building overview (with asset register), Sensors & trends, Events, AI assistant,
+Simulation lab and System status. Generation controls belong in the lab; monitoring pages
+show their effects. See [workspace guide](docs/workspace-cleanup.md) for controls, weather
+coupling, event investigation and the building-wide evidence assistant.
+
 ## Source status
 
 The default is now a **calibrated hybrid simulator** that generates NEW synthetic
@@ -38,9 +46,8 @@ Default simulation step and release interval are both five seconds. Use SIM_STEP
 and SIM_INTERVAL_SECONDS=2 for an explicitly accelerated demonstration. Stop with Control+C.
 Run one publisher per API. Temporary memory resets at API shutdown.
 
-The Overview shows a virtual weather station. Simulator controls change actual generated
-weather and attendance; the overview can follow the generated weather or show a decorative
-scene preview. Holidays use Malaysia dates, not UTC dates. See the setup guide for calendar
+The Overview shows read-only virtual weather. Simulation lab changes generated weather,
+attendance, AC, ventilation and manual measurement faults. The scene follows the generated weather. Holidays use Malaysia dates, not UTC dates. See the setup guide for calendar
 coverage and manual demonstration overrides.
 
 For local Qwen inference, run Ollama and download `qwen3:1.7b`. Defaults are

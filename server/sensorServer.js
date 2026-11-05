@@ -1,3 +1,4 @@
+import {registerBuildingAssistant} from './buildingAssistant.js';
 import express from 'express';
 import {normalizeSimulation,registerSimulationControls} from './hybridContract.js';
 import {createHash,randomUUID} from 'node:crypto';
@@ -89,6 +90,7 @@ export function createSensorApp({pool=null}={}) {
    }});
   }catch(e){res.status(503).json({error:'Database not ready; run npm run db:setup',detail:e.message})}
  });
+ registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource});
  registerRoomAssistant(app,{getHistory:codes=>historyFor(codes)});
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
  if(fs.existsSync(path.join(root,'dist')))app.use(express.static(path.join(root,'dist')));
