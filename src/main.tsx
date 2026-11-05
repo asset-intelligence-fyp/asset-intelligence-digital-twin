@@ -11,6 +11,7 @@ import {AssistantWorkspace} from './components/AssistantWorkspace';
 import {Events} from './pages/Events';
 import {Simulator} from './pages/Simulator';
 import {CommandPalette} from './components/ExperiencePanel';
+import {Presentation} from './pages/Presentation';
 import './styles.css';
 import './control-room.css';
 import './workspace.css';
@@ -37,5 +38,5 @@ function App(){
  <CommandPalette onSelect={code=>{const point=POINTS.find(p=>p.code===code);if(point){setSelectedCode(code);setSelectedAsset(point.assetId);setPage('overview');setCommandRequest(n=>n+1)}}}/>
  </Shell></>;
 }
-createRoot(document.getElementById('root')!).render(<React.StrictMode><TwinProvider><App/></TwinProvider></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(<React.StrictMode>{window.location.hash==='#presentation'?<Presentation/>:<TwinProvider><App/></TwinProvider>}</React.StrictMode>);
 
