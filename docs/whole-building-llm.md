@@ -54,6 +54,23 @@ The diagnostic reports each continuous sensor's number of matching prior normal-
 
 `GET /api/assistant/health` now distinguishes model connectivity from `historical_reference_available`; the latter only means the normal-history database exists and is readable, not that every room/cutoff has five matching days. The individual answer supplies `historical_days` and the actual source for each sensor.
 
+## Historical expected-reading estimation, chat history and resizable assistant
+
+The active Room Assistant also supports **historical expected-value estimation** for the selected room's temperature, humidity and CO₂ channels at **+1 hour** or **+24 hours**. Use the small **Estimate a sensor reading** controls in the existing assistant drawer. This is a deterministic historical baseline estimator, **not a trained future-forecasting model**; Qwen3 is still used for the separate natural-language room assessment.
+
+- `POST /api/assistant/predict` accepts only canonical room-linked temperature/humidity/CO₂ sensors, a timezone-aware `as_of`, one of the existing observation sources and an integer `horizon_hours` of 1 or 24. Requests are loopback-only. The Node API calls the Python bridge `/predict` path; no user-controlled SQL or model-authored numbers enter the estimate.
+- The estimator reads the existing local `normal` synthetic SQLite dataset **read-only** using the sensor's exact canonical ID. It chooses earlier records matching the **future target's weekday** and **±30 minutes of its clock time**, excludes all observations at or after the requested cutoff, and computes one median for each distinct prior date. It requires at least **five comparable days**.
+- Results contain the median of comparable daily values, empirical p10–p90 spread, source, target timestamp, day count and limitations. If the database is missing or insufficient, the result states `insufficient_history` without fabricating a value. The empirical spread is **not** a calibrated prediction interval, and the method cannot anticipate future weather, occupancy, faults or ventilation changes.
+- The chat UI now presents **at-a-glance status, finding, latest verified sensor values and recommended checks**. Detailed evidence, audit trace and limitations are expandable, with JSON downloads retained.
+- Use the **History** button to browse earlier conversations **for the selected room**, **New chat** to begin another conversation, **Delete** to remove a saved thread, the **Expand** button to enlarge the panel or the **top-left grip** to drag-resize it. A limited transcript is stored in this browser's `localStorage`, not sent to the server. Old chat turns are **not** model conversation context; each analysis uses the selected room's current/replay snapshot.
+
+Focused regression checks:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_room_prediction.py' -v
+node --test tests/roomPrediction.test.mjs tests/roomAssistantUX.test.mjs
+```
+
 The website's room assistant is in the lower-right corner. Select a room using the BIM viewer or location list. A request uses the **selected room's original canonical sensor codes**. The same component supports the existing replay and what-if controls without altering their logic.
 
 ## Evidence policy and algorithm

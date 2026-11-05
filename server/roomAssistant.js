@@ -1,12 +1,14 @@
 import {registry} from './sensorContract.js';
 
-// The active whole-building app uses this route, not legacy Level 5 /api/ai.
+// Active whole-building Room assistant; never use the archived Level 5 /api/ai route.
 const LOOPBACK = new Set(['127.0.0.1','::1','::ffff:127.0.0.1']);
 const model = 'qwen3:1.7b';
 const config = () => ({
  model, prompt:'concise', retrieval:'validated', validation_mode:'hybrid_semantic',
  temperature:0, history_db:process.env.LLM_HISTORY_DB||''
 });
+const SOURCES = new Set(['http','browser_demo','historical_replay','what_if']);
+const PREDICTABLE = new Set(['temperature','humidity','co2']);
 function localUrl(raw, label) {
  const url = new URL(raw);
  if (url.protocol !== 'http:' || !['localhost','127.0.0.1'].includes(url.hostname))
@@ -14,7 +16,9 @@ function localUrl(raw, label) {
  return url.origin;
 }
 function replyError(res,status,message) { return res.status(status).json({error:message}); }
-
+function validCutoff(value) {
+ return typeof value==='string' && /(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value));
+}
 export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
  const allowed = (req,res,next) => {
   if (!LOOPBACK.has(req.socket?.remoteAddress)) return replyError(res,403,'Room AI is available only on this computer');
@@ -45,6 +49,7 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
              history_configured:!!h.normal_history_database_ready,
              historical_reference_available:!!h.normal_history_database_ready,
              history_status:h.history_status||'unavailable',
+             prediction_supported:true,
              error:available?null:'Run ollama pull '+model});
   }catch(e){res.json({connected:false,model,prompt:'concise',retrieval:'validated',validation_mode:'hybrid_semantic',error:'Start the Python bridge and Ollama: '+e.message});}
  });
@@ -55,11 +60,9 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
     return replyError(res,400,'Enter a question up to 900 characters.');
    const points=registry.filter(p=>p.assetId===room_id);
    if(!points.length)return replyError(res,400,'Unknown room');
-   if(!['http','browser_demo','historical_replay','what_if'].includes(source))
-    return replyError(res,400,'Unknown observation source');
+   if(!SOURCES.has(source))return replyError(res,400,'Unknown observation source');
+   if(!validCutoff(as_of))return replyError(res,400,'Analysis time must have a timezone offset');
    const cutoff=Date.parse(as_of);
-   if(typeof as_of!=='string'||!Number.isFinite(cutoff)||!/(?:Z|[+-]\d\d:\d\d)$/.test(as_of))
-    return replyError(res,400,'Analysis time must have a timezone offset');
    const codes=new Set(points.map(p=>p.code));
    const rows=source==='http'?await getHistory(points.map(p=>p.code)):snapshot;
    if(!Array.isArray(rows)||rows.length>18000)return replyError(res,400,'Invalid room history');
@@ -74,5 +77,28 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch}={}) {
    const data=await response.json();
    res.status(response.status).json(data);
   }catch(e){replyError(res,503,'Room AI unavailable: '+e.message+'. Check your Python bridge/Ollama terminals.');}
+ });
+ // A separate deterministic, normal-history-based estimator. Never use LLM-authored
+ // numbers as forecasts and never allow arbitrary sensors or prediction horizons.
+ app.post('/api/assistant/predict',allowed,async(req,res)=>{
+  try {
+   const {room_id,sensor_id,horizon_hours,source,as_of}=req.body||{};
+   const points=registry.filter(p=>p.assetId===room_id);
+   if(!points.length)return replyError(res,400,'Unknown room');
+   const point=points.find(p=>p.code===sensor_id);
+   if(!point||!PREDICTABLE.has(point.sensorType))
+    return replyError(res,400,'Select a temperature, humidity or CO2 sensor in this room');
+   if(![1,24].includes(horizon_hours)||!Number.isInteger(horizon_hours))
+    return replyError(res,400,'Prediction horizon must be +1 or +24 hours');
+   if(!SOURCES.has(source))return replyError(res,400,'Unknown observation source');
+   if(!validCutoff(as_of))return replyError(res,400,'Prediction cutoff must include a timezone offset');
+   const response=await fetchImpl(bridge()+'/predict',{
+    method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(20000),
+    body:JSON.stringify({config:config(),request:{point,room_id:point.simulatorRoomId,
+     as_of,horizon_hours,source}})
+   });
+   const data=await response.json();
+   res.status(response.status).json(data);
+  }catch(e){replyError(res,503,'Historical estimate unavailable: '+e.message+'. Check the Python bridge and normal-history database.');}
  });
 }

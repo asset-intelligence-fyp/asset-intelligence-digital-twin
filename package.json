@@ -12,7 +12,7 @@
     "start": "node server/sensorServer.js",
     "db:setup": "node scripts/setup-twin18.mjs",
     "simulator": "node scripts/run-simulator.mjs",
-    "test": "node --test tests/twin18.test.mjs tests/navigation.test.mjs tests/experience.test.mjs",
+    "test": "node --test tests/twin18.test.mjs tests/navigation.test.mjs tests/experience.test.mjs tests/roomAssistantValidated.test.mjs tests/roomPrediction.test.mjs tests/roomAssistantUX.test.mjs",
     "model:convert": "node scripts/convert-whole-building.mjs && python3 scripts/export-navigation.py && python3 scripts/export-room-footprints.py",
     "demo": "TWIN_STORAGE=memory concurrently -k -n API,WEB,SIM \"npm:dev:api\" \"npm:dev:web\" \"npm:simulator\"",
     "model:verify": "node scripts/verify-model.mjs",

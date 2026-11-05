@@ -10,6 +10,7 @@ import {Sensors} from './pages/Sensors';
 import {Simulator} from './pages/Simulator';
 import {CommandPalette} from './components/ExperiencePanel';
 import './styles.css';
+import './room-assistant-modern.css';
 function App(){
  const {selectedRoom:selectedAsset,setSelectedRoom:setSelectedAsset}=useTwin();
  const [commandRequest,setCommandRequest]=useState(0);

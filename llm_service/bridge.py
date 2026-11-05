@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from llm_service.shared_llm.ollama import OllamaClient
 from llm_service.validated_room import analyse_validated, normal_history_ready, resolve_history_path
+from llm_service.prediction import expected_room_reading
 
 
 def analyse(request, config):
@@ -57,7 +58,7 @@ def main():
                 self.reply(404, {'error': 'Not found'})
 
         def do_POST(self):
-            if self.path != '/ask':
+            if self.path not in ('/ask', '/predict'):
                 self.reply(404, {'error': 'Not found'})
                 return
             if not lock.acquire(blocking=False):
@@ -74,12 +75,16 @@ def main():
                 data = json.loads(self.rfile.read(size))
                 if not isinstance(data, dict) or not isinstance(data.get('request'), dict):
                     raise ValueError('Malformed request')
-                self.reply(200, analyse(data['request'], data.get('config') or {}))
+                if self.path == '/predict':
+                    config = data.get('config') or {}
+                    self.reply(200, expected_room_reading(data['request'], config.get('history_db') or os.environ.get('LLM_HISTORY_DB', '')))
+                else:
+                    self.reply(200, analyse(data['request'], data.get('config') or {}))
             except (ValueError, TypeError, KeyError) as exc:
                 self.reply(400, {'error': str(exc)})
             except Exception as exc:
                 # Client error is reported; no raw SQL or private label content.
-                self.reply(503, {'error': 'Local LLM inference unavailable: ' + str(exc)[:260]})
+                self.reply(503, {'error': 'Local evidence service unavailable: ' + str(exc)[:260]})
             finally:
                 lock.release()
 
