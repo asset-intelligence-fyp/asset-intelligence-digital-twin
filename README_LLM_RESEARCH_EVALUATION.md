@@ -134,7 +134,14 @@ itself proof that explanations or diagnoses are correct.
 The combined `reports/llm_research_evaluation.json` references both distinct
 experiments **without averaging errors across different sensor units or
 combining forecasting MAE with classification F1**. Missing or partial outputs
-are explicitly marked. All generated reports and keys remain local and ignored
+are explicitly marked. **Anomaly-only reports are supported:** if
+`reports/llm_one_month_eval/summary.json` has not been generated yet, run
+`python3 scripts/build_llm_evaluation_report.py` after scoring anomaly cases.
+The combined file will contain actual anomaly scores and a
+`forecasting.status = "not_evaluated"` section; it will **not** manufacture
+forecasting metrics. Later run
+`python3 scripts/evaluate_llm_one_month.py --db storage/digital_twin.sqlite --resume`
+to generate forecasting results and rebuild the combined report. All generated reports and keys remain local and ignored
 by Git. Never commit normal-history SQLite or the private answer key.
 
 ## Offline checks

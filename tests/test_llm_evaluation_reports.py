@@ -26,6 +26,43 @@ class ReportTests(unittest.TestCase):
             self.assertEqual(result['forecasting']['per_sensor'][0]['unit'],'ppm')
             self.assertEqual(result['anomaly_detection']['methods']['llm_raw']['f1_on_scored'],0.8)
 
+    def test_anomaly_only_report_does_not_invent_forecast_scores(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root/'anomaly.json').write_text(json.dumps({
+                'method':'blind_synthetic_fault_cases','status':'evaluated',
+                'total_cases':3,'evaluated_cases':3,
+                'methods':{'validated_hybrid':{'f1_on_scored':0.75}}}))
+            result = summary.generate(root/'absent_forecast.json',
+                                      root/'anomaly.json', root/'combined.json')
+            self.assertEqual(result['status'], 'partial')
+            self.assertEqual(result['forecasting']['status'], 'not_evaluated')
+            self.assertEqual(result['forecasting']['per_sensor'], [])
+            self.assertEqual(result['anomaly_detection']['status'], 'evaluated')
+            self.assertEqual(result['anomaly_detection']['methods']['validated_hybrid']['f1_on_scored'], 0.75)
+            self.assertTrue((root/'combined.json').is_file())
+
+    def test_forecast_only_report_is_partial(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root/'prediction.json').write_text(json.dumps({
+                'horizon_months':1,'model':'qwen3:1.7b',
+                'partial_run':False,'expected_planned_cases':1,
+                'overall':{'valid_predictions':1},
+                'summary':[{'sensor_id':'X','unit':'ppm','MAE':3}]}))
+            result = summary.generate(root/'prediction.json',
+                                      root/'absent_anomaly.json', root/'combined.json')
+            self.assertEqual(result['status'], 'partial')
+            self.assertEqual(result['forecasting']['status'], 'evaluated')
+            self.assertEqual(result['anomaly_detection']['status'], 'not_evaluated')
+
+    def test_both_reports_missing_is_actionable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(ValueError, 'No evaluation summaries found'):
+                summary.generate(root/'forecast.json', root/'anomaly.json',
+                                 root/'combined.json')
+
     def test_explanation_template_and_score(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
