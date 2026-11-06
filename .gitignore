@@ -43,3 +43,7 @@ reports/llm_one_month_eval/
 
 # Durable local backtest recovery journals
 storage/llm_one_month_checkpoints/
+
+# Local blind anomaly research outputs and answer keys
+reports/llm_anomaly_eval/
+reports/llm_research_evaluation.json
