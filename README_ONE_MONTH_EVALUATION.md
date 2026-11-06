@@ -66,12 +66,36 @@ All are written to `reports/llm_one_month_eval/` (regenerated per run).
   baseline MAE/skill, pooled **counts only**, and `by_target_month` metrics.
 - `protocol.json`: provenance, cutoff, matched truth tolerance, selected
   sensor IDs, configured/finished case counts, and baseline definitions.
-- `cases.partial.jsonl`: each completed case appended as the run progresses.
+- `cases.partial.jsonl`: mirrored complete snapshot of completed cases, rebuilt if the reports directory disappears.
+- `storage/llm_one_month_checkpoints/`: ignored, durable run-specific checkpoints outside the reports folder. Each snapshot is written atomically after an LLM result.
 
 The dashboard is under **Building Overview → Room assistant → One-month
 backtest accuracy**. It labels partial runs, shows valid/planned counts and
 baselines, and continues to use an accuracy *index* rather than claiming
 classification accuracy.
+
+## Interrupted run / recovery
+
+The runner saves each completed case to an independent checkpoint under
+`storage/llm_one_month_checkpoints/` *before* updating the output mirror.
+If a cleanup process removes `reports/llm_one_month_eval/`, the evaluator
+recreates the folder and regenerates the entire `cases.partial.jsonl`
+snapshot. Rerunning with `--resume` reuses completed cases and only
+calls Qwen for missing scheduled origins:
+
+```bash
+python3 scripts/evaluate_llm_one_month.py --db "$LLM_HISTORY_DB" --resume
+```
+
+Resume requires the **same database file (size/mtime), sensor selection, date
+schedule and other evaluation settings**. Changing them selects a different
+checkpoint, so mismatched experimental results are never pooled. The default
+without `--resume` starts the schedule afresh. A previously interrupted
+run from an **older script version** may not have a durable checkpoint; if
+`cases.partial.jsonl` was deleted, those forecasts cannot be
+recovered automatically. Do not delete `storage/llm_one_month_checkpoints/`
+when cleaning generated report files. If a different process continues to
+delete directories, investigate that cleanup task separately.
 
 ## Methodology and interpretation
 

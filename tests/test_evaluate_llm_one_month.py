@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import json
+import shutil
 import sqlite3
 import tempfile
 import unittest
@@ -148,6 +149,75 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(report['expected_planned_cases'],2)
         self.assertFalse(report['partial_run'])
         self.assertEqual(len(report['summary']),2)
+
+
+    def test_recreates_output_directory_deleted_mid_run(self):
+        root=Path(self.folder.name)
+        (root/'shared').mkdir(exist_ok=True)
+        (root/'shared'/'sensorRegistry.json').write_text(json.dumps([SENSOR]))
+        later_origin=ORIGIN.replace(day=22)
+        self.db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?)',
+                        ('normal',SENSOR['code'],(later_origin-timedelta(minutes=1)).isoformat(),650,'ok'))
+        self.db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?)',
+                        ('normal',SENSOR['code'],m.add_months(later_origin,1).isoformat(),641,'ok'))
+        self.db.commit()
+        output=root/'reports'/'llm_one_month_eval'
+        opts=SimpleNamespace(db=str(self.path),sensors=SENSOR['code'],target_year=2025,
+             origin_from='2024-12',origin_to='2024-12',origin_days='15,22',
+             origin_hours='14',mode='strict',limit_cases=0,tolerance_minutes=30,
+             output=str(output),ollama_url='http://127.0.0.1:11434')
+        seen=[]
+        def fake(req,config,factory):
+            seen.append(req['as_of'])
+            if len(seen)==2:
+                # Emulate an external cleanup while a long LLM call is underway.
+                shutil.rmtree(output)
+            return {'status':'llm_projection','projected_value':650,
+                    'lower_scenario':600,'upper_scenario':690,
+                    'coverage':{'historical_normal_days':129}}
+        with patch.object(m,'ROOT',root),patch.object(m,'forecast_room_reading',fake):
+            report=m.run(opts,factory=lambda model:None)
+        self.assertEqual(report['overall']['planned_cases'],2)
+        self.assertFalse(report['partial_run'])
+        self.assertEqual(len((output/'cases.partial.jsonl').read_text().splitlines()),2)
+        self.assertEqual(len((output/'cases.csv').read_text().splitlines()),3)
+        self.assertEqual(len(list((root/'storage'/'llm_one_month_checkpoints').glob('*.jsonl'))),1)
+
+    def test_resume_skips_completed_llm_requests(self):
+        root=Path(self.folder.name)
+        (root/'shared').mkdir(exist_ok=True)
+        (root/'shared'/'sensorRegistry.json').write_text(json.dumps([SENSOR]))
+        later_origin=ORIGIN.replace(day=22)
+        self.db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?)',
+                        ('normal',SENSOR['code'],(later_origin-timedelta(minutes=1)).isoformat(),650,'ok'))
+        self.db.execute('INSERT INTO sensor_readings VALUES (?,?,?,?,?)',
+                        ('normal',SENSOR['code'],m.add_months(later_origin,1).isoformat(),641,'ok'))
+        self.db.commit()
+        output=root/'reports'/'llm_one_month_eval'
+        opts=SimpleNamespace(db=str(self.path),sensors=SENSOR['code'],target_year=2025,
+             origin_from='2024-12',origin_to='2024-12',origin_days='15,22',
+             origin_hours='14',mode='strict',limit_cases=1,tolerance_minutes=30,
+             output=str(output),ollama_url='http://127.0.0.1:11434')
+        seen=[]
+        def fake(req,config,factory):
+            seen.append(req['as_of'])
+            return {'status':'llm_projection','projected_value':650,
+                    'lower_scenario':600,'upper_scenario':690,
+                    'coverage':{'historical_normal_days':129}}
+        with patch.object(m,'ROOT',root),patch.object(m,'forecast_room_reading',fake):
+            first=m.run(opts,factory=lambda model:None)
+            self.assertEqual(len(seen),1)
+            self.assertTrue(first['partial_run'])
+            # Simulate disappearance of the reports folder between processes.
+            shutil.rmtree(output)
+            opts.limit_cases=0
+            opts.resume=True
+            second=m.run(opts,factory=lambda model:None)
+        self.assertEqual(len(seen),2)  # only the remaining case requested
+        self.assertEqual(second['resumed_cases'],1)
+        self.assertFalse(second['partial_run'])
+        self.assertEqual(len((output/'cases.partial.jsonl').read_text().splitlines()),2)
+        self.assertEqual(json.loads((output/'summary.json').read_text())['overall']['valid_predictions'],2)
 
     def test_one_month_calendar_rollover(self):
         self.assertEqual(m.add_months(datetime(2024,12,31,14,tzinfo=TZ),1).date().isoformat(),'2025-01-31')

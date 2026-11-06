@@ -40,3 +40,6 @@ storage/*.db
 **/*_PRIVATE.jsonl
 # Local ground-truth backtesting outputs (not source code)
 reports/llm_one_month_eval/
+
+# Durable local backtest recovery journals
+storage/llm_one_month_checkpoints/

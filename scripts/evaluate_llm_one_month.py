@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import io
 from datetime import datetime, timedelta, timezone
 import json
 import math
@@ -22,6 +24,7 @@ from pathlib import Path
 import sqlite3
 import statistics
 import sys
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -292,6 +295,75 @@ def summary_for(rows, year, mode):
     }
 
 
+def _atomic_text(path, content):
+    """Replace a report/checkpoint atomically, even if its directory disappeared.
+
+    Each write contains a complete snapshot, so recreating a deleted mirror
+    restores ALL completed cases, not just the latest case. The independent
+    storage journal survives cleanup of reports/llm_one_month_eval/.
+    """
+    path = Path(path)
+    for attempt in range(3):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_name(f'.{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp')
+        try:
+            with temp.open('w', encoding='utf8') as stream:
+                stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+            temp.replace(path)
+            return
+        except FileNotFoundError:
+            if attempt == 2:
+                raise
+        finally:
+            temp.unlink(missing_ok=True)
+
+
+def _checkpoint_identity(path, args, sensors, days, hours):
+    """Do not reuse checkpoints for different input files or test protocols."""
+    stat = path.stat()
+    setting = {
+        'version': 2, 'database': str(path),
+        'database_size': stat.st_size, 'database_mtime_ns': stat.st_mtime_ns,
+        'sensors': sensors, 'target_year': args.target_year,
+        'origin_from': args.origin_from, 'origin_to': args.origin_to,
+        'origin_days': days, 'origin_hours': hours,
+        'mode': args.mode, 'tolerance_minutes': args.tolerance_minutes,
+        'model': 'qwen3:1.7b', 'forecast_horizon_months': 1,
+    }
+    return hashlib.sha256(json.dumps(setting, sort_keys=True).encode('utf8')).hexdigest()[:24]
+
+
+def _read_checkpoint(path, scheduled):
+    rows = []
+    seen = set()
+    for line_number, line in enumerate(path.read_text(encoding='utf8').splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f'Invalid recovery journal line {line_number}: {exc}') from exc
+        if not isinstance(row, dict):
+            raise ValueError(f'Invalid recovery journal record on line {line_number}')
+        key = (row.get('sensor_id'), row.get('origin'))
+        if key not in scheduled or key in seen:
+            raise ValueError(f'Unexpected or repeated recovery journal case on line {line_number}: {key}')
+        seen.add(key)
+        rows.append(row)
+    return rows
+
+
+def _save_progress(rows, durable_checkpoint, report_mirror):
+    snapshot = ''.join(json.dumps(row, ensure_ascii=False, allow_nan=False) + '\n'
+                       for row in rows)
+    # Save to a separate durable path first. Output mirror is reconstructed
+    # on every step if a cleanup task removes the report directory.
+    _atomic_text(durable_checkpoint, snapshot)
+    _atomic_text(report_mirror, snapshot)
+
+
 def run(args, factory=None):
     path=Path(args.db).expanduser().resolve()
     if not path.is_file():
@@ -313,53 +385,63 @@ def run(args, factory=None):
         raise ValueError('Invalid limit or tolerance')
     if args.origin_from > args.origin_to:
         raise ValueError('Origin period must be chronological')
-    expected_cases=sum(
-        add_months(datetime(year,month,day,hour,tzinfo=MYT),1).year==args.target_year
+    # Preserve the established deterministic loop order for reproducible resume.
+    schedule=[
+        (code, datetime(year,month,day,hour,tzinfo=MYT))
         for code in selected
         for year,month in months_between(args.origin_from,args.origin_to)
         if args.mode!='strict' or year<args.target_year
         for day in days for hour in hours
-    )
+        if add_months(datetime(year,month,day,hour,tzinfo=MYT),1).year==args.target_year
+    ]
+    expected_cases=len(schedule)
+    scheduled_keys={(code, origin.isoformat()) for code, origin in schedule}
+    if expected_cases != len(scheduled_keys):
+        raise ValueError('Duplicate sensor/origin entries in the evaluation schedule')
     output=Path(args.output).expanduser().resolve()
     output.mkdir(parents=True,exist_ok=True)
     if factory is None:
         factory=lambda model:OllamaClient(base_url=args.ollama_url,model=model,temperature=0,timeout=180)
-    results=[]
+    checkpoint_dir=Path(getattr(args,'checkpoint_dir',None) or
+                        (ROOT/'storage'/'llm_one_month_checkpoints')).expanduser().resolve()
+    checkpoint_id=_checkpoint_identity(path,args,selected,days,hours)
+    durable=checkpoint_dir/f'cases_{checkpoint_id}.jsonl'
     backup=output/'cases.partial.jsonl'
-    backup.write_text('',encoding='utf8')
+    resume=bool(getattr(args,'resume',False))
+    results=_read_checkpoint(durable,scheduled_keys) if resume and durable.is_file() else []
+    resumed_cases=len(results)
+    if resume:
+        print(f'Resuming {resumed_cases} completed cases from {durable}',flush=True)
+    _save_progress(results,durable,backup)
     db=sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=30)
     try:
         coverage=db.execute("SELECT substr(timestamp,1,4),COUNT(DISTINCT sensor_id),COUNT(*) FROM sensor_readings WHERE dataset='normal' GROUP BY 1 ORDER BY 1").fetchall()
         print('Normal-history coverage (year, sensors, rows):', coverage,flush=True)
-        stop=False
-        for code in selected:
-            for year,month in months_between(args.origin_from,args.origin_to):
-                if args.mode=='strict' and year>=args.target_year:
-                    continue
-                for day in days:
-                    for hour in hours:
-                        origin=datetime(year,month,day,hour,tzinfo=MYT)
-                        target=add_months(origin,1)
-                        if target.year!=args.target_year:
-                            continue
-                        result=evaluate_case(db,points[code],origin,factory,path,args.tolerance_minutes)
-                        results.append(result)
-                        with backup.open('a',encoding='utf8') as f:
-                            f.write(json.dumps(result,ensure_ascii=False,allow_nan=False)+'\n')
-                        print(f"{code} {origin.date()}+1mo: {result['status']} predicted={result['projected_value']} actual={result['actual']}",flush=True)
-                        if args.limit_cases and len(results)>=args.limit_cases:
-                            stop=True;break
-                    if stop:break
-                if stop:break
-            if stop:break
+        completed={(row['sensor_id'],row['origin']) for row in results}
+        new_cases=0
+        for code,origin in schedule:
+            if (code,origin.isoformat()) in completed:
+                continue
+            result=evaluate_case(db,points[code],origin,factory,path,args.tolerance_minutes)
+            results.append(result)
+            completed.add((code,origin.isoformat()))
+            _save_progress(results,durable,backup)
+            print(f"{code} {origin.date()}+1mo: {result['status']} predicted={result['projected_value']} actual={result['actual']}",flush=True)
+            new_cases+=1
+            if args.limit_cases and new_cases>=args.limit_cases:
+                break
     finally:
         db.close()
     if not results:
         raise ValueError('No valid origin/target combinations. Check --origin-from, --origin-to and --target-year.')
+    order={(code,origin.isoformat()):i for i,(code,origin) in enumerate(schedule)}
+    results.sort(key=lambda row: order[(row['sensor_id'],row['origin'])])
+    _save_progress(results,durable,backup)
     cols=list(dict.fromkeys(field for row in results for field in row))
-    with (output/'cases.csv').open('w',encoding='utf8',newline='') as f:
-        writer=csv.DictWriter(f,fieldnames=cols)
-        writer.writeheader();writer.writerows(results)
+    table=io.StringIO()
+    writer=csv.DictWriter(table,fieldnames=cols)
+    writer.writeheader();writer.writerows(results)
+    _atomic_text(output/'cases.csv',table.getvalue())
     report=summary_for(results,args.target_year,args.mode)
     report['origin_months']=[args.origin_from,args.origin_to]
     report['origin_days']=days
@@ -368,8 +450,10 @@ def run(args, factory=None):
     report['expected_planned_cases']=expected_cases
     report['partial_run']=len(results)<expected_cases
     report['evaluation_scope']='smoke_test' if args.limit_cases else 'configured_full_period'
-    (output/'summary.json').write_text(json.dumps(report,indent=2,allow_nan=False),encoding='utf8')
-    (output/'protocol.json').write_text(json.dumps({
+    report['resumed_cases']=resumed_cases
+    report['checkpoint_id']=checkpoint_id
+    _atomic_text(output/'summary.json',json.dumps(report,indent=2,allow_nan=False))
+    _atomic_text(output/'protocol.json',json.dumps({
         'evidence_database':str(path),'dataset_year_coverage':coverage,
         'source_provenance':'offline_sqlite_backtest_normal. Existing predictor requires source=http; NOT a live HTTP reading.',
         'prediction':'production llm_service.prediction.forecast_room_reading with Qwen3 1.7B temperature=0',
@@ -379,6 +463,7 @@ def run(args, factory=None):
         'target_year':args.target_year,'mode':args.mode,'origin_days':days,'origin_hours':hours,
         'configured_sensors':selected,'expected_planned_cases':expected_cases,
         'completed_cases':len(results),'partial_run':report['partial_run'],
+        'resumed_cases':resumed_cases,'checkpoint_id':checkpoint_id,
         'evaluation_scope':report['evaluation_scope'],
         'baseline_definitions':{
           'persistence':'Last pre-cutoff sensor reading',
@@ -407,7 +492,9 @@ def main():
     parser.add_argument('--origin-days',default='1,8,15,22',help='Comma-separated month days, e.g. 1,8,15,22')
     parser.add_argument('--origin-hours',default='14',help='Comma-separated hours (Malaysia time), e.g. 10,14')
     parser.add_argument('--mode',choices=['rolling','strict'],default='rolling')
-    parser.add_argument('--limit-cases',type=int,default=0,help='Run first N eligible cases for smoke testing')
+    parser.add_argument('--limit-cases',type=int,default=0,help='Limit NEW cases in this invocation; 0 runs all remaining cases')
+    parser.add_argument('--resume',action='store_true',help='Resume previously completed cases with identical inputs and settings')
+    parser.add_argument('--checkpoint-dir',default=None,help='Durable journals; default is storage/llm_one_month_checkpoints/')
     parser.add_argument('--tolerance-minutes',type=int,default=30)
     parser.add_argument('--ollama-url',default=os.environ.get('OLLAMA_URL','http://127.0.0.1:11434'))
     parser.add_argument('--output',default='reports/llm_one_month_eval',help='Relative to current working directory')
