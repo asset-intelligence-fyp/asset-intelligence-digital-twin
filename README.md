@@ -96,3 +96,12 @@ python3 -m unittest discover -s tests -p 'test_*.py'
 Model assets remain in `public/models/FYP_WholeBuilding_18Sensors.xkt` and
 `public/models/FYP_WholeBuilding_18Sensors.ifc.gz`, managed by Git LFS. No BIM geometry
 or original sensor IDs were renamed by the simulation/benchmark update.
+
+## Qwen3 1.7B room AI and one-month prediction (Velvet UI)
+
+The AI assistant page and floating panel retain the existing building-evidence view
+and add a **Qwen room AI + 1-month forecast** tab. This connects the latest
+validated room anomaly assessment and Qwen-generated one-month forecasts without
+replacing Velvet's simulator or dashboard. See
+[Velvet AI integration](docs/velvet-llm-integration.md) and
+[LLM evaluation methodology](README_LLM_RESEARCH_EVALUATION.md).

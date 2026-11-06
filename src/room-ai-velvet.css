@@ -1,0 +1,28 @@
+.room-ai-velvet{display:flex;flex-direction:column;gap:14px;padding:16px;overflow-y:auto;max-height:min(76vh,850px);color:inherit}
+.room-ai-velvet h3{font-size:14px;margin:0 0 5px;font-weight:700}
+.room-ai-velvet p{margin:5px 0;line-height:1.5;font-size:13px}
+.room-ai-intro{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.room-ai-intro strong{font-size:15px}
+.room-ai-intro small,.room-ai-subtle,.room-ai-caution{opacity:.78;font-size:12px}
+.room-ai-connected,.room-ai-offline{border-radius:18px;padding:3px 9px;font-size:11px;border:1px solid rgba(137,151,165,.4)}
+.room-ai-connected{color:#71e7a3}.room-ai-offline{color:#efbd88}
+.room-ai-field{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600}
+.room-ai-field select,.room-ai-field input{width:100%;min-width:0;box-sizing:border-box;border-radius:8px;border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.5);color:inherit;padding:10px;font:inherit}
+.room-ai-block{border:1px solid rgba(148,163,184,.24);border-radius:11px;padding:13px;display:flex;flex-direction:column;gap:9px}
+.room-ai-block form{display:flex;flex-direction:column;gap:9px}
+.room-ai-actions{display:flex;flex-wrap:wrap;gap:8px}
+.room-ai-primary,.room-ai-secondary{border:1px solid rgba(148,163,184,.37);border-radius:8px;padding:9px 12px;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
+.room-ai-primary{background:#1674ba;color:#fff;border-color:#1686d5}
+.room-ai-secondary{background:rgba(148,163,184,.12);color:inherit}
+.room-ai-primary:disabled,.room-ai-secondary:disabled{opacity:.5;cursor:not-allowed}
+.room-ai-result{border-radius:9px;background:rgba(36,56,85,.35);padding:12px;border:1px solid rgba(148,163,184,.22)}
+.room-ai-result strong{display:block;font-size:13px}.room-ai-value{font-size:25px!important;font-weight:750;letter-spacing:-.03em}
+.room-ai-velvet details{margin-top:8px}.room-ai-velvet summary{cursor:pointer;font-size:12px;font-weight:700}
+.room-ai-velvet ul{padding-left:19px;margin:7px 0}.room-ai-velvet li{font-size:12px;margin:5px 0;line-height:1.45}
+.room-ai-backtest{border-top:1px solid rgba(148,163,184,.2);padding-top:10px}
+.room-ai-scores{padding:6px 0}.room-ai-scores p{font-size:12px;border-bottom:1px solid rgba(148,163,184,.15);padding:7px 0}
+.room-ai-error{color:#ffb5a7}.room-ai-caution{padding-top:3px}
+.assistant-ai-tabs{display:flex;gap:8px;padding:10px 14px 2px;flex-wrap:wrap}
+.assistant-ai-tabs button{cursor:pointer;font-size:12px;font-weight:650;padding:8px 12px;border-radius:9px;border:1px solid rgba(148,163,184,.35);background:rgba(148,163,184,.1);color:inherit}
+.assistant-ai-tabs button[aria-selected="true"]{background:rgba(35,126,184,.4);border-color:rgba(50,154,222,.65)}
+@media(max-width:540px){.room-ai-velvet{padding:12px;max-height:70vh}.room-ai-block{padding:10px}.assistant-ai-tabs button{flex:1}}
