@@ -118,6 +118,7 @@ class AnomalyBenchmarkTests(unittest.TestCase):
         self.assertEqual(score['abstain_positive'],1)
         self.assertEqual(score['abstain_negative'],1)
         self.assertEqual(score['coverage_pct'],33.33)
+        self.assertEqual(score['accuracy_on_scored'],1.0)
         self.assertEqual(score['recall_all_positives'],0.5)
 
     def test_run_rejects_leaked_ground_truth_in_public_case(self):

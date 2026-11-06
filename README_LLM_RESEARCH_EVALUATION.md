@@ -97,7 +97,8 @@ outputs** on identical test cases:
 - `validated_hybrid`: final `alert` / `no_alert`; review/insufficient/invalid **abstain**.
 - `operational_triage`: `alert` or `review_required` means *inspect*, not *confirmed fault*.
 
-The summary includes TP/FP/FN/TN, precision, scored-case recall and F1,
+The summary includes TP/FP/FN/TN, scored-case accuracy, balanced accuracy,
+precision, scored-case recall and F1,
 **abstention count**, coverage, recall across *all* positive cases, per-scenario
 metrics, sampled-event recall/delay, output validation and inference latency.
 `false_alarms_per_1000_scored_normals` is only for sampled controls; do **not**

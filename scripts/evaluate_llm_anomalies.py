@@ -285,6 +285,9 @@ def classification(records, key, field):
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    accuracy = (tp + tn) / covered if covered else None
+    specificity = tn / (tn + fp) if tn + fp else None
+    balanced_accuracy = (recall + specificity) / 2 if tp + fn and specificity is not None else None
     positives = sum(bool(x['fault_active']) for x in key.values())
     negatives = len(key) - positives
     return {'TP': tp, 'FP': fp, 'FN': fn, 'TN': tn,
@@ -292,6 +295,9 @@ def classification(records, key, field):
             'abstain_negative': count['abstain_negative'],
             'total': len(key), 'scored': covered, 'coverage_pct': round(100 * covered / len(key), 2) if key else None,
             'precision': round(precision, 4), 'recall_on_scored': round(recall, 4),
+            'accuracy_on_scored': round(accuracy, 4) if accuracy is not None else None,
+            'specificity_on_scored': round(specificity, 4) if specificity is not None else None,
+            'balanced_accuracy_on_scored': round(balanced_accuracy, 4) if balanced_accuracy is not None else None,
             'f1_on_scored': round(f1, 4),
             'recall_all_positives': round(tp / positives, 4) if positives else None,
             'fpr_on_scored': round(fp / (fp + tn), 4) if fp + tn else None,
