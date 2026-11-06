@@ -54,6 +54,12 @@ cases within ±60 minutes of injected events are excluded to reduce recovery
 contamination. This is a **balanced diagnostic sample**; its precision does
 not approximate deployment prevalence.
 
+If the `run` command says `Blind cases not found`, run step 1 first from the
+project root. A previous report cleanup may have deleted the ignored
+`reports/llm_anomaly_eval/` directory, including its generated cases.
+Re-preparing with the same dataset and seed produces the same case selection.
+Do not start inference using the private answer key as a replacement.
+
 ### 2. Run actual Qwen3 1.7B, without reading the key
 
 Start Ollama and make sure `qwen3:1.7b` is installed. Use the historical **normal**

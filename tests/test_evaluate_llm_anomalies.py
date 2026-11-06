@@ -121,6 +121,12 @@ class AnomalyBenchmarkTests(unittest.TestCase):
         self.assertEqual(score['accuracy_on_scored'],1.0)
         self.assertEqual(score['recall_all_positives'],0.5)
 
+    def test_missing_blind_cases_suggests_prepare(self):
+        with self.assertRaisesRegex(ValueError, 'evaluate_llm_anomalies.py prepare'):
+            m.run_cases(self.root/'missing_cases_public.jsonl',
+                        self.folder/'sensor_history.csv', self.db, self.out,
+                        factory=lambda model: None)
+
     def test_run_rejects_leaked_ground_truth_in_public_case(self):
         m.write_jsonl(self.public,[{'case_id':'A00001','sensor_id':CODE,
              'room_id':'L03-MEET-01','at_time':START.isoformat(),'fault_active':1}])

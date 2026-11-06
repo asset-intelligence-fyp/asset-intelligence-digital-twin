@@ -216,6 +216,16 @@ def infer_case(case, point, history, db_path, factory):
 def run_cases(public_path, sensor_csv, db_path, output, *, ollama_url='http://127.0.0.1:11434',
               limit=0, resume=False, factory=None):
     """BLIND inference: intentionally has no parameter for truth or answer keys."""
+    public_path = Path(public_path)
+    if not public_path.is_file():
+        raise ValueError(
+            f'Blind cases not found: {public_path}. Run preparation first: '
+            'python3 scripts/evaluate_llm_anomalies.py prepare '
+            '--dataset-dir tools/level03_simulator/outputs/fyp_fault_holdout '
+            '(or pass --cases pointing to the prepared cases_public.jsonl).'
+        )
+    if not Path(sensor_csv).is_file():
+        raise ValueError(f'Sensor readings not found: {sensor_csv}. Generate the fault dataset first.')
     if not Path(db_path).is_file():
         raise ValueError('A normal-history SQLite file is required for consistent rule comparisons')
     with sqlite3.connect(Path(db_path).resolve().as_uri() + '?mode=ro', uri=True) as db:
@@ -401,17 +411,20 @@ def main(argv=None):
     score.add_argument('--key', default='reports/llm_anomaly_eval/answer_key_PRIVATE.jsonl')
     score.add_argument('--out', default='reports/llm_anomaly_eval/summary.json')
     args = parser.parse_args(argv)
-    if args.command == 'prepare':
-        result = prepare_cases(args.dataset_dir, args.public_out, args.key_out,
-                               negatives=args.negatives, positive_per_event=args.positive_per_event,
-                               max_events=args.max_events, seed=args.seed)
-    elif args.command == 'run':
-        if args.limit < 0:
-            parser.error('--limit must be >= 0')
-        result = run_cases(args.cases, args.readings, args.db, args.out,
-                           ollama_url=args.ollama_url, limit=args.limit, resume=args.resume)
-    else:
-        result = score_cases(args.predictions, args.key, args.out)
+    try:
+        if args.command == 'prepare':
+            result = prepare_cases(args.dataset_dir, args.public_out, args.key_out,
+                                   negatives=args.negatives, positive_per_event=args.positive_per_event,
+                                   max_events=args.max_events, seed=args.seed)
+        elif args.command == 'run':
+            if args.limit < 0:
+                parser.error('--limit must be >= 0')
+            result = run_cases(args.cases, args.readings, args.db, args.out,
+                               ollama_url=args.ollama_url, limit=args.limit, resume=args.resume)
+        else:
+            result = score_cases(args.predictions, args.key, args.out)
+    except (FileNotFoundError, ValueError) as exc:
+        parser.error(str(exc))
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
 
