@@ -472,7 +472,7 @@ def run(args, factory=None):
         'historical_lookback_days':1095,'http_replay_max_samples':18000,
         'synthetic_data_warning':'These values are from generated building data, not installed physical sensors.',
         'note':'Earlier observations from the target year MAY be visible in rolling mode, but NEVER target or later values. No model training occurs.'
-    },indent=2),encoding='utf8')
+    },indent=2))
     print('\nSummary (actual calculated metrics):')
     for metric in report['summary']:
         print(json.dumps({k:metric[k] for k in ('sensor_id','planned_cases','valid_predictions','MAE','RMSE','accuracy_score_pct','skill_vs_persistence_pct','skill_vs_seasonal_naive_pct')},ensure_ascii=False))
