@@ -46,3 +46,12 @@ tsconfig.tsbuildinfo
 # Supplied large datasets stay local, outside web assets and source control.
 data/
 generated/
+
+# Local AI evaluation reports and recovery checkpoints
+reports/llm_one_month_eval/
+reports/llm_anomaly_eval/
+reports/llm_research_evaluation.json
+storage/llm_one_month_checkpoints/
+
+# Generated local fault-injection datasets
+tools/level03_simulator/outputs/

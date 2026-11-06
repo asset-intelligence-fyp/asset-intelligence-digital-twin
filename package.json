@@ -17,7 +17,11 @@
     "demo": "TWIN_STORAGE=memory concurrently -k -n API,WEB,SIM \"npm:dev:api\" \"npm:dev:web\" \"npm:simulator\"",
     "model:verify": "node scripts/verify-model.mjs",
     "model:navigation": "python3 scripts/export-navigation.py && python3 scripts/export-room-footprints.py",
-    "simulator:calibrate": "python3 -m tools.hybrid_simulator.calibrate"
+    "simulator:calibrate": "python3 -m tools.hybrid_simulator.calibrate",
+    "eval:llm:one-month": "python3 scripts/evaluate_llm_one_month.py",
+    "eval:llm:anomaly:score": "python3 scripts/evaluate_llm_anomalies.py score",
+    "eval:llm:report": "python3 scripts/build_llm_evaluation_report.py",
+    "test:ai": "node --test tests/roomAssistantValidated.test.mjs tests/roomPrediction.test.mjs tests/oneMonthEvaluationEndpoint.test.mjs"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
