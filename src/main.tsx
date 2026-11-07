@@ -12,6 +12,7 @@ import {Events} from './pages/Events';
 import {Simulator} from './pages/Simulator';
 import {CommandPalette} from './components/ExperiencePanel';
 import {Presentation} from './pages/Presentation';
+import {AdminDatabase,AdminLogin,useAdminSession} from './pages/AdminDatabase';
 import './styles.css';
 import './control-room.css';
 import './workspace.css';
@@ -20,6 +21,7 @@ document.documentElement.dataset.theme='dark';
 function App(){
  const {selectedRoom:selectedAsset,setSelectedRoom:setSelectedAsset}=useTwin();
  const [commandRequest,setCommandRequest]=useState(0);
+ const {session,setSession,logout}=useAdminSession();
  const [page,updatePage]=useState<Page>('overview');
  const setPage=(next:Page)=>{updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
  const [assistantDraft,setAssistantDraft]=useState<{question:string;scope:string;nonce:number}|null>(null);
@@ -27,6 +29,7 @@ function App(){
  const focus=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;setSelectedCode(code);setSelectedAsset(p.assetId);setPage('overview');setCommandRequest(n=>n+1)};
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
  return <><Shell page={page} setPage={setPage}>
+  {page==='admin'&&(session.authenticated?<AdminDatabase onLogout={()=>{void logout();}}/>:<AdminLogin onSuccess={setSession}/>)}
   {page==='overview'&&<Overview externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='sensors'&&<Sensors initialCode={selectedCode}/>}
@@ -34,7 +37,7 @@ function App(){
   {page==='events'&&<Events onSensor={focus} onAsk={askSensor}/>}
   {page==='simulator'&&<Simulator/>}
   {page==='status'&&<SystemStatus/>}
- <div className={page==='assistant'?'assistant-page-inner':''}><AssistantWorkspace fullPage={page==='assistant'} onExpand={()=>setPage('assistant')} onSensor={focus} draft={assistantDraft}/></div>
+ <div className={page==='assistant'?'assistant-page-inner':''} style={page==='admin'?{display:'none'}:undefined}><AssistantWorkspace fullPage={page==='assistant'} onExpand={()=>setPage('assistant')} onSensor={focus} draft={assistantDraft}/></div>
  <CommandPalette onSelect={code=>{const point=POINTS.find(p=>p.code===code);if(point){setSelectedCode(code);setSelectedAsset(point.assetId);setPage('overview');setCommandRequest(n=>n+1)}}}/>
  </Shell></>;
 }
