@@ -1,0 +1,26 @@
+# Never commit inputs, answers, or inference outputs.
+outputs/
+datasets/
+data/
+*.zip
+*.7z
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.jsonl
+*PRIVATE*
+*HIDDEN*
+*evaluation_KEYS*
+*ground_truth*
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.log
+*.csv
+!.gitkeep
