@@ -1,4 +1,6 @@
 import {registerBuildingAssistant} from './buildingAssistant.js';
+import {adminAuth} from './adminAuth.js';
+import {registerAdminDatabase} from './adminDatabase.js';
 import express from 'express';
 import {normalizeSimulation,registerSimulationControls} from './hybridContract.js';
 import {createHash,randomUUID} from 'node:crypto';
@@ -10,6 +12,7 @@ import {registry,normalizeReadings} from './sensorContract.js';
 dotenv.config();
 export function createSensorApp({pool=null}={}) {
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
+ adminAuth(app);registerAdminDatabase(app,pool);
  registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
@@ -83,8 +86,10 @@ export function createSensorApp({pool=null}={}) {
   try{
    const locations=[...new Set(registry.map(p=>p.assetId))],history=await historyFor(),latest=new Map();
    for(const r of history)latest.set(r.point_code,r);
+   let maintenance=[];
+   if(pool){const present=await pool.query("SELECT to_regclass('twin18.maintenance_events') AS name");if(present.rows[0]?.name){const query=await pool.query('SELECT maintenance_id, location_code AS asset_id, event_date, event_type, maintenance_status, description FROM twin18.maintenance_events ORDER BY event_date DESC LIMIT 200');maintenance=query.rows;}}
    res.setHeader('Cache-Control','no-store');res.json({storage:pool?'postgresql':'temporary_memory',synthetic:true,simulation:lastSource||{replay_id:activeReplay},data:{
-    Assets:locations.map(id=>({asset_id:id,asset_name:registry.find(p=>p.assetId===id).locationLabel,asset_type:'Monitoring location',status:'Monitoring'})),Maintenance_Events:[],Anomaly_Results:[],
+    Assets:locations.map(id=>({asset_id:id,asset_name:registry.find(p=>p.assetId===id).locationLabel,asset_type:'Monitoring location',status:'Monitoring'})),Maintenance_Events:maintenance,Anomaly_Results:[],
     Sensor_Readings:[...latest.values()].map(r=>({...r,latest_update:r.timestamp})),Historical_Sensor_Readings:history,
     Sensors:registry,BIM_Models:[{model_name:'FYP whole building · 18 markers',file_reference:'/models/FYP_WholeBuilding_18Sensors.xkt'}]
    }});
