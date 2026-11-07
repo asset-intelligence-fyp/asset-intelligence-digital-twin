@@ -20,3 +20,12 @@
 .admin-modal .admin-heading-actions{display:flex;align-items:center;gap:8px}
 .admin-modal .admin-table-wrap{max-height:min(48vh,550px);overflow:auto}
 @media(max-width:520px){.admin-modal .admin-login-card{min-height:0;padding:28px 20px}.admin-modal .admin-page{padding:18px}.admin-modal .admin-heading-actions{flex-wrap:wrap}}
+
+/* Authenticated Database is a normal workspace page, never a modal. */
+.page-container > .admin-page{width:100%;max-width:1450px;margin:0 auto;padding:0;box-sizing:border-box;background:transparent;box-shadow:none;border:none}
+.page-container > .admin-page .admin-heading{margin:0 0 26px;align-items:center}
+.page-container > .admin-page .admin-heading h1{font-size:clamp(26px,2.4vw,36px);line-height:1.2}
+.page-container > .admin-page .admin-summary>div{min-height:92px;box-sizing:border-box}
+.page-container > .admin-page .admin-table-wrap{min-height:280px}
+.page-container > .admin-page .admin-heading-actions{display:flex;align-items:center;gap:8px}
+@media(max-width:760px){.page-container > .admin-page .admin-heading{align-items:flex-start}.page-container > .admin-page .admin-table-wrap{min-height:180px}}
