@@ -29,3 +29,35 @@
 .page-container > .admin-page .admin-table-wrap{min-height:280px}
 .page-container > .admin-page .admin-heading-actions{display:flex;align-items:center;gap:8px}
 @media(max-width:760px){.page-container > .admin-page .admin-heading{align-items:flex-start}.page-container > .admin-page .admin-table-wrap{min-height:180px}}
+
+/* Database workspace follows the same typography, sizing and slate/cyan palette as
+   Sensor monitoring, Asset register and Building performance. */
+.page-container > .admin-page{font-family:Inter,Arial,Helvetica,sans-serif}
+.page-container > .admin-page .page-heading{margin-bottom:22px;align-items:center}
+.page-container > .admin-page .page-heading h1{font-size:30px;font-weight:650;letter-spacing:-1px;line-height:1.15;margin:0;color:var(--ink)}
+.page-container > .admin-page .page-heading p{font-size:12px;line-height:1.7;margin:8px 0 0;color:var(--muted)}
+.page-container > .admin-page .eyebrow{font-family:var(--mono);font-size:9px;font-weight:400;letter-spacing:1.5px;color:var(--muted)}
+.page-container > .admin-page .admin-summary{gap:16px;margin:0 0 20px}
+.page-container > .admin-page .admin-summary > .surface{padding:20px 18px;min-height:114px;border-radius:16px;background:var(--surface);border:1px solid var(--border);box-shadow:none}
+.page-container > .admin-page .admin-summary small{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+.page-container > .admin-page .admin-summary strong{font-size:22px;line-height:1.2;letter-spacing:-.5px;font-weight:600;color:var(--ink)}
+.page-container > .admin-page .admin-tabs{gap:8px;margin-bottom:16px}
+.page-container > .admin-page .admin-tabs button{padding:10px 14px;min-height:40px;border:1px solid var(--border);border-radius:9px;background:var(--surface);font-size:12px;font-weight:500;color:var(--muted)}
+.page-container > .admin-page .admin-tabs button.selected{background:rgba(34,193,211,.1);border-color:var(--teal);color:var(--teal);font-weight:600}
+.page-container > .admin-page .admin-tabs button:hover{border-color:var(--teal)}
+.page-container > .admin-page .admin-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:0;overflow-x:auto}
+.page-container > .admin-page .admin-table-title{min-height:56px;padding:14px 20px;margin:0;gap:12px;border-bottom:1px solid var(--border)}
+.page-container > .admin-page .admin-table-title strong{font-size:13px;font-weight:650;letter-spacing:0;color:var(--ink)}
+.page-container > .admin-page .admin-table{font-size:12px;color:var(--ink);font-family:Inter,Arial,Helvetica,sans-serif}
+.page-container > .admin-page .admin-table th{font-family:var(--mono);font-size:10px;font-weight:400;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);background:transparent}
+.page-container > .admin-page .admin-table th,.page-container > .admin-page .admin-table td{padding:15px 20px;border-bottom:1px solid var(--border)}
+.page-container > .admin-page .admin-table td{font-size:12px;font-weight:450;color:var(--ink)}
+.page-container > .admin-page .admin-table tbody tr:last-child td{border-bottom:0}
+.page-container > .admin-page .admin-table tbody tr:hover{background:rgba(90,149,160,.08)}
+.page-container > .admin-page .admin-outline,.page-container > .admin-page .admin-pagination button{border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font-size:11px;min-height:36px;padding:8px 13px}
+.page-container > .admin-page .admin-outline:hover,.page-container > .admin-page .admin-pagination button:hover:not(:disabled){border-color:var(--teal);color:var(--teal)}
+.page-container > .admin-page .admin-pagination{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.page-container > .admin-page .admin-pagination button:disabled{opacity:.45}
+.page-container > .admin-page .admin-table-wrap > p{padding:18px 20px;color:var(--muted);font-size:12px}
+@media(max-width:900px){.page-container > .admin-page .admin-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.page-container > .admin-page .admin-summary{grid-template-columns:1fr}.page-container > .admin-page .page-heading{align-items:flex-start}.page-container > .admin-page .page-heading h1{font-size:27px}.page-container > .admin-page .admin-table th,.page-container > .admin-page .admin-table td{padding:12px}}
