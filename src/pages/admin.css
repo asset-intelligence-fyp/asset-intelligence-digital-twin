@@ -3,3 +3,20 @@
 /* Replace decorative DT avatar with understated, right-aligned Login control. */
 .top-actions .admin-login-trigger{display:inline-flex;align-items:center;justify-content:center;width:auto;min-width:64px;height:38px;padding:0 14px;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--ink);font-size:12px;font-weight:600;letter-spacing:0;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .top-actions .admin-login-trigger:hover{border-color:var(--teal);color:var(--teal)}
+
+/* Modal Login: preserve the current page behind a compact, centered square card. */
+.admin-overlay{position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(2,8,15,.52);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.admin-modal{position:relative;width:min(440px,calc(100vw - 40px));max-height:calc(100dvh - 40px);overflow-y:auto}
+.admin-modal-wide{width:min(1120px,calc(100vw - 40px))}
+.admin-modal .admin-login{width:100%;max-width:none;margin:0}
+.admin-modal .admin-login-card{position:relative;width:100%;min-height:420px;box-sizing:border-box;padding:34px 30px 30px;border-radius:18px;background:var(--surface);border:1px solid var(--border);box-shadow:0 24px 65px rgba(0,0,0,.5)}
+.admin-modal .admin-login h1{font-size:24px;margin:6px 0 8px}
+.admin-modal .admin-login-card>p{font-size:12px;line-height:1.55;max-width:35ch}
+.admin-modal .admin-login form{margin-top:20px}
+.admin-modal .admin-login input{width:100%;box-sizing:border-box}
+.admin-modal .admin-close{position:absolute;top:15px;right:15px;width:32px;height:32px;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--ink);font-size:22px;cursor:pointer;display:grid;place-items:center;line-height:1}
+.admin-modal .admin-close:hover,.admin-modal .admin-close:focus-visible{background:var(--bg)}
+.admin-modal .admin-page{box-sizing:border-box;width:100%;max-width:none;margin:0;padding:26px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:0 24px 65px rgba(0,0,0,.5)}
+.admin-modal .admin-heading-actions{display:flex;align-items:center;gap:8px}
+.admin-modal .admin-table-wrap{max-height:min(48vh,550px);overflow:auto}
+@media(max-width:520px){.admin-modal .admin-login-card{min-height:0;padding:28px 20px}.admin-modal .admin-page{padding:18px}.admin-modal .admin-heading-actions{flex-wrap:wrap}}
