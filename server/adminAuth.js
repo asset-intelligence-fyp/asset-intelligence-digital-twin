@@ -68,7 +68,7 @@ export function requireAdmin(req,res,next) {
   const origin=req.get('origin');
   const host=req.get('host');
   if(origin && host) {
-    try { if(new URL(origin).host!==host) return res.status(403).json({error:'Invalid origin'}); }
+    try { const u=new URL(origin); const allowed = u.host===host || (process.env.NODE_ENV!=='production' && ['localhost','127.0.0.1'].includes(u.hostname) && ['5173','3001'].includes(u.port)); if(!allowed)return res.status(403).json({error:'Invalid origin'}); }
     catch { return res.status(403).json({error:'Invalid origin'}); }
   }
   next();
