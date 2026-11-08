@@ -1,0 +1,1 @@
+Original website prompts are archived under reference/llm_service/shared_llm/prompts.py and website forecast prompt is in reference/llm_service/prediction.py. This file is NOT substituted for those original prompts in the controlled dataset-v4 comparison, because their contract and input schema differ.
