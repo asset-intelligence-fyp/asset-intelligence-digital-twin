@@ -11,6 +11,7 @@ import json
 import random
 import time
 from collections import defaultdict
+from anomaly_reporting import classify_error, export_detailed_reports
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -104,10 +105,13 @@ def run_inference(args, selected, outdir):
                                 "tool_call_count": len(tools.used),
                                 "tool_error_count": sum(1 for t in tools.used if t.get("status") == "error")})
                 row["latency_seconds"] = round(time.perf_counter() - started, 3)
+                row["error_category"] = classify_error(row.get("error", "")) if not row.get("valid") else ("TOOL_ERROR" if row["tool_error_count"] else "NONE")
                 stream.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
                 stream.flush()
                 print(f'{model} {case_id} valid={row["valid"]} tools={row["tool_call_count"]} '
-                      f'errors={row["tool_error_count"]} latency={row["latency_seconds"]}s', flush=True)
+                      f'errors={row["tool_error_count"]} latency={row["latency_seconds"]}s '
+                      f'category={row["error_category"]} '
+                      f'{row.get("error", "")[:180]}', flush=True)
 
 
 def score(outdir, truth_path, selected):
@@ -157,6 +161,7 @@ def score(outdir, truth_path, selected):
         writer.writerows(metrics)
     (outdir / "anomaly_model_comparison.json").write_text(
         json.dumps(metrics, indent=2), encoding="utf-8")
+    export_detailed_reports(outdir, truth, config, metrics)
     return metrics
 
 
@@ -188,6 +193,9 @@ def main():
         run_inference(args, selected, outdir)
     result = score(outdir, args.keys, selected)
     print(json.dumps(result, indent=2))
+    print(f"\\nSaved all reports to: {outdir.resolve()}")
+    for name in ("anomaly_model_comparison.csv", "case_results.csv", "errors.csv", "model_selection_report.md"):
+        print(f"  {name}")
 
 
 if __name__ == "__main__":
