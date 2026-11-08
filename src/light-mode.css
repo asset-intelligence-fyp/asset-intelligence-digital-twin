@@ -1,0 +1,172 @@
+/* Light appearance follows the same layout and data colours as the dark dashboard. */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.theme-toggle:hover { border-color: var(--teal); }
+:root[data-theme=light] {
+  color-scheme: light;
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --ink: #1d3048;
+  --muted: #566b83;
+  --border: #d5dfe9;
+  --teal: #087d9d;
+  --dark: #116b94;
+  --light-soft: #edf3f9;
+  --light-selected: #dceef8;
+  --light-accent: #086e95;
+  color: var(--ink);
+  background: var(--bg);
+}
+:root[data-theme=light] body {
+  background: radial-gradient(ellipse at 15% 0, #dfedf7 0, transparent 50%), var(--bg);
+  color: var(--ink);
+}
+:root[data-theme=light] * { scrollbar-color: #b8c9d9 transparent; }
+:root[data-theme=light] .surface {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--ink);
+  box-shadow: 0 5px 20px #233b5510;
+}
+:root[data-theme=light] :is(.topbar, .sidebar, .statusbar) {
+  background: #fbfdff;
+  border-color: var(--border);
+  color: var(--muted);
+}
+:root[data-theme=light] .brand { border-color: var(--border); }
+:root[data-theme=light] :is(.brand-name, .brand-name > span, .site-identity strong) { color: var(--ink); }
+:root[data-theme=light] :is(.brand-name small, .site-identity > span, .eyebrow, .sidebar-project,
+  .model-sync small, .room-floor-label, .selected-sensor-detail p, .selected-sensor-detail summary) { color: var(--muted); }
+:root[data-theme=light] .nav-icon { color: #526a84; }
+:root[data-theme=light] .nav-icon:hover { background: var(--light-soft); color: var(--ink); }
+:root[data-theme=light] .nav-icon.selected { background: var(--light-selected); color: #125579; }
+:root[data-theme=light] .nav-icon.selected svg { color: var(--light-accent); }
+:root[data-theme=light] .sidebar-bottom { border-color: var(--border); }
+:root[data-theme=light] :is(.model-sync, .header-clock, .top-notifications, .avatar) {
+  background: var(--light-soft);
+  border-color: var(--border);
+  color: var(--ink);
+}
+:root[data-theme=light] :is(.top-live, .pill-teal, .reporting-note) {
+  background: #e8f5fa;
+  border-color: #b2dce9;
+  color: #08657e;
+}
+:root[data-theme=light] .simulation-badge { background: #eef0fa; border-color: #d1d8ec; color: #535f8b; }
+:root[data-theme=light] .pill { background: var(--light-soft); border-color: var(--border); color: var(--muted); }
+:root[data-theme=light] .pill-warning { background: #fff5dd; border-color: #e6c579; color: #815509; }
+:root[data-theme=light] :is(.small-outline, .workspace-tabs button, .quick-scenarios button,
+  .choice-buttons button, .prompt-chips button, .ack-button, .assistant-ai-tabs button) {
+  background: #f7fafd;
+  border-color: #c9d8e6;
+  color: #35546f;
+}
+:root[data-theme=light] :is(.small-outline, .quick-scenarios button, .choice-buttons button):hover {
+  background: var(--light-soft);
+  border-color: #83b4cb;
+}
+:root[data-theme=light] :is(.workspace-tabs button[aria-selected=true], .workspace-tabs button[aria-pressed=true],
+  .choice-buttons button[aria-pressed=true], .location-tabs button[aria-pressed=true],
+  .assistant-ai-tabs button[aria-selected=true]) {
+  background: var(--light-selected);
+  border-color: #8abed6;
+  color: #095d83;
+}
+:root[data-theme=light] :is(.segmented, .button-stepper, .detail-metric, .zone-stat,
+  .benchmark-panel .kpi-grid > div, .room-ai-result, .room-ai-secondary) {
+  background: var(--light-soft);
+  border-color: var(--border);
+  color: var(--ink);
+}
+:root[data-theme=light] :is(.segmented button, .location-tabs button) { color: var(--muted); }
+:root[data-theme=light] .segmented button.active { background: #d9eaf5; color: #08678d; }
+:root[data-theme=light] :is(.button-stepper button, .panel-icon) { background: #dcecf6; border-color: #bed8e7; color: #176b8e; }
+:root[data-theme=light] :is(.button-stepper output, .zone-stat > span, .weather-temperature,
+  .twin-chart-labels strong, .system-tile-bottom strong, .kpi-value) { color: var(--ink); }
+:root[data-theme=light] :is(.weather-temperature small, .weather-primary p, .weather-cell strong small,
+  .weather-calendar, .weather-primary .eyebrow small, .zone-stat > span small,
+  .twin-chart-labels, .twin-chart-labels strong small, .chart-time-axis,
+  .chart-time-axis small, .twin-chart-legend, .system-tile-bottom small,
+  .systems-heading small, .section-title h3 span, .activity-list > p, .activity-list small) { color: var(--muted); }
+:root[data-theme=light] :is(.weather-cell, .weather-primary, .weather-calendar, .panel-heading,
+  .applied-settings, .feature-inventory td, .feature-inventory th, .evidence-list li) { border-color: var(--border); }
+:root[data-theme=light] .weather-icon { background: #e5f3fa; color: #087b9b; border-color: #bfdfeb; }
+:root[data-theme=light] .weather-wave { color: #087d9d; }
+:root[data-theme=light] .chart-grid-line { color: #94aac0; opacity: .4; }
+:root[data-theme=light] .chart-skeleton { color: var(--muted); }
+:root[data-theme=light] .kpi-value { color: var(--ink) !important; }
+:root[data-theme=light] :is(.register-header, .register-row, .twin-monitor-row, .twin-sensors-header) {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+:root[data-theme=light] .register-name > span { color: var(--ink); }
+:root[data-theme=light] :is(.register-row:hover, .twin-monitor-row:hover, .row-selected) {
+  background: var(--light-selected) !important;
+}
+:root[data-theme=light] :is(.asset-detail-header, .air-row) { border-color: var(--border); }
+:root[data-theme=light] .air-progress { background: #dce8f2; }
+:root[data-theme=light] .activity-list > button { color: #3b526d; }
+:root[data-theme=light] .orders-top button { color: #346782 !important; }
+:root[data-theme=light] :is(.twin-zone-sensor, .twin-sensor-row) { color: #455f78 !important; }
+:root[data-theme=light] :is(.twin-zone-sensor code, .selected-sensor-detail code) { color: #243d59 !important; }
+:root[data-theme=light] .twin-zone-sensor { border-bottom-color: var(--border) !important; }
+:root[data-theme=light] :is(.twin-zone-sensor[aria-pressed=true], .twin-sensor-row.active,
+  .twin-sensor-row:hover, .event-selected) { background: var(--light-selected) !important; color: #1b536e !important; }
+:root[data-theme=light] :is(input, select, textarea, .searchbox, .searchbox input, .twin-select,
+  .assistant-scope select, .room-ai-field select, .room-ai-field input) {
+  background: #ffffff;
+  border-color: #bfcedd;
+  color: var(--ink);
+}
+:root[data-theme=light] :is(input, textarea)::placeholder { color: #647a92; }
+:root[data-theme=light] :is(.control-feedback, .applied-settings > strong) { background: #eaf4fa; border-color: #c3dfed; color: #29647f; }
+:root[data-theme=light] :is(.applied-settings p, .panel-heading p, .response-guide p,
+  .response-guide > summary, .feature-inventory td:last-child, .room-ai-subtle, .room-ai-caution) { color: var(--muted); }
+:root[data-theme=light] :is(.lab-explanation, .lab-panel p.subtle) { color: var(--muted) !important; }
+:root[data-theme=light] .fault-offset { background: #fff6e5; border-color: #e6cf9e; color: #7d591a; }
+:root[data-theme=light] .fault-offset strong { color: #6e480a; }
+:root[data-theme=light] :is(.assistant-head, .assistant-scope, .assistant-note, .room-ai-block,
+  .room-ai-backtest, .room-ai-scores p) { border-color: var(--border); }
+:root[data-theme=light] :is(.assistant-workspace .assistant-messages, .assistant-workspace .assistant-composer) { background: #ffffff; }
+:root[data-theme=light] .assistant-composer input { background: transparent !important; color: var(--ink) !important; }
+:root[data-theme=light] .chat-turn .message-user { background: #e1effa; border-color: #bcd9eb; color: #214d6d; }
+:root[data-theme=light] .message-assistant { background: #f2f7fb; border-color: var(--border); color: var(--ink); }
+:root[data-theme=light] :is(.evidence-list p, .event-open) { color: #3a526c; }
+:root[data-theme=light] .room-ai-connected { color: #196d51; border-color: #a8d1bc; background: #edf8f1; }
+:root[data-theme=light] .room-ai-offline { color: #805b18; background: #fff5df; border-color: #e6d1a5; }
+:root[data-theme=light] :is(.room-ai-error, .xeokit-error) { color: #a43125; }
+:root[data-theme=light] .text-link { color: #096b91; }
+:root[data-theme=light] :is(.model-stage, .clarity-stage, .clarity-stage.scene-night,
+  .clarity-stage.scene-rain, .clarity-stage.scene-cloudy) { background: radial-gradient(ellipse at 45% 30%, #d9eaf6, #edf3f8 65%); }
+:root[data-theme=light] :is(.bim-floor-select, .bim-render-modes, .bim-camera-actions,
+  .bim-sensor-switcher, .bim-focus-reading, .bim-colour-key, .xeokit-feedback) {
+  background: #ffffffed;
+  border-color: #b9cddd;
+  color: #35546d;
+}
+:root[data-theme=light] :is(.bim-floor-select select, .bim-colour-key select, .bim-navigation-dock select) { background: #ffffff; color: #2b4e69; }
+:root[data-theme=light] :is(.bim-render-modes button, .bim-navigation-dock button,
+  .bim-secondary-controls, .bim-view-status, .bim-view-status small, .bim-gesture-help,
+  .scene-weather-status, .xeokit-feedback p) { color: #4a657d; }
+:root[data-theme=light] :is(.bim-render-modes button[aria-pressed=true], .bim-navigation-dock button[aria-pressed=true]) { background: #d7edf8; color: #07678d; }
+:root[data-theme=light] .bim-focus-reading strong { color: #1c405c !important; }
+:root[data-theme=light] .bim-focus-reading span { color: #526e85 !important; }
+:root[data-theme=light] .bim-inline-error { background: #fff3dc; color: #78521a; }
+:root[data-theme=light] .bim-sensor-pin { background: #e7f5fc; border-color: #147a9f; color: #0b5678; }
+:root[data-theme=light] .bim-sensor-pin-selected { background: #086e95; color: #ffffff; border-color: #07587b; }
+:root[data-theme=light] .bim-pin-leaders line { stroke: #086d94; }
+:root[data-theme=light] .bim-pin-layer .sensor-receiving .sensor-anchor-core { fill: #087a9e; stroke: #03516f; }
+:root[data-theme=light] .bim-pin-layer .sensor-arrival-ring { stroke: #087a9e; }
+:root[data-theme=light] .bim-pin-layer :is(.sensor-missing, .sensor-stale, .sensor-stored, .sensor-historical) circle { fill: #d6e0e9; stroke: #5c728b; }
+:root[data-theme=light] .bim-pin-layer .bim-sensor-pin:not(.sensor-receiving) { background: #eef2f6; color: #4a6078; border-color: #8da1b5; }

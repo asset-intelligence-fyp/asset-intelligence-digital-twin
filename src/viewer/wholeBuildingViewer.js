@@ -17,9 +17,17 @@ export function createBuildingViewer({canvas,navCanvas,navigation,onSelect,onLoa
  const exterior=createExteriorLayer(viewer.scene);
  const weatherTick=viewer.scene.on('tick',()=>exterior.tick(performance.now()));
  const control=createNavigationController(viewer,{navigation,planes,points,heatmap:createHeatmapLayer(viewer.scene,navigation,points),roomFocus:createRoomFocusLayer(viewer.scene,footprints),onState,onPins,reducedMotion:window.matchMedia('(prefers-reduced-motion: reduce)').matches});
+ const syncTheme=()=>{
+  const light=document.documentElement.dataset.theme==='light';
+  viewer.scene.edgeMaterial.edgeColor=light?[.12,.3,.42]:[.23,.36,.48];
+  control.setTheme(light?'light':'dark');
+ };
+ syncTheme();
+ const themeObserver=new MutationObserver(syncTheme);
+ themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
  new NavCubePlugin(viewer,{canvasId:navCanvas.id,visible:true,cameraFly:true,cameraFlyDuration:.28});
  const model=new XKTLoaderPlugin(viewer).load({id:'fyp_whole_building',src:'/models/FYP_WholeBuilding_18Sensors.xkt',edges:true});
  model.on('loaded',()=>{control.load();exterior.init(viewer.scene.getAABB(Object.keys(viewer.scene.objects)));onLoad()});model.on('error',e=>onError(String(e)));
  viewer.cameraControl.on('picked',e=>{if(e.entity){const guid=e.entity.id.split(/[.#]/).pop();if(navigation.sensors.some(p=>p.guid===guid))onSelect(guid)}});
- return {...control,setWeather:(weather,showExterior,motion)=>exterior.set(weather,showExterior,motion),destroy(){viewer.scene.off(weatherTick);exterior.destroy();control.destroy();viewer.destroy()}};
+ return {...control,setWeather:(weather,showExterior,motion)=>exterior.set(weather,showExterior,motion),destroy(){themeObserver.disconnect();viewer.scene.off(weatherTick);exterior.destroy();control.destroy();viewer.destroy()}};
 }
