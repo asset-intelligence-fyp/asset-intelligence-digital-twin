@@ -16,7 +16,9 @@ import './styles.css';
 import './control-room.css';
 import './workspace.css';
 import './pulse.css';
-document.documentElement.dataset.theme='dark';
+import './light-mode.css';
+import {initialiseTheme} from './services/theme';
+initialiseTheme();
 function App(){
  const {selectedRoom:selectedAsset,setSelectedRoom:setSelectedAsset}=useTwin();
  const [commandRequest,setCommandRequest]=useState(0);

@@ -1,10 +1,11 @@
 import {METRICS} from './sensorPresentation.js';
-import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
+import {XRAY_DEFAULT,xrayStyle,viewerPalette} from './renderSettings.js';
 import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
 /** One owner for floor visibility, selection and camera movement. No competing React flights. */
 export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
  const scene=viewer.scene;
+ let theme='dark';
  const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,metric:'temperature',foundMarkers:0,objectsOnFloor:0};
  let all=[],markerIds=[],architectureIds=[],floorIndex=new Map(),guidIndex=new Map(),flight=0,destroyed=false,pinSignature='',lastPins=0,slabIds=[],heatReadings={};
  const sensors=new Map(navigation.sensors.map(p=>[p.guid,p]));
@@ -28,11 +29,11 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
  }
  function refreshHeatmap(){heatmap.update({metric:state.metric,readings:heatReadings,floor:state.floor,enabled:state.mode==='heatmap'})}
  function appearance(){
-  const ghost=state.mode!=='solid',style=xrayStyle(state.opacity);
+  const ghost=state.mode!=='solid',style=xrayStyle(state.opacity,theme),palette=viewerPalette(theme);
   // A controlled, unlit emphasis material prevents source lighting/materials bleaching the shell.
   Object.assign(scene.xrayMaterial,{fill:true,fillColor:style.fillColor,fillAlpha:style.alpha,edges:true,edgeColor:style.edgeColor,edgeAlpha:style.edgeAlpha,edgeWidth:1,glowThrough:false});
   scene.setObjectsOpacity(architectureIds,1);
-  scene.setObjectsColorized(architectureIds,ghost?null:[.35,.43,.54]);
+  scene.setObjectsColorized(architectureIds,ghost?null:palette.solid);
   scene.setObjectsXRayed(architectureIds,ghost);
   scene.setObjectsXRayed(markerIds,false);
   scene.setObjectsEdges(architectureIds,ghost);
@@ -40,7 +41,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    // Keep only the supporting floor subdued; upper slabs must not cover the room cutaway.
    scene.setObjectsXRayed(slabIds,false);
    scene.setObjectsOpacity(slabIds,style.floorAlpha);
-   scene.setObjectsColorized(slabIds,GHOST_COLOUR);
+   scene.setObjectsColorized(slabIds,palette.ghost);
   }
   state.roomBoundary=state.selectedGuid?roomFocus.status(state.selectedGuid):'';
   state.hasRoomBoundary=!!(state.selectedGuid&&roomFocus.bounds(state.selectedGuid));
@@ -101,6 +102,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   setMode(mode){state.mode=['xray','heatmap'].includes(mode)?mode:'solid';pinSignature='';appearance();emit()},
   setCutaway(value){state.cutaway=!!value;clipping();emit()},
   setOpacity(value){state.opacity=xrayStyle(value).alpha;appearance();emit()},
+  setTheme(value){theme=value==='light'?'light':'dark';if(state.ready)appearance()},
   setRoomOutline(value){state.roomOutline=!!value;appearance();emit()},
   setHeatmap(metric,readings){const changed=metric!==state.metric;state.metric=METRICS[metric]?metric:'temperature';heatReadings=readings||{};if(changed){unselect();pinSignature='';appearance();emit()}else refreshHeatmap()},
   interact(){cancelFlight();emit()},

@@ -3,17 +3,19 @@ import {Clock,Play,Pause,Sparkles,SlidersHorizontal,Search,Sun,Moon} from 'lucid
 import {POINTS,ASSETS,useTwin} from '../services/twin';
 import {comfort,DEFAULT_SCENARIO,PRESETS,roomEvidence} from '../services/experienceMath.js';
 import {roomTitle,sensorTitle} from '../viewer/sensorPresentation.js';
+import {useTheme} from '../services/theme';
 export function ExperiencePanel(){
  const t=useTwin();const times=[...new Set(t.liveHistory.map(r=>Date.parse(r.timestamp)))].filter(Number.isFinite).sort((a,b)=>a-b);
  const now=times.at(-1)||Date.now(),first=times[0]||now,current=t.replayTime??now;
- const [playing,setPlaying]=useState(false),[open,setOpen]=useState(false),[dark,setDark]=useState(()=>localStorage.getItem('twin-theme')!=='light');
- useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('twin-theme',dark?'dark':'light')},[dark]);
+ const [playing,setPlaying]=useState(false),[open,setOpen]=useState(false);
+ const {theme,toggleTheme}=useTheme();
+ const dark=theme==='dark';
  useEffect(()=>{if(!playing)return;const timer=setInterval(()=>{const next=times.find(time=>time>current);if(next)t.setReplayTime(next);else{setPlaying(false);t.setReplayTime(null)}},550);return()=>clearInterval(timer)},[playing,current,times.join(',')]);
  useEffect(()=>{if(t.replayTime!==null&&t.replayTime<first)t.setReplayTime(first)},[first,t.replayTime]);
  const point=POINTS.find(p=>p.assetId===t.selectedRoom)!,score=comfort(POINTS,t.readings,t.selectedRoom),evidence: {point:typeof POINTS[number];reading?:{timestamp:string;value:number};display:{available:boolean;value:string;status:string}}[]=roomEvidence(POINTS,t.readings,t.selectedRoom);
  const raised=evidence.filter(e=>e.display.available&&['Above demo band','Below demo band','Leak detected'].includes(e.display.status));
  return <section className="experience-panel surface">
-  <div className="experience-top"><div><Clock size={16}/><strong>{t.scenario?'What-if illustration':t.replayTime===null?'Live twin':'Replay'}</strong><span>{t.demo?'Guided synthetic demo':'Connected readings'}</span></div><div><button onClick={()=>{t.setDemo(!t.demo);t.setReplayTime(null);setPlaying(false)}}>{t.demo?'Use connected data':'Load 24-hour demo'}</button><button aria-expanded={open} onClick={()=>setOpen(!open)}><SlidersHorizontal size={14}/>What if?</button><button aria-label="Toggle control room theme" onClick={()=>setDark(!dark)}>{dark?<Sun size={15}/>:<Moon size={15}/>}</button></div></div>
+  <div className="experience-top"><div><Clock size={16}/><strong>{t.scenario?'What-if illustration':t.replayTime===null?'Live twin':'Replay'}</strong><span>{t.demo?'Guided synthetic demo':'Connected readings'}</span></div><div><button onClick={()=>{t.setDemo(!t.demo);t.setReplayTime(null);setPlaying(false)}}>{t.demo?'Use connected data':'Load 24-hour demo'}</button><button aria-expanded={open} onClick={()=>setOpen(!open)}><SlidersHorizontal size={14}/>What if?</button><button aria-label="Toggle control room theme" onClick={toggleTheme}>{dark?<Sun size={15}/>:<Moon size={15}/>}</button></div></div>
   <div className="replay-controls"><button aria-label={playing?'Pause replay':'Play replay'} disabled={!times.length} onClick={()=>{if(!playing&&t.replayTime===null)t.setReplayTime(first);setPlaying(!playing)}}>{playing?<Pause size={15}/>:<Play size={15}/>}</button><span>{new Date(first).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span><input aria-label="Replay available sensor history" type="range" min={first} max={Math.max(first+1,now)} step={1} value={Math.min(now,Math.max(first,current))} disabled={times.length<2} onChange={e=>{setPlaying(false);t.setReplayTime(Number(e.target.value))}}/><span>{new Date(current).toLocaleString()}</span><button onClick={()=>{t.setReplayTime(null);setPlaying(false)}} aria-pressed={t.replayTime===null}>Live</button></div>
   <div className="timeline-events">{t.events.filter(e=>Date.parse(e.time)>=first&&Date.parse(e.time)<=now).map(e=><button key={e.id} onClick={()=>{t.setReplayTime(Date.parse(e.time));setPlaying(false)}} title={new Date(e.time).toLocaleString()}><i/>{e.title}</button>)}</div>
   <p className="experience-note">{t.demo?'24 hours of generated demonstration readings. Each tick advances 15 simulated minutes.':`${((now-first)/3600000).toFixed(1)} hours available for replay. Live ingestion continues while you review history.`}{t.scenario?' What-if values are illustrative formulas, not AI forecasts.':''}</p>

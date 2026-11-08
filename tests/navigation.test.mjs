@@ -146,6 +146,22 @@ test('Selected room outline follows selection, frames the room plan and clears o
  f.controller.destroy();assert.equal(destroyed,true);
 });
 
+test('Changing theme keeps the selected sensor, opacity, camera and clipping while refreshing X-ray contrast',()=>{
+ const f=fixture();
+ f.controller.focusSensor(navigation.sensors[0].guid);
+ f.controller.setOpacity(.62);
+ const before=f.controller.snapshot(),flights=f.flightCalls.length;
+ const dark=f.scene.xrayMaterial.fillColor;
+ f.controller.setTheme('light');
+ assert.notDeepEqual(f.scene.xrayMaterial.fillColor,dark);
+ assert.equal(f.scene.xrayMaterial.fillAlpha,.62);
+ assert.deepEqual(f.controller.snapshot(),before);
+ assert.equal(f.flightCalls.length,flights);
+ f.controller.setTheme('dark');
+ assert.deepEqual(f.scene.xrayMaterial.fillColor,dark);
+ f.controller.destroy();
+});
+
 test('IFC footprint meshes contain valid triangles and perimeter edges, with missing rooms explicit',()=>{
  const data=JSON.parse(fs.readFileSync('shared/roomFootprints.json','utf8'));
  assert.equal(Object.keys(data.sensors).length,18);
