@@ -89,3 +89,21 @@
 .page-container > .admin-page .admin-task-filters input,.page-container > .admin-page .admin-task-filters select{min-height:40px;max-width:290px;width:100%;padding:9px 12px;box-sizing:border-box;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);font-family:Inter,Arial,Helvetica,sans-serif;font-size:12px;letter-spacing:normal;color-scheme:dark}
 .page-container > .admin-page .admin-task-filters input:focus-visible,.page-container > .admin-page .admin-task-filters select:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
 @media(max-width:650px){.page-container > .admin-page .admin-task-filters>label{width:100%}.page-container > .admin-page .admin-task-filters input,.page-container > .admin-page .admin-task-filters select{max-width:none}}
+
+/* Drill-down navigation replaces permanently visible table tabs. */
+.page-container > .admin-page .admin-navigation-home{display:flex;flex-direction:column;gap:24px;padding:4px 0 22px}
+.page-container > .admin-page .admin-home-intro{margin-bottom:2px}
+.page-container > .admin-page .admin-home-intro h2{font-size:21px;font-weight:650;letter-spacing:-.55px;color:var(--ink);margin:0 0 8px}
+.page-container > .admin-page .admin-home-intro p{font-size:12px;line-height:1.7;color:var(--muted);margin:0}
+.page-container > .admin-page .admin-home-group h3{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.page-container > .admin-page .admin-home-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.page-container > .admin-page .admin-home-card{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:10px;min-height:115px;padding:17px 18px;background:var(--surface);border:1px solid var(--border);border-radius:13px;color:var(--ink);cursor:pointer;font-size:14px;font-weight:600}
+.page-container > .admin-page .admin-home-card:hover,.page-container > .admin-page .admin-home-card:focus-visible{border-color:var(--teal);background:rgba(34,193,211,.06);outline:none}
+.page-container > .admin-page .admin-home-card-description{font-size:11px;font-weight:400;color:var(--muted);line-height:1.5}
+.page-container > .admin-page .admin-home-card-arrow{margin-top:auto;color:var(--teal);font-size:11px;font-weight:600}
+.page-container > .admin-page .admin-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:0 0 18px;font-size:12px}
+.page-container > .admin-page .admin-crumb-home{border:0;background:transparent;color:var(--muted);font-size:12px;cursor:pointer}
+.page-container > .admin-page .admin-crumb-home:hover{color:var(--teal)}
+.page-container > .admin-page .admin-crumb-text{color:var(--muted)}
+.page-container > .admin-page .admin-crumb-current{color:var(--ink);font-weight:600}
+@media(max-width:600px){.page-container > .admin-page .admin-home-cards{grid-template-columns:1fr}}
