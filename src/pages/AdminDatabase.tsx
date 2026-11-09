@@ -38,7 +38,7 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
   bim:'BIM model references and linked building information.',
   bim_elements:'BIM elements associated with the building.',
   locations:'Monitoring locations and their building/floor assignments.',
-  sensors:'Sensor channels and their location / IFC mappings.',
+  sensors:'Latest stored value for each sensor. Select a sensor to view its full reading history.',
   readings:'Time-series sensor observations stored in PostgreSQL + TimescaleDB.',
   ai_results:'Persisted anomaly results, when the AI integration becomes active.',
   forecasts:'Persisted prediction results, when forecasting integration becomes active.',
@@ -92,6 +92,10 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
  useEffect(()=>{json('/api/admin/buildings').then(data=>setBuildings((data as {buildings:BuildingOption[]}).buildings)).catch(()=>setBuildings([]))},[]);
  useEffect(()=>{void load(active)},[active,load,reload]);
  const cols=dataset?.rows.length?Object.keys(dataset.rows[0]):[];
+ const formatReading=(value:unknown)=>typeof value==='number'?Number(value.toFixed(2)).toString():value===null||value===undefined?'—':String(value);
+ const formatTimestamp=(value:unknown)=>value?new Date(String(value)).toLocaleString('en-MY',{dateStyle:'medium',timeStyle:'medium',hour12:true}):'No readings yet';
+ const displaySensor=(value:unknown)=>{const text=String(value||'');return text==='co2'?'CO₂':text.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());};
+
  const hasFilters=['buildings','locations','sensors','readings','ai_results','forecasts','alerts','maintenance'].includes(active);
  const emptyText=active==='ai_results'?'No stored AI anomaly results yet. The AI persistence workflow has not been connected.':active==='forecasts'?'No saved forecast results yet.':active==='alerts'?'No persisted alerts yet.':active==='notifications'?'No notifications have been saved yet.':active==='maintenance'?'No maintenance records yet.':'No records match the current selection.';
  return <section className="admin-page">
@@ -120,7 +124,7 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
    </div>}
   {error&&<p className="admin-error" role="alert">{error}</p>}
   <div className="surface admin-table-wrap"><div className="admin-table-title"><div className="admin-table-heading"><strong>{names[active]||active}</strong><p>{descriptions[active]||'Database records'}</p></div><button className="admin-outline" disabled={loading} onClick={()=>void load(active,dataset?.offset||0)}>Refresh</button></div>
-  {loading?<p>Loading database records…</p>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className={navigable?'admin-navigable-row':undefined} tabIndex={navigable?0:undefined} onKeyDown={navigable?e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(row)}}:undefined} onClick={navigable?()=>navigate(row):undefined}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}{navigable&&k===cols[0]?<span className="admin-row-link">{active==='sensors'?'View readings →':active==='locations'?'View sensors →':'View locations →'}</span>:null}</td>)}</tr>)}</tbody></table>:<p>{emptyText}</p>}
+  {loading?<p>Loading database records…</p>:dataset?.rows.length&&active==='sensors'?<table className="admin-table admin-sensor-overview"><thead><tr><th>Sensor</th><th>Location</th><th>Latest reading</th><th>Last recorded</th><th></th></tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className="admin-navigable-row" tabIndex={0} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(row)}}} onClick={()=>navigate(row)}><td><strong>{displaySensor(row.measurement_type)}</strong><span className="admin-sensor-point">{String(row.point_code)}</span></td><td>{String(row.location_code||'—')}</td><td><strong className="admin-latest-value">{row.latest_timestamp?formatReading(row.latest_value):'—'}</strong>{row.latest_timestamp&&<span className="admin-latest-unit">{String(row.unit||'')}</span>}</td><td>{formatTimestamp(row.latest_timestamp)}</td><td><span className="admin-row-link">View history →</span></td></tr>)}</tbody></table>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className={navigable?'admin-navigable-row':undefined} tabIndex={navigable?0:undefined} onKeyDown={navigable?e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(row)}}:undefined} onClick={navigable?()=>navigate(row):undefined}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}{navigable&&k===cols[0]?<span className="admin-row-link">{active==='sensors'?'View readings →':active==='locations'?'View sensors →':'View locations →'}</span>:null}</td>)}</tr>)}</tbody></table>:<p>{emptyText}</p>}
   </div>
   {dataset&&<div className="admin-pagination"><span>Rows {dataset.rows.length?dataset.offset+1:0}–{dataset.offset+dataset.rows.length}</span><button disabled={loading||dataset.offset===0} onClick={()=>void load(active,Math.max(0,dataset.offset-100))}>Previous</button><button disabled={loading||dataset.rows.length<100} onClick={()=>void load(active,dataset.offset+100)}>Next</button></div>}
  </section>;
