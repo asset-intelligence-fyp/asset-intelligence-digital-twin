@@ -61,3 +61,12 @@
 .page-container > .admin-page .admin-table-wrap > p{padding:18px 20px;color:var(--muted);font-size:12px}
 @media(max-width:900px){.page-container > .admin-page .admin-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.page-container > .admin-page .admin-summary{grid-template-columns:1fr}.page-container > .admin-page .page-heading{align-items:flex-start}.page-container > .admin-page .page-heading h1{font-size:27px}.page-container > .admin-page .admin-table th,.page-container > .admin-page .admin-table td{padding:12px}}
+
+/* Curated administrator workflow navigation, matching existing page typography. */
+.page-container > .admin-page .admin-view-groups{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;margin:2px 0 20px}
+.page-container > .admin-page .admin-view-group{min-width:0}
+.page-container > .admin-page .admin-group-label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+.page-container > .admin-page .admin-view-group .admin-tabs{margin:0;gap:7px}
+.page-container > .admin-page .admin-table-heading{display:flex;flex-direction:column;gap:5px;min-width:0}
+.page-container > .admin-page .admin-table-heading p{font-size:11px;line-height:1.5;color:var(--muted);text-transform:none}
+@media(max-width:800px){.page-container > .admin-page .admin-view-groups{gap:15px}.page-container > .admin-page .admin-view-group{width:100%}}
