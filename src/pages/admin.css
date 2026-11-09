@@ -136,3 +136,6 @@
 .page-container > .admin-page .admin-navigable-row{cursor:pointer}
 .page-container > .admin-page .admin-navigable-row:hover{background:rgba(34,193,211,.085)}
 .page-container > .admin-page .admin-navigable-row:focus-visible{outline:2px solid var(--teal);outline-offset:-2px;background:rgba(34,193,211,.08)}
+
+/* Logged-out state uses the original Login pill; authenticated state uses the round icon. */
+.top-actions .admin-profile .admin-login-trigger.admin-login-text{display:inline-flex;width:auto;min-width:64px;height:38px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0;white-space:nowrap}
