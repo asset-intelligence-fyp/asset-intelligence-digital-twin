@@ -70,3 +70,15 @@
 .page-container > .admin-page .admin-table-heading{display:flex;flex-direction:column;gap:5px;min-width:0}
 .page-container > .admin-page .admin-table-heading p{font-size:11px;line-height:1.5;color:var(--muted);text-transform:none}
 @media(max-width:800px){.page-container > .admin-page .admin-view-groups{gap:15px}.page-container > .admin-page .admin-view-group{width:100%}}
+
+/* Contextual database navigation: building -> locations -> sensors -> readings. */
+.page-container > .admin-page .admin-context-bar{display:flex;align-items:end;gap:14px 20px;flex-wrap:wrap;padding:15px 18px;margin:0 0 17px;background:var(--surface);border:1px solid var(--border);border-radius:13px}
+.page-container > .admin-page .admin-context-field{display:flex;flex-direction:column;gap:7px;min-width:220px}
+.page-container > .admin-page .admin-context-field label{font-size:10px;font-family:var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.page-container > .admin-page .admin-context-field select{background:var(--bg);color:var(--ink);border:1px solid var(--border);border-radius:9px;padding:9px 12px;min-height:39px;font-size:12px;max-width:100%}
+.page-container > .admin-page .admin-context-scope{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:12px;color:var(--teal)}
+.page-container > .admin-page .admin-context-bar>p{font-size:11px;line-height:1.6;color:var(--muted);margin-left:auto;max-width:400px}
+.page-container > .admin-page .admin-navigable-row{cursor:pointer}
+.page-container > .admin-page .admin-navigable-row:focus-visible{outline:2px solid var(--teal);outline-offset:-2px;background:rgba(34,193,211,.09)}
+.page-container > .admin-page .admin-row-link{display:inline-block;margin-left:12px;font-size:10px;color:var(--teal);white-space:nowrap}
+@media(max-width:700px){.page-container > .admin-page .admin-context-field{width:100%}.page-container > .admin-page .admin-context-bar>p{margin-left:0}}
