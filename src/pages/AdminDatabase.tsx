@@ -14,41 +14,88 @@ async function json(url:string,options?:RequestInit) {
 }
 export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>void}) {
  const [summary,setSummary]=useState<Summary|null>(null);
- const [active,setActive]=useState<string>('locations');
+ const [active,setActive]=useState('buildings');
  const [dataset,setDataset]=useState<DataSet|null>(null);
  const [buildings,setBuildings]=useState<BuildingOption[]>([]);
  const [building,setBuilding]=useState('');
  const [location,setLocation]=useState('');
  const [point,setPoint]=useState('');
+ const [search,setSearch]=useState('');
+ const [start,setStart]=useState('');
+ const [end,setEnd]=useState('');
+ const [status,setStatus]=useState('');
+ const [quality,setQuality]=useState('');
  const [error,setError]=useState('');
  const [loading,setLoading]=useState(false);
+ const [reload,setReload]=useState(0);
+ const available=summary?.available_views||[...tables];
+ const names:Record<string,string>={buildings:'Buildings',floors:'Building floors',bim:'BIM models',bim_elements:'BIM elements',locations:'Locations',sensors:'Sensor registry',readings:'Sensor readings',ai_results:'AI results',forecasts:'Forecast results',alerts:'Alerts',maintenance:'Maintenance history',notifications:'Notifications'};
+ const descriptions:Record<string,string>={
+  buildings:'Registered buildings. Open a building to explore its monitored spaces.',
+  floors:'Floors associated with the building.',
+  bim:'BIM model references and linked building information.',
+  bim_elements:'BIM elements associated with the building.',
+  locations:'Monitoring locations and their building/floor assignments.',
+  sensors:'Sensor channels and their location / IFC mappings.',
+  readings:'Time-series sensor observations stored in PostgreSQL + TimescaleDB.',
+  ai_results:'Persisted anomaly results, when the AI integration becomes active.',
+  forecasts:'Persisted prediction results, when forecasting integration becomes active.',
+  alerts:'Stored alerts, when automated alert persistence becomes active.',
+  maintenance:'Maintenance and inspection records.',
+  notifications:'Stored notifications, when the notification service becomes active.'
+ };
+ const go=(next:string)=>{setActive(next);setSearch('');setStart('');setEnd('');setStatus('');setQuality('');setReload(n=>n+1);};
+ const chooseBuilding=(code:string)=>{setBuilding(code);setLocation('');setPoint('');go('locations');};
+ const chooseLocation=(code:string)=>{setLocation(code);setPoint('');go('sensors');};
+ const navigate=(row:Record<string,unknown>)=>{
+  if(active==='buildings')chooseBuilding(String(row.building_code||''));
+  else if(active==='floors'){setBuilding(String(row.building_code||''));go('locations');}
+  else if(active==='bim'||active==='bim_elements'){setBuilding(String(row.building_code||''));go('locations');}
+  else if(active==='locations')chooseLocation(String(row.location_code||''));
+  else if(active==='sensors'){setLocation(String(row.location_code||''));setPoint(String(row.point_code||''));go('readings');}
+ };
+ const navigable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
+ const showBuilding=summary?.active_schema==='digital_twin'&&buildings.length>1&&['floors','bim','bim_elements','locations','sensors','readings','ai_results','forecasts','maintenance'].includes(active);
+ const showContext=showBuilding||Boolean(location)&&['sensors','readings','ai_results','forecasts','maintenance'].includes(active)||Boolean(point)&&['readings','ai_results','forecasts'].includes(active);
  const load=useCallback(async(table:string,offset=0)=>{
   setLoading(true);setError('');
-  try {const params=new URLSearchParams({offset:String(offset)});if(building)params.set('building',building);if(location&&['sensors','readings','maintenance'].includes(table))params.set('location',location);if(point&&table==='readings')params.set('point',point);setDataset(await json(`/api/admin/database/${table}?${params}`) as DataSet);}
-  catch(e){setError(String(e));setDataset(null);}
-  finally{setLoading(false);}
- },[building,location,point]);
- useEffect(()=>{json('/api/admin/buildings').then(data=>setBuildings((data as {buildings:BuildingOption[]}).buildings)).catch(()=>setBuildings([]));},[]);
- useEffect(()=>{json('/api/admin/database/summary').then(data=>setSummary(data as Summary)).catch(e=>setError(String(e)));},[]);
- useEffect(()=>{void load(active);},[active,load]);
- const available=summary?.available_views||[...tables];
- const names:Record<string,string>={locations:'Locations',sensors:'Sensor registry',readings:'Sensor readings',maintenance:'Maintenance history',buildings:'Buildings',floors:'Building floors',bim:'BIM models',bim_elements:'BIM elements',ai_results:'AI results',forecasts:'Forecast results',alerts:'Alerts',notifications:'Notifications'};
- const descriptions:Record<string,string>={locations:'Monitored spaces for the selected building.',sensors:'Sensor channels and BIM mappings for the selected location.',readings:'Stored synthetic readings; select a sensor to follow its history.',maintenance:'Maintenance records for monitored spaces.',buildings:'Select a building to explore its locations.',floors:'Floors registered under the selected building.',bim:'Building model file references.',bim_elements:'BIM elements assigned to the building.',ai_results:'Stored anomaly detection results (shown when AI persistence is enabled).',forecasts:'Stored forecast results (shown when forecast persistence is enabled).',alerts:'Saved alerts (shown when alert integration is enabled).',notifications:'Saved notifications (shown when notification integration is enabled).'};
+  const params=new URLSearchParams({offset:String(offset)});
+  if(building&&table!=='buildings')params.set('building',building);
+  if(location&&['sensors','readings','maintenance','ai_results','forecasts'].includes(table))params.set('location',location);
+  if(point&&['readings','ai_results','forecasts'].includes(table))params.set('point',point);
+  if(search&&['buildings','locations','sensors'].includes(table))params.set('search',search);
+  if(start&&['readings','ai_results','forecasts'].includes(table))params.set('start',new Date(start).toISOString());
+  if(end&&['readings','ai_results','forecasts'].includes(table))params.set('end',new Date(end).toISOString());
+  if(status&&['ai_results','alerts','maintenance'].includes(table))params.set('status',status);
+  if(quality&&table==='readings')params.set('quality',quality);
+  try{setDataset(await json(`/api/admin/database/${table}?${params}`) as DataSet)}
+  catch(e){setError(String(e));setDataset(null)}
+  finally{setLoading(false)}
+ },[building,location,point,search,start,end,status,quality]);
+ useEffect(()=>{json('/api/admin/database/summary').then(data=>{const value=data as Summary;setSummary(value);if(value.active_schema==='twin18')setActive('locations')}).catch(e=>setError(String(e)))},[]);
+ useEffect(()=>{json('/api/admin/buildings').then(data=>setBuildings((data as {buildings:BuildingOption[]}).buildings)).catch(()=>setBuildings([]))},[]);
+ useEffect(()=>{void load(active)},[active,load,reload]);
  const cols=dataset?.rows.length?Object.keys(dataset.rows[0]):[];
- const chooseBuilding=(code:string)=>{setBuilding(code);setLocation('');setPoint('');setActive('locations');};
- const chooseLocation=(code:string)=>{setLocation(code);setPoint('');setActive('sensors');};
- const openRelated=(row:Record<string,unknown>)=>{if(['buildings','bim','floors','bim_elements'].includes(active)){chooseBuilding(String(row.building_code||''));return;}if(active==='locations'){chooseLocation(String(row.location_code||''));return;}if(active==='sensors'){setLocation(String(row.location_code||''));setPoint(String(row.point_code||''));setActive('readings');}};
- const clickable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
+ const hasFilters=['buildings','locations','sensors','readings','ai_results','forecasts','alerts','maintenance'].includes(active);
+ const emptyText=active==='ai_results'?'No stored AI anomaly results yet. The AI persistence workflow has not been connected.':active==='forecasts'?'No saved forecast results yet.':active==='alerts'?'No persisted alerts yet.':active==='notifications'?'No notifications have been saved yet.':active==='maintenance'?'No maintenance records yet.':'No records match the current selection.';
  return <section className="admin-page">
-  <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1><p>PostgreSQL + TimescaleDB · Read-only monitoring data</p></div><div className="admin-heading-actions"><button type="button" className="admin-outline" onClick={onClose}>Close</button><button type="button" className="admin-outline" onClick={onLogout}>Logout</button></div></div>
+  <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1><p>PostgreSQL + TimescaleDB · Read-only operational data</p></div><div className="admin-heading-actions"><button type="button" className="admin-outline" onClick={onClose}>Close</button><button type="button" className="admin-outline" onClick={onLogout}>Logout</button></div></div>
   {summary&&<div className="admin-summary"><div className="surface"><small>Database / Schema</small><strong>{summary.database.database} / {summary.active_schema||'twin18'}</strong></div><div className="surface"><small>PostgreSQL</small><strong>{summary.database.postgres_version}</strong></div><div className="surface"><small>TimescaleDB</small><strong>{summary.timescaledb.installed?summary.timescaledb.version:'Not enabled'}</strong></div><div className="surface"><small>Hypertables</small><strong>{summary.timescaledb.hypertables.map(h=>h.hypertable_name).join(', ')||'None'}</strong></div></div>}
-  <div className="admin-view-groups">{sections.map(group=>{const keys=group.keys.filter(t=>available.includes(t));return keys.length?<div className="admin-view-group" key={group.title}><span className="admin-group-label">{group.title}</span><div className="admin-tabs">{keys.map(t=><button type="button" key={t} className={active===t?'selected':''} onClick={()=>setActive(t)}>{names[t]||t}</button>)}</div></div>:null})}</div>
-  {summary?.active_schema==='digital_twin'&&<div className="admin-context-bar"><div className="admin-context-field"><label htmlFor="admin-building">Building</label><select id="admin-building" value={building} onChange={e=>chooseBuilding(e.target.value)}><option value="">All buildings</option>{buildings.map(b=><option key={b.building_code} value={b.building_code}>{b.building_name} ({b.building_code})</option>)}</select></div>{location&&<div className="admin-context-scope"><span>Location: {location}</span><button type="button" className="admin-outline" onClick={()=>{setLocation('');setPoint('')}}>Clear location</button></div>}{point&&<div className="admin-context-scope"><span>Sensor: {point}</span><button type="button" className="admin-outline" onClick={()=>setPoint('')}>Clear sensor</button></div>}<p>Choose a building to scope its locations and sensors. Select a row to explore related records.</p></div>}
+  <div className="admin-view-groups">{sections.map(group=>{const keys=group.keys.filter(t=>available.includes(t));return keys.length?<div className="admin-view-group" key={group.title}><span className="admin-group-label">{group.title}</span><div className="admin-tabs">{keys.map(t=><button type="button" key={t} className={active===t?'selected':''} onClick={()=>go(t)}>{names[t]||t}</button>)}</div></div>:null})}</div>
+  {showContext&&<div className="admin-context-bar">{showBuilding&&<div className="admin-context-field"><label htmlFor="admin-building">Building</label><select id="admin-building" value={building} onChange={e=>{setBuilding(e.target.value);setLocation('');setPoint('')}}><option value="">All buildings</option>{buildings.map(b=><option key={b.building_code} value={b.building_code}>{b.building_name}</option>)}</select></div>}{location&&<div className="admin-context-scope"><span>Location: {location}</span><button type="button" className="admin-outline" onClick={()=>{setLocation('');setPoint('')}}>Clear</button></div>}{point&&<div className="admin-context-scope"><span>Sensor: {point}</span><button type="button" className="admin-outline" onClick={()=>setPoint('')}>Clear</button></div>}</div>}
+  {hasFilters&&<div className="admin-task-filters">
+    {['buildings','locations','sensors'].includes(active)&&<label>Search<input value={search} onChange={e=>setSearch(e.target.value)} placeholder={active==='buildings'?'Building name or code':active==='locations'?'Location name or code':'Sensor code or type'}/></label>}
+    {['readings','ai_results','forecasts'].includes(active)&&<><label>From<input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To<input type="datetime-local" value={end} min={start||undefined} onChange={e=>setEnd(e.target.value)}/></label></>}
+    {active==='readings'&&<label>Quality<select value={quality} onChange={e=>setQuality(e.target.value)}><option value="">All qualities</option><option value="synthetic">Synthetic</option><option value="missing">Missing</option></select></label>}
+    {active==='ai_results'&&<label>Prediction<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All predictions</option><option value="Normal">Normal</option><option value="Abnormal">Abnormal</option><option value="Unknown">Unknown</option></select></label>}
+    {active==='alerts'&&<label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['New','Review','Acknowledged','Closed'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>}
+    {active==='maintenance'&&<label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['Scheduled','In Progress','Completed','Cancelled'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>}
+   </div>}
   {error&&<p className="admin-error" role="alert">{error}</p>}
-  <div className="surface admin-table-wrap"><div className="admin-table-title"><div className="admin-table-heading"><strong>{names[active]||active}</strong><p>{descriptions[active]||'Database records'}</p></div><button className="admin-outline" disabled={loading} onClick={()=>load(active,dataset?.offset||0)}>Refresh</button></div>
-  {loading?<p>Loading database records…</p>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className={clickable?'admin-navigable-row':undefined} tabIndex={clickable?0:undefined} role={clickable?'button':undefined} onKeyDown={clickable?e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openRelated(row)}}:undefined} onClick={clickable?()=>openRelated(row):undefined}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}{clickable&&k===cols[0]?<span className="admin-row-link">View related →</span>:null}</td>)}</tr>)}</tbody></table>:<p>No records yet in this section.</p>}
+  <div className="surface admin-table-wrap"><div className="admin-table-title"><div className="admin-table-heading"><strong>{names[active]||active}</strong><p>{descriptions[active]||'Database records'}</p></div><button className="admin-outline" disabled={loading} onClick={()=>void load(active,dataset?.offset||0)}>Refresh</button></div>
+  {loading?<p>Loading database records…</p>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className={navigable?'admin-navigable-row':undefined} tabIndex={navigable?0:undefined} onKeyDown={navigable?e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(row)}}:undefined} onClick={navigable?()=>navigate(row):undefined}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}{navigable&&k===cols[0]?<span className="admin-row-link">{active==='sensors'?'View readings →':active==='locations'?'View sensors →':'View locations →'}</span>:null}</td>)}</tr>)}</tbody></table>:<p>{emptyText}</p>}
   </div>
-  {dataset&&<div className="admin-pagination"><span>Rows {dataset.offset+1}–{dataset.offset+dataset.rows.length}</span><button disabled={loading||dataset.offset===0} onClick={()=>load(active,Math.max(0,dataset.offset-100))}>Previous</button><button disabled={loading||dataset.rows.length<100} onClick={()=>load(active,dataset.offset+100)}>Next</button></div>}
+  {dataset&&<div className="admin-pagination"><span>Rows {dataset.rows.length?dataset.offset+1:0}–{dataset.offset+dataset.rows.length}</span><button disabled={loading||dataset.offset===0} onClick={()=>void load(active,Math.max(0,dataset.offset-100))}>Previous</button><button disabled={loading||dataset.rows.length<100} onClick={()=>void load(active,dataset.offset+100)}>Next</button></div>}
  </section>;
 }
 export function AdminLogin({onSuccess,onClose}:{onSuccess:(session:Session)=>void;onClose:()=>void}) {
