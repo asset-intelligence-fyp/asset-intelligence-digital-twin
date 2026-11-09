@@ -59,25 +59,34 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     if(!pool) return res.status(503).json({error:'Configure PostgreSQL first.'});
     const qualified=TABLES[req.params.table];
     if(!qualified) return res.status(404).json({error:'Unknown allowed table'});
-    const offset=Math.max(0,Math.min(1000000,Number.parseInt(String(req.query.offset||'0'),10)||0));
     const table=req.params.table;
-    const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':table==='alerts'?'r.triggered_at DESC':table==='ai_results'||table==='forecasts'||table==='notifications'?'r.created_at DESC':'1';
-    const building=typeof req.query.building==='string'?req.query.building.trim():'';
-    const location=typeof req.query.location==='string'?req.query.location.trim():'';
-    const point=typeof req.query.point==='string'?req.query.point.trim():'';
-    if(building.length>100||location.length>100||point.length>100)return res.status(400).json({error:'Invalid filter'});
+    const offset=Math.max(0,Math.min(1000000,Number.parseInt(String(req.query.offset||'0'),10)||0));
+    const readParam=(key)=>typeof req.query[key]==='string'?req.query[key].trim():'';
+    const building=readParam('building'),location=readParam('location'),point=readParam('point');
+    const search=readParam('search'),start=readParam('start'),end=readParam('end');
+    const status=readParam('status'),quality=readParam('quality');
+    if([building,location,point,search,status,quality].some(v=>v.length>120)||[start,end].some(v=>v.length>40))
+      return res.status(400).json({error:'Invalid filter length'});
+    if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end)))||(start&&end&&Date.parse(start)>Date.parse(end)))
+      return res.status(400).json({error:'Invalid date range'});
     const where=[],params=[];
-    const bind=(value)=>{params.push(value);return '$'+params.length;};
-    // Use parameterized filters, not string-interpolated user values.
-    // Every filtered reading is linked via its registered sensor and location.
+    const bind=(v)=>{params.push(v);return '$'+params.length;};
     let from=`${qualified} r`;
+    const textSearch=(columns)=>{if(search)where.push('('+columns.map(c=>`CAST(${c} AS TEXT) ILIKE ${bind('%'+search+'%')}`).join(' OR ')+')');};
     if(schema==='digital_twin'){
-      if(table==='locations'&&building)where.push(`r.building_code=${bind(building)}`);
+      if(table==='buildings'){textSearch(['r.building_name','r.building_code']);}
+      if(table==='floors'){if(building)where.push(`r.building_code=${bind(building)}`);}
+      if(table==='bim'||table==='bim_elements'){if(building)where.push(`r.building_code=${bind(building)}`);}
+      if(table==='locations'){
+        if(building)where.push(`r.building_code=${bind(building)}`);
+        textSearch(['r.display_name','r.location_code']);
+      }
       if(table==='sensors'){
         if(location)where.push(`r.location_code=${bind(location)}`);
         if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
+        textSearch(['r.point_code','r.measurement_type','r.ifc_sensor_id']);
       }
-      if(table==='readings'){
+      if(table==='readings'||table==='ai_results'||table==='forecasts'){
         if(point)where.push(`r.point_code=${bind(point)}`);
         if(location||building){
           from+=' JOIN digital_twin.sensor_registry sr ON sr.point_code=r.point_code';
@@ -85,20 +94,32 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
           if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=sr.location_code';where.push(`l.building_code=${bind(building)}`);}
         }
       }
+      if(table==='readings'){
+        if(quality)where.push(`r.quality=${bind(quality)}`);
+        if(start)where.push(`r.reading_timestamp>=${bind(start)}::timestamptz`);
+        if(end)where.push(`r.reading_timestamp<=${bind(end)}::timestamptz`);
+      }
       if(table==='ai_results'||table==='forecasts'){
-        if(point)where.push(`r.point_code=${bind(point)}`);
-        if(location||building){from+=' JOIN digital_twin.sensor_registry sr ON sr.point_code=r.point_code';if(location)where.push(`sr.location_code=${bind(location)}`);if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=sr.location_code';where.push(`l.building_code=${bind(building)}`);}}
+        const timeCol=table==='ai_results'?'r.observation_timestamp':'r.target_timestamp';
+        if(start)where.push(`${timeCol}>=${bind(start)}::timestamptz`);
+        if(end)where.push(`${timeCol}<=${bind(end)}::timestamptz`);
+        if(table==='ai_results'&&status)where.push(`r.prediction=${bind(status)}`);
       }
       if(table==='maintenance'){
         if(location)where.push(`r.location_code=${bind(location)}`);
         if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
+        if(status)where.push(`r.maintenance_status=${bind(status)}`);
       }
-      if(['buildings','bim','floors','bim_elements'].includes(table)&&building)where.push(`r.building_code=${bind(building)}`);
+      if(table==='alerts'&&status)where.push(`r.alert_status_id IN (SELECT alert_status_id FROM digital_twin.alert_status WHERE status_name=${bind(status)})`);
     }
+    const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':
+      table==='alerts'?'r.triggered_at DESC':table==='ai_results'||table==='forecasts'||table==='notifications'?'r.created_at DESC':'1';
     try {
-      const result=await pool.query(`SELECT r.* FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,params);
+      const result=await pool.query(
+        `SELECT r.* FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,
+        params);
       res.setHeader('Cache-Control','no-store');
-      res.json({table,rows:result.rows,offset,limit:LIMIT,filters:{building:building||null,location:location||null,point:point||null}});
+      res.json({table,rows:result.rows,offset,limit:LIMIT});
     }catch(e){errorJson(res,e);}
   });
 }
