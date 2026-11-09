@@ -38,16 +38,55 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
       res.json({database:db.rows[0],active_schema:schema,available_views:Object.keys(TABLES),tables:tables.rows.map(r=>r.table_name),timescaledb:{installed:ext.rowCount>0,version:ext.rows[0]?.extversion||null,hypertables}});
     } catch(e){errorJson(res,e);}
   });
+  // Building selector options come from the same active PostgreSQL schema.
+  // Legacy twin18 has no buildings table, so it has no building selector.
+  app.get('/api/admin/buildings',requireAdmin,async(_req,res)=>{
+    if(!pool)return res.status(503).json({error:'Configure PostgreSQL first.'});
+    if(schema!=='digital_twin')return res.json({buildings:[]});
+    try{
+      const result=await pool.query('SELECT building_code, building_name FROM digital_twin.buildings ORDER BY building_name, building_code');
+      res.setHeader('Cache-Control','no-store');
+      res.json({buildings:result.rows});
+    }catch(e){errorJson(res,e);}
+  });
   app.get('/api/admin/database/:table',requireAdmin,async(req,res)=>{
     if(!pool) return res.status(503).json({error:'Configure PostgreSQL first.'});
     const qualified=TABLES[req.params.table];
     if(!qualified) return res.status(404).json({error:'Unknown allowed table'});
     const offset=Math.max(0,Math.min(1000000,Number.parseInt(String(req.query.offset||'0'),10)||0));
-    const order=req.params.table==='readings'?'reading_timestamp DESC':req.params.table==='maintenance'?'event_date DESC':req.params.table==='ai_results'?'created_at DESC':req.params.table==='forecasts'?'created_at DESC':req.params.table==='alerts'?'triggered_at DESC':req.params.table==='simulation_runs'?'created_at DESC':req.params.table==='notifications'?'created_at DESC':'1';
+    const table=req.params.table;
+    const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':table==='alerts'?'r.triggered_at DESC':'1';
+    const building=typeof req.query.building==='string'?req.query.building.trim():'';
+    const location=typeof req.query.location==='string'?req.query.location.trim():'';
+    if(building.length>100||location.length>100)return res.status(400).json({error:'Invalid filter'});
+    const where=[],params=[];
+    const bind=(value)=>{params.push(value);return '$'+params.length;};
+    // Use parameterized filters, not string-interpolated user values.
+    // Every filtered reading is linked via its registered sensor and location.
+    let from=`${qualified} r`;
+    if(schema==='digital_twin'){
+      if(table==='locations'&&building)where.push(`r.building_code=${bind(building)}`);
+      if(table==='sensors'){
+        if(location)where.push(`r.location_code=${bind(location)}`);
+        if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
+      }
+      if(table==='readings'){
+        if(location||building){
+          from+=' JOIN digital_twin.sensor_registry sr ON sr.point_code=r.point_code';
+          if(location)where.push(`sr.location_code=${bind(location)}`);
+          if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=sr.location_code';where.push(`l.building_code=${bind(building)}`);}
+        }
+      }
+      if(table==='maintenance'){
+        if(location)where.push(`r.location_code=${bind(location)}`);
+        if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
+      }
+      if((table==='buildings'||table==='bim')&&building)where.push(`r.building_code=${bind(building)}`);
+    }
     try {
-      const result=await pool.query(`SELECT * FROM ${qualified} ORDER BY ${order} LIMIT $1 OFFSET $2`,[LIMIT,offset]);
+      const result=await pool.query(`SELECT r.* FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,params);
       res.setHeader('Cache-Control','no-store');
-      res.json({table:req.params.table,rows:result.rows,offset,limit:LIMIT});
+      res.json({table,rows:result.rows,offset,limit:LIMIT,filters:{building:building||null,location:location||null}});
     }catch(e){errorJson(res,e);}
   });
 }
