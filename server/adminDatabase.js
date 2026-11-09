@@ -116,8 +116,22 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':
       table==='alerts'?'r.triggered_at DESC':table==='ai_results'||table==='forecasts'||table==='notifications'?'r.created_at DESC':'1';
     try {
+      // Sensor registry is an overview, not a raw metadata dump. The LATERAL
+      // lookup uses the (point_code, reading_timestamp) readings index and
+      // returns the latest stored observation, even when the simulator is offline.
+      const columns=table==='sensors'
+        ? 'r.point_code, r.measurement_type, r.unit, r.location_code, latest.reading_value AS latest_value, latest.reading_timestamp AS latest_timestamp, latest.quality AS latest_quality'
+        : 'r.*';
+      const latestJoin=table==='sensors'
+        ? ` LEFT JOIN LATERAL (
+            SELECT sr_latest.reading_value, sr_latest.reading_timestamp, sr_latest.quality
+            FROM ${schema}.sensor_readings sr_latest
+            WHERE sr_latest.point_code=r.point_code
+            ORDER BY sr_latest.reading_timestamp DESC LIMIT 1
+          ) latest ON TRUE`
+        : '';
       const result=await pool.query(
-        `SELECT r.* FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,
+        `SELECT ${columns} FROM ${from}${latestJoin} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,
         params);
       res.setHeader('Cache-Control','no-store');
       res.json({table,rows:result.rows,offset,limit:LIMIT});
