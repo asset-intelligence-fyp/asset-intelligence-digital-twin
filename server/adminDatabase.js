@@ -6,13 +6,15 @@ const LEGACY_TABLES = Object.freeze({
   readings:'twin18.sensor_readings',
   maintenance:'twin18.maintenance_events'
 });
+// Curated administrator views. Internal lookup tables and unfinished features remain
+// in PostgreSQL, but should not appear as user-facing database sections.
 const V3_TABLES=Object.freeze({
- buildings:'digital_twin.buildings',floors:'digital_twin.building_floors',bim:'digital_twin.bim_models',bim_elements:'digital_twin.bim_elements',
- locations:'digital_twin.monitoring_locations',sensors:'digital_twin.sensor_registry',readings:'digital_twin.sensor_readings',
- simulation_runs:'digital_twin.simulation_runs',ai_results:'digital_twin.ai_results',forecasts:'digital_twin.forecast_results',
- alerts:'digital_twin.alerts',alert_severity:'digital_twin.alert_severity',alert_status:'digital_twin.alert_status',
- maintenance:'digital_twin.maintenance_events',notifications:'digital_twin.notifications',roles:'digital_twin.roles'
- // Deliberately exclude users: admin table preview must not disclose password_hash/email.
+ locations:'digital_twin.monitoring_locations',
+ sensors:'digital_twin.sensor_registry',
+ readings:'digital_twin.sensor_readings',
+ buildings:'digital_twin.buildings',
+ bim:'digital_twin.bim_models',
+ maintenance:'digital_twin.maintenance_events'
 });
 const LIMIT=100;
 function errorJson(res,e) {
