@@ -5,7 +5,7 @@ type Summary={database:{database:string;database_user:string;postgres_version:st
 type DataSet={table:string;rows:Record<string,unknown>[];offset:number;limit:number};
 type BuildingOption={building_code:string;building_name:string};
 const tables=['locations','sensors','readings','maintenance'] as const;
-const sections=[{title:'Monitoring data',keys:['locations','sensors','readings']},{title:'Building information',keys:['buildings','bim']},{title:'Operations',keys:['maintenance']}] as const;
+const sections=[{title:'Building & BIM',keys:['buildings','floors','bim','bim_elements','locations']},{title:'Sensors & history',keys:['sensors','readings']},{title:'AI & operations',keys:['ai_results','forecasts','alerts','maintenance','notifications']}] as const;
 async function json(url:string,options?:RequestInit) {
  const res=await fetch(url,{credentials:'same-origin',cache:'no-store',...options});
  const body=await res.json().catch(()=>({error:'Invalid server response'}));
@@ -32,13 +32,13 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
  useEffect(()=>{json('/api/admin/database/summary').then(data=>setSummary(data as Summary)).catch(e=>setError(String(e)));},[]);
  useEffect(()=>{void load(active);},[active,load]);
  const available=summary?.available_views||[...tables];
- const names:Record<string,string>={locations:'Locations',sensors:'Sensor registry',readings:'Sensor readings',maintenance:'Maintenance history',buildings:'Buildings',bim:'BIM models'};
- const descriptions:Record<string,string>={locations:'Monitored spaces across the building.',sensors:'Current 18-channel sensor and BIM mapping.',readings:'Stored synthetic readings from the selected database schema.',maintenance:'Maintenance events recorded for monitored locations.',buildings:'Registered building information.',bim:'Building model references.'};
+ const names:Record<string,string>={locations:'Locations',sensors:'Sensor registry',readings:'Sensor readings',maintenance:'Maintenance history',buildings:'Buildings',floors:'Building floors',bim:'BIM models',bim_elements:'BIM elements',ai_results:'AI results',forecasts:'Forecast results',alerts:'Alerts',notifications:'Notifications'};
+ const descriptions:Record<string,string>={locations:'Monitored spaces for the selected building.',sensors:'Sensor channels and BIM mappings for the selected location.',readings:'Stored synthetic readings; select a sensor to follow its history.',maintenance:'Maintenance records for monitored spaces.',buildings:'Select a building to explore its locations.',floors:'Floors registered under the selected building.',bim:'Building model file references.',bim_elements:'BIM elements assigned to the building.',ai_results:'Stored anomaly detection results (shown when AI persistence is enabled).',forecasts:'Stored forecast results (shown when forecast persistence is enabled).',alerts:'Saved alerts (shown when alert integration is enabled).',notifications:'Saved notifications (shown when notification integration is enabled).'};
  const cols=dataset?.rows.length?Object.keys(dataset.rows[0]):[];
  const chooseBuilding=(code:string)=>{setBuilding(code);setLocation('');setPoint('');setActive('locations');};
  const chooseLocation=(code:string)=>{setLocation(code);setPoint('');setActive('sensors');};
- const openRelated=(row:Record<string,unknown>)=>{if(active==='buildings'||active==='bim'){chooseBuilding(String(row.building_code||''));return;}if(active==='locations'){chooseLocation(String(row.location_code||''));return;}if(active==='sensors'){setLocation(String(row.location_code||''));setPoint(String(row.point_code||''));setActive('readings');}};
- const clickable=['buildings','bim','locations','sensors'].includes(active);
+ const openRelated=(row:Record<string,unknown>)=>{if(['buildings','bim','floors','bim_elements'].includes(active)){chooseBuilding(String(row.building_code||''));return;}if(active==='locations'){chooseLocation(String(row.location_code||''));return;}if(active==='sensors'){setLocation(String(row.location_code||''));setPoint(String(row.point_code||''));setActive('readings');}};
+ const clickable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
  return <section className="admin-page">
   <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1><p>PostgreSQL + TimescaleDB · Read-only monitoring data</p></div><div className="admin-heading-actions"><button type="button" className="admin-outline" onClick={onClose}>Close</button><button type="button" className="admin-outline" onClick={onLogout}>Logout</button></div></div>
   {summary&&<div className="admin-summary"><div className="surface"><small>Database / Schema</small><strong>{summary.database.database} / {summary.active_schema||'twin18'}</strong></div><div className="surface"><small>PostgreSQL</small><strong>{summary.database.postgres_version}</strong></div><div className="surface"><small>TimescaleDB</small><strong>{summary.timescaledb.installed?summary.timescaledb.version:'Not enabled'}</strong></div><div className="surface"><small>Hypertables</small><strong>{summary.timescaledb.hypertables.map(h=>h.hypertable_name).join(', ')||'None'}</strong></div></div>}
