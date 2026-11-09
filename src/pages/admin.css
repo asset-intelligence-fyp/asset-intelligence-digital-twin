@@ -122,3 +122,17 @@
 .page-container > .admin-page .admin-latest-value{font-size:17px;font-weight:650;color:var(--teal);font-variant-numeric:tabular-nums}
 .page-container > .admin-page .admin-latest-unit{font-size:11px;color:var(--muted);margin-left:6px}
 .page-container > .admin-page .admin-sensor-overview .admin-row-link{margin-left:0}
+
+/* Account controls: compact round avatar, distinct from the database navigation. */
+.top-actions .admin-profile{position:relative;display:inline-flex;align-items:center;flex-shrink:0}
+.top-actions .admin-profile .admin-login-trigger{display:inline-grid;place-items:center;width:38px;height:38px;min-width:38px;padding:0;border-radius:50%;line-height:1;color:var(--ink)}
+.top-actions .admin-profile .admin-login-trigger svg{display:block}
+.top-actions .admin-profile .admin-login-trigger:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.admin-profile-menu{position:absolute;right:0;top:calc(100% + 10px);width:195px;z-index:1200;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.4);padding:8px}
+.admin-profile-label{font-size:12px;font-weight:650;padding:10px 11px 12px;border-bottom:1px solid var(--border)}
+.admin-profile-menu button{display:flex;gap:10px;align-items:center;width:100%;margin-top:5px;padding:10px 11px;border:0;border-radius:8px;background:transparent;color:var(--ink);font-size:12px;text-align:left;cursor:pointer}
+.admin-profile-menu button:hover,.admin-profile-menu button:focus-visible{background:rgba(34,193,211,.09);color:var(--teal);outline:none}
+/* The whole row is the drill-down affordance; no separate View ... link. */
+.page-container > .admin-page .admin-navigable-row{cursor:pointer}
+.page-container > .admin-page .admin-navigable-row:hover{background:rgba(34,193,211,.085)}
+.page-container > .admin-page .admin-navigable-row:focus-visible{outline:2px solid var(--teal);outline-offset:-2px;background:rgba(34,193,211,.08)}
