@@ -62,10 +62,10 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     const table=req.params.table;
     const offset=Math.max(0,Math.min(1000000,Number.parseInt(String(req.query.offset||'0'),10)||0));
     const readParam=(key)=>typeof req.query[key]==='string'?req.query[key].trim():'';
-    const building=readParam('building'),location=readParam('location'),point=readParam('point');
+    const building=readParam('building'),location=readParam('location'),point=readParam('point'),floor=readParam('floor');
     const search=readParam('search'),start=readParam('start'),end=readParam('end');
     const status=readParam('status'),quality=readParam('quality');
-    if([building,location,point,search,status,quality].some(v=>v.length>120)||[start,end].some(v=>v.length>40))
+    if([building,location,point,floor,search,status,quality].some(v=>v.length>120)||[start,end].some(v=>v.length>40))
       return res.status(400).json({error:'Invalid filter length'});
     if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end)))||(start&&end&&Date.parse(start)>Date.parse(end)))
       return res.status(400).json({error:'Invalid date range'});
@@ -78,6 +78,7 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
       if(table==='floors'){if(building)where.push(`r.building_code=${bind(building)}`);}
       if(table==='bim'||table==='bim_elements'){if(building)where.push(`r.building_code=${bind(building)}`);}
       if(table==='locations'){
+        if(floor)where.push(`r.floor_level=${bind(floor)}`);
         if(building)where.push(`r.building_code=${bind(building)}`);
         textSearch(['r.display_name','r.location_code']);
       }
