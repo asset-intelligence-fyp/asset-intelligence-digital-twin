@@ -58,7 +58,8 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':table==='alerts'?'r.triggered_at DESC':'1';
     const building=typeof req.query.building==='string'?req.query.building.trim():'';
     const location=typeof req.query.location==='string'?req.query.location.trim():'';
-    if(building.length>100||location.length>100)return res.status(400).json({error:'Invalid filter'});
+    const point=typeof req.query.point==='string'?req.query.point.trim():'';
+    if(building.length>100||location.length>100||point.length>100)return res.status(400).json({error:'Invalid filter'});
     const where=[],params=[];
     const bind=(value)=>{params.push(value);return '$'+params.length;};
     // Use parameterized filters, not string-interpolated user values.
@@ -71,6 +72,7 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
         if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
       }
       if(table==='readings'){
+        if(point)where.push(`r.point_code=${bind(point)}`);
         if(location||building){
           from+=' JOIN digital_twin.sensor_registry sr ON sr.point_code=r.point_code';
           if(location)where.push(`sr.location_code=${bind(location)}`);
@@ -86,7 +88,7 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     try {
       const result=await pool.query(`SELECT r.* FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,params);
       res.setHeader('Cache-Control','no-store');
-      res.json({table,rows:result.rows,offset,limit:LIMIT,filters:{building:building||null,location:location||null}});
+      res.json({table,rows:result.rows,offset,limit:LIMIT,filters:{building:building||null,location:location||null,point:point||null}});
     }catch(e){errorJson(res,e);}
   });
 }
