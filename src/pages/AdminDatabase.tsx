@@ -14,7 +14,8 @@ async function json(url:string,options?:RequestInit) {
 }
 export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>void}) {
  const [summary,setSummary]=useState<Summary|null>(null);
- const [active,setActive]=useState('buildings');
+ const [active,setActive]=useState('home');
+ const [historyStack,setHistoryStack]=useState<Array<{active:string;building:string;location:string;point:string;floor:string;search:string;start:string;end:string;status:string;quality:string}>>([]);
  const [dataset,setDataset]=useState<DataSet|null>(null);
  const [buildings,setBuildings]=useState<BuildingOption[]>([]);
  const [building,setBuilding]=useState('');
@@ -45,15 +46,28 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
   maintenance:'Maintenance and inspection records.',
   notifications:'Stored notifications, when the notification service becomes active.'
  };
- const go=(next:string)=>{setActive(next);setSearch('');setStart('');setEnd('');setStatus('');setQuality('');setReload(n=>n+1);};
- const chooseBuilding=(code:string)=>{setBuilding(code);setFloor('');setLocation('');setPoint('');go('locations');};
- const chooseLocation=(code:string)=>{setLocation(code);setPoint('');go('sensors');};
+ const pushPage=(next:string,updates:{building?:string;floor?:string;location?:string;point?:string}={})=>{
+  setHistoryStack(prev=>[...prev,{active,building,location,point,floor,search,start,end,status,quality}]);
+  setActive(next);setBuilding(updates.building??building);setFloor(updates.floor??floor);
+  setLocation(updates.location??location);setPoint(updates.point??point);
+  setSearch('');setStart('');setEnd('');setStatus('');setQuality('');
+  setDataset(null);setReload(n=>n+1);
+ };
+ const back=()=>{
+  const previous=historyStack[historyStack.length-1];if(!previous)return;
+  setHistoryStack(prev=>prev.slice(0,-1));
+  setActive(previous.active);setBuilding(previous.building);setFloor(previous.floor);
+  setLocation(previous.location);setPoint(previous.point);
+  setSearch(previous.search);setStart(previous.start);setEnd(previous.end);
+  setStatus(previous.status);setQuality(previous.quality);setDataset(null);
+ };
+ const home=()=>{setHistoryStack([]);setActive('home');setDataset(null);setBuilding('');setFloor('');setLocation('');setPoint('');setSearch('');setStart('');setEnd('');setStatus('');setQuality('')};
  const navigate=(row:Record<string,unknown>)=>{
-  if(active==='buildings')chooseBuilding(String(row.building_code||''));
-  else if(active==='floors'){setBuilding(String(row.building_code||''));setFloor(String(row.floor_level||''));setLocation('');setPoint('');go('locations');}
-  else if(active==='bim'||active==='bim_elements'){setBuilding(String(row.building_code||''));go('locations');}
-  else if(active==='locations')chooseLocation(String(row.location_code||''));
-  else if(active==='sensors'){setLocation(String(row.location_code||''));setPoint(String(row.point_code||''));go('readings');}
+  if(active==='buildings')pushPage('locations',{building:String(row.building_code||''),floor:'',location:'',point:''});
+  else if(active==='floors')pushPage('locations',{building:String(row.building_code||''),floor:String(row.floor_level||''),location:'',point:''});
+  else if(active==='bim'||active==='bim_elements')pushPage('locations',{building:String(row.building_code||''),floor:'',location:'',point:''});
+  else if(active==='locations')pushPage('sensors',{location:String(row.location_code||''),point:''});
+  else if(active==='sensors')pushPage('readings',{location:String(row.location_code||''),point:String(row.point_code||'')});
  };
  const navigable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
  const showBuilding=summary?.active_schema==='digital_twin'&&buildings.length>1&&['floors','bim','bim_elements','locations','sensors','readings','ai_results','forecasts','maintenance'].includes(active);
@@ -74,16 +88,20 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
   catch(e){setError(String(e));setDataset(null)}
   finally{setLoading(false)}
  },[building,location,point,floor,search,start,end,status,quality]);
- useEffect(()=>{json('/api/admin/database/summary').then(data=>{const value=data as Summary;setSummary(value);if(value.active_schema==='twin18')setActive('locations')}).catch(e=>setError(String(e)))},[]);
+ useEffect(()=>{json('/api/admin/database/summary').then(data=>{const value=data as Summary;setSummary(value);}).catch(e=>setError(String(e)))},[]);
  useEffect(()=>{json('/api/admin/buildings').then(data=>setBuildings((data as {buildings:BuildingOption[]}).buildings)).catch(()=>setBuildings([]))},[]);
- useEffect(()=>{void load(active)},[active,load,reload]);
+ useEffect(()=>{if(active!=='home')void load(active)},[active,load,reload]);
  const cols=dataset?.rows.length?Object.keys(dataset.rows[0]):[];
  const hasFilters=['buildings','locations','sensors','readings','ai_results','forecasts','alerts','maintenance'].includes(active);
  const emptyText=active==='ai_results'?'No stored AI anomaly results yet. The AI persistence workflow has not been connected.':active==='forecasts'?'No saved forecast results yet.':active==='alerts'?'No persisted alerts yet.':active==='notifications'?'No notifications have been saved yet.':active==='maintenance'?'No maintenance records yet.':'No records match the current selection.';
  return <section className="admin-page">
   <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1><p>PostgreSQL + TimescaleDB · Read-only operational data</p></div><div className="admin-heading-actions"><button type="button" className="admin-outline" onClick={onClose}>Close</button><button type="button" className="admin-outline" onClick={onLogout}>Logout</button></div></div>
   {summary&&<div className="admin-summary"><div className="surface"><small>Database / Schema</small><strong>{summary.database.database} / {summary.active_schema||'twin18'}</strong></div><div className="surface"><small>PostgreSQL</small><strong>{summary.database.postgres_version}</strong></div><div className="surface"><small>TimescaleDB</small><strong>{summary.timescaledb.installed?summary.timescaledb.version:'Not enabled'}</strong></div><div className="surface"><small>Hypertables</small><strong>{summary.timescaledb.hypertables.map(h=>h.hypertable_name).join(', ')||'None'}</strong></div></div>}
-  <div className="admin-view-groups">{sections.map(group=>{const keys=group.keys.filter(t=>available.includes(t));return keys.length?<div className="admin-view-group" key={group.title}><span className="admin-group-label">{group.title}</span><div className="admin-tabs">{keys.map(t=><button type="button" key={t} className={active===t?'selected':''} onClick={()=>go(t)}>{names[t]||t}</button>)}</div></div>:null})}</div>
+  {active==='home'?<div className="admin-navigation-home">
+    <div className="admin-home-intro"><h2>Explore database</h2><p>Browse building information, sensor history and operational records. Select a section to view its records.</p></div>
+    {sections.map(group=>{const keys=group.keys.filter(t=>available.includes(t));return keys.length?<section key={group.title} className="admin-home-group"><h3>{group.title}</h3><div className="admin-home-cards">{keys.map(t=><button type="button" key={t} className="admin-home-card" onClick={()=>pushPage(t,{building:'',location:'',floor:'',point:''})}><span>{names[t]||t}</span><span className="admin-home-card-description">{descriptions[t]||'View stored data'}</span><span className="admin-home-card-arrow">Explore →</span></button>)}</div></section>:null})}
+   </div>:<nav className="admin-breadcrumb" aria-label="Database navigation"><button type="button" className="admin-outline" onClick={back} disabled={!historyStack.length}>← Back</button><button type="button" className="admin-crumb-home" onClick={home}>Database</button>{historyStack.filter(p=>p.active!=='home').map((p,i)=><span key={i} className="admin-crumb-text">/ {names[p.active]||p.active}</span>)}<span className="admin-crumb-current">/ {names[active]||active}</span></nav>}
+  {active!=='home'&&<>
   {showContext&&<div className="admin-context-bar">{showBuilding&&<div className="admin-context-field"><label htmlFor="admin-building">Building</label><select id="admin-building" value={building} onChange={e=>{setBuilding(e.target.value);setFloor('');setLocation('');setPoint('')}}><option value="">All buildings</option>{buildings.map(b=><option key={b.building_code} value={b.building_code}>{b.building_name}</option>)}</select></div>}{floor&&active==='locations'&&<div className="admin-context-scope"><span>Floor: {floor}</span><button type="button" className="admin-outline" onClick={()=>setFloor('')}>Clear</button></div>}{location&&<div className="admin-context-scope"><span>Location: {location}</span><button type="button" className="admin-outline" onClick={()=>{setLocation('');setPoint('')}}>Clear</button></div>}{point&&<div className="admin-context-scope"><span>Sensor: {point}</span><button type="button" className="admin-outline" onClick={()=>setPoint('')}>Clear</button></div>}</div>}
   {hasFilters&&<div className="admin-task-filters">
     {['buildings','locations','sensors'].includes(active)&&!(active==='buildings'&&buildings.length<=1)&&<label>Search<input value={search} onChange={e=>setSearch(e.target.value)} placeholder={active==='buildings'?'Building name or code':active==='locations'?'Location name or code':'Sensor code or type'}/></label>}
@@ -93,11 +111,14 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
     {active==='alerts'&&<label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['New','Review','Acknowledged','Closed'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>}
     {active==='maintenance'&&<label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['Scheduled','In Progress','Completed','Cancelled'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>}
    </div>}
+  </>}
   {error&&<p className="admin-error" role="alert">{error}</p>}
+  {active!=='home'&&<>
   <div className="surface admin-table-wrap"><div className="admin-table-title"><div className="admin-table-heading"><strong>{names[active]||active}</strong><p>{descriptions[active]||'Database records'}</p></div><button className="admin-outline" disabled={loading} onClick={()=>void load(active,dataset?.offset||0)}>Refresh</button></div>
   {loading?<p>Loading database records…</p>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className={navigable?'admin-navigable-row':undefined} tabIndex={navigable?0:undefined} onKeyDown={navigable?e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(row)}}:undefined} onClick={navigable?()=>navigate(row):undefined}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}{navigable&&k===cols[0]?<span className="admin-row-link">{active==='sensors'?'View readings →':active==='locations'?'View sensors →':'View locations →'}</span>:null}</td>)}</tr>)}</tbody></table>:<p>{emptyText}</p>}
   </div>
   {dataset&&<div className="admin-pagination"><span>Rows {dataset.rows.length?dataset.offset+1:0}–{dataset.offset+dataset.rows.length}</span><button disabled={loading||dataset.offset===0} onClick={()=>void load(active,Math.max(0,dataset.offset-100))}>Previous</button><button disabled={loading||dataset.rows.length<100} onClick={()=>void load(active,dataset.offset+100)}>Next</button></div>}
+  </>}
  </section>;
 }
 export function AdminLogin({onSuccess,onClose}:{onSuccess:(session:Session)=>void;onClose:()=>void}) {
