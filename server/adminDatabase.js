@@ -13,8 +13,14 @@ const V3_TABLES=Object.freeze({
  sensors:'digital_twin.sensor_registry',
  readings:'digital_twin.sensor_readings',
  buildings:'digital_twin.buildings',
+ floors:'digital_twin.building_floors',
  bim:'digital_twin.bim_models',
- maintenance:'digital_twin.maintenance_events'
+ bim_elements:'digital_twin.bim_elements',
+ maintenance:'digital_twin.maintenance_events',
+ ai_results:'digital_twin.ai_results',
+ forecasts:'digital_twin.forecast_results',
+ alerts:'digital_twin.alerts',
+ notifications:'digital_twin.notifications'
 });
 const LIMIT=100;
 function errorJson(res,e) {
@@ -55,7 +61,7 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     if(!qualified) return res.status(404).json({error:'Unknown allowed table'});
     const offset=Math.max(0,Math.min(1000000,Number.parseInt(String(req.query.offset||'0'),10)||0));
     const table=req.params.table;
-    const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':table==='alerts'?'r.triggered_at DESC':'1';
+    const order=table==='readings'?'r.reading_timestamp DESC':table==='maintenance'?'r.event_date DESC':table==='alerts'?'r.triggered_at DESC':table==='ai_results'||table==='forecasts'||table==='notifications'?'r.created_at DESC':'1';
     const building=typeof req.query.building==='string'?req.query.building.trim():'';
     const location=typeof req.query.location==='string'?req.query.location.trim():'';
     const point=typeof req.query.point==='string'?req.query.point.trim():'';
@@ -79,11 +85,15 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
           if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=sr.location_code';where.push(`l.building_code=${bind(building)}`);}
         }
       }
+      if(table==='ai_results'||table==='forecasts'){
+        if(point)where.push(`r.point_code=${bind(point)}`);
+        if(location||building){from+=' JOIN digital_twin.sensor_registry sr ON sr.point_code=r.point_code';if(location)where.push(`sr.location_code=${bind(location)}`);if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=sr.location_code';where.push(`l.building_code=${bind(building)}`);}}
+      }
       if(table==='maintenance'){
         if(location)where.push(`r.location_code=${bind(location)}`);
         if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
       }
-      if((table==='buildings'||table==='bim')&&building)where.push(`r.building_code=${bind(building)}`);
+      if(['buildings','bim','floors','bim_elements'].includes(table)&&building)where.push(`r.building_code=${bind(building)}`);
     }
     try {
       const result=await pool.query(`SELECT r.* FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,params);
