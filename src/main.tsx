@@ -33,7 +33,7 @@ function App(){
  const focus=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;setSelectedCode(code);setSelectedAsset(p.assetId);setPage('overview');setCommandRequest(n=>n+1)};
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
  return <><Shell page={page} setPage={setPage} adminAuthenticated={session.authenticated} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
-  {page==='database'&&session.authenticated&&<AdminDatabase onLogout={()=>{void handleLogout()}} onClose={()=>setPage('overview')}/>}
+  {page==='database'&&session.authenticated&&<AdminDatabase/>}
   {page==='overview'&&<Overview externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='sensors'&&<Sensors initialCode={selectedCode}/>}
