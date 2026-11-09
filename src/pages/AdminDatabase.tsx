@@ -110,7 +110,6 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
       </select>
     </div>
   </nav>
-  <>
   {showContext&&<div className="admin-context-bar">{showBuilding&&<div className="admin-context-field"><label htmlFor="admin-building">Building</label><select id="admin-building" value={building} onChange={e=>{setBuilding(e.target.value);setFloor('');setLocation('');setPoint('')}}><option value="">All buildings</option>{buildings.map(b=><option key={b.building_code} value={b.building_code}>{b.building_name}</option>)}</select></div>}{floor&&active==='locations'&&<div className="admin-context-scope"><span>Floor: {floor}</span><button type="button" className="admin-outline" onClick={()=>setFloor('')}>Clear</button></div>}{location&&<div className="admin-context-scope"><span>Location: {location}</span><button type="button" className="admin-outline" onClick={()=>{setLocation('');setPoint('')}}>Clear</button></div>}{point&&<div className="admin-context-scope"><span>Sensor: {point}</span><button type="button" className="admin-outline" onClick={()=>setPoint('')}>Clear</button></div>}</div>}
   {hasFilters&&<div className="admin-task-filters">
     {['buildings','locations','sensors'].includes(active)&&!(active==='buildings'&&buildings.length<=1)&&<label>Search<input value={search} onChange={e=>setSearch(e.target.value)} placeholder={active==='buildings'?'Building name or code':active==='locations'?'Location name or code':'Sensor code or type'}/></label>}
@@ -120,14 +119,11 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
     {active==='alerts'&&<label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['New','Review','Acknowledged','Closed'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>}
     {active==='maintenance'&&<label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{['Scheduled','In Progress','Completed','Cancelled'].map(t=><option key={t} value={t}>{t}</option>)}</select></label>}
    </div>}
-  </>}
   {error&&<p className="admin-error" role="alert">{error}</p>}
-  <>
   <div className="surface admin-table-wrap"><div className="admin-table-title"><div className="admin-table-heading"><strong>{names[active]||active}</strong><p>{descriptions[active]||'Database records'}</p></div><button className="admin-outline" disabled={loading} onClick={()=>void load(active,dataset?.offset||0)}>Refresh</button></div>
   {loading?<p>Loading database records…</p>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i} className={navigable?'admin-navigable-row':undefined} tabIndex={navigable?0:undefined} onKeyDown={navigable?e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();navigate(row)}}:undefined} onClick={navigable?()=>navigate(row):undefined}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}{navigable&&k===cols[0]?<span className="admin-row-link">{active==='sensors'?'View readings →':active==='locations'?'View sensors →':'View locations →'}</span>:null}</td>)}</tr>)}</tbody></table>:<p>{emptyText}</p>}
   </div>
   {dataset&&<div className="admin-pagination"><span>Rows {dataset.rows.length?dataset.offset+1:0}–{dataset.offset+dataset.rows.length}</span><button disabled={loading||dataset.offset===0} onClick={()=>void load(active,Math.max(0,dataset.offset-100))}>Previous</button><button disabled={loading||dataset.rows.length<100} onClick={()=>void load(active,dataset.offset+100)}>Next</button></div>}
-  </>}
  </section>;
 }
 export function AdminLogin({onSuccess,onClose}:{onSuccess:(session:Session)=>void;onClose:()=>void}) {
