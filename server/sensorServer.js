@@ -10,16 +10,18 @@ import cors from 'cors';import dotenv from 'dotenv';import pg from 'pg';
 import path from 'node:path';import fs from 'node:fs';import {fileURLToPath} from 'node:url';
 import {registry,normalizeReadings} from './sensorContract.js';
 dotenv.config();
+// Only two explicitly supported schemas; never interpolate an arbitrary env value into SQL.
+const ACTIVE_SCHEMA=process.env.TWIN_DB_SCHEMA==='digital_twin'?'digital_twin':'twin18';
 export function createSensorApp({pool=null}={}) {
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
- adminAuth(app);registerAdminDatabase(app,pool);
+ adminAuth(app);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
  registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
  const latency=createLatencyMetrics({storage:pool?'postgresql':'temporary_memory'});latency.routes(app);
  const send=(res,text)=>{if(res.destroyed)return;try{if(!res.write(text)){res.end();clients.delete(res)}}catch{clients.delete(res)}};
  const control=(name,data)=>{for(const [res] of clients)send(res,`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`)};
- const historyFor=async(codes=null)=>{if(pool&&activeReplay===undefined){const saved=await pool.query('SELECT replay_id FROM twin18.sensor_readings ORDER BY received_at DESC LIMIT 1');activeReplay=saved.rows[0]?.replay_id??null;}return pool?(await pool.query(`SELECT point_code,reading_timestamp AS timestamp,reading_value::float8 AS value,quality FROM (SELECT * FROM twin18.sensor_readings WHERE replay_id IS NOT DISTINCT FROM $1${codes?' AND point_code=ANY($2::text[])':''} ORDER BY reading_timestamp DESC LIMIT 18000) r ORDER BY reading_timestamp`,codes?[activeReplay,codes]:[activeReplay])).rows:memory.filter(r=>r.replay_id===activeReplay&&(!codes||codes.includes(r.point_code))).slice().sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));};
+ const historyFor=async(codes=null)=>{if(pool&&activeReplay===undefined){const saved=await pool.query(`SELECT replay_id FROM ${ACTIVE_SCHEMA}.sensor_readings ORDER BY received_at DESC LIMIT 1`);activeReplay=saved.rows[0]?.replay_id??null;}return pool?(await pool.query(`SELECT point_code,reading_timestamp AS timestamp,reading_value::float8 AS value,quality FROM (SELECT * FROM ${ACTIVE_SCHEMA}.sensor_readings WHERE replay_id IS NOT DISTINCT FROM $1${codes?' AND point_code=ANY($2::text[])':''} ORDER BY reading_timestamp DESC LIMIT 18000) r ORDER BY reading_timestamp`,codes?[activeReplay,codes]:[activeReplay])).rows:memory.filter(r=>r.replay_id===activeReplay&&(!codes||codes.includes(r.point_code))).slice().sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));};
  app.get('/api/health',async(_req,res)=>{try{if(pool)await pool.query('SELECT 1');res.json({ok:true,storage:pool?'postgresql':'temporary_memory',synthetic:true})}catch{res.status(503).json({ok:false,error:'PostgreSQL unavailable'})}});
  app.get('/api/sensor-registry',(_req,res)=>res.json({points:registry,mapping:'demonstration_alias'}));
  app.get('/api/live-status',(_req,res)=>{
@@ -58,7 +60,7 @@ export function createSensorApp({pool=null}={}) {
   try{
    if(pool){
     client=await pool.connect();await client.query('BEGIN');
-    for(const r of batch)await client.query(`INSERT INTO twin18.sensor_readings(point_code,reading_timestamp,reading_value,quality,replay_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(point_code,reading_timestamp) DO UPDATE SET reading_value=EXCLUDED.reading_value,quality=EXCLUDED.quality,replay_id=EXCLUDED.replay_id,received_at=clock_timestamp()`,[r.point_code,r.timestamp,r.value,r.quality,replay]);
+    for(const r of batch)await client.query(`INSERT INTO ${ACTIVE_SCHEMA}.sensor_readings(point_code,reading_timestamp,reading_value,quality,replay_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(point_code,reading_timestamp) DO UPDATE SET reading_value=EXCLUDED.reading_value,quality=EXCLUDED.quality,replay_id=EXCLUDED.replay_id,received_at=clock_timestamp()`,[r.point_code,r.timestamp,r.value,r.quality,replay]);
     await client.query('COMMIT');
    }else{
     if(replay!==activeReplay)memory=[];
@@ -87,7 +89,7 @@ export function createSensorApp({pool=null}={}) {
    const locations=[...new Set(registry.map(p=>p.assetId))],history=await historyFor(),latest=new Map();
    for(const r of history)latest.set(r.point_code,r);
    let maintenance=[];
-   if(pool){const present=await pool.query("SELECT to_regclass('twin18.maintenance_events') AS name");if(present.rows[0]?.name){const query=await pool.query('SELECT maintenance_id, location_code AS asset_id, event_date, event_type, maintenance_status, description FROM twin18.maintenance_events ORDER BY event_date DESC LIMIT 200');maintenance=query.rows;}}
+   if(pool){const present=await pool.query(`SELECT to_regclass('${ACTIVE_SCHEMA}.maintenance_events') AS name`);if(present.rows[0]?.name){const query=await pool.query(`SELECT maintenance_id, location_code AS asset_id, event_date, event_type, maintenance_status, description FROM ${ACTIVE_SCHEMA}.maintenance_events ORDER BY event_date DESC LIMIT 200`);maintenance=query.rows;}}
    res.setHeader('Cache-Control','no-store');res.json({storage:pool?'postgresql':'temporary_memory',synthetic:true,simulation:lastSource||{replay_id:activeReplay},data:{
     Assets:locations.map(id=>({asset_id:id,asset_name:registry.find(p=>p.assetId===id).locationLabel,asset_type:'Monitoring location',status:'Monitoring'})),Maintenance_Events:maintenance,Anomaly_Results:[],
     Sensor_Readings:[...latest.values()].map(r=>({...r,latest_update:r.timestamp})),Historical_Sensor_Readings:history,
