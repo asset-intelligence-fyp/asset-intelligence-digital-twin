@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useState,type FormEvent} from 'react';
 import './admin.css';
 type Session={authenticated:boolean;username:string|null};
-type Summary={database:{database:string;database_user:string;postgres_version:string};tables:string[];timescaledb:{installed:boolean;version:string|null;hypertables:{hypertable_schema:string;hypertable_name:string}[]}};
+type Summary={database:{database:string;database_user:string;postgres_version:string};active_schema?:string;available_views?:string[];tables:string[];timescaledb:{installed:boolean;version:string|null;hypertables:{hypertable_schema:string;hypertable_name:string}[]}};
 type DataSet={table:string;rows:Record<string,unknown>[];offset:number;limit:number};
 const tables=['locations','sensors','readings','maintenance'] as const;
 async function json(url:string,options?:RequestInit) {
@@ -24,11 +24,13 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
  },[]);
  useEffect(()=>{json('/api/admin/database/summary').then(data=>setSummary(data as Summary)).catch(e=>setError(String(e)));},[]);
  useEffect(()=>{void load(active);},[active,load]);
+ const available=summary?.available_views||[...tables];
+ const names:Record<string,string>={locations:'Locations',sensors:'Sensor registry',readings:'Sensor readings',maintenance:'Maintenance events',buildings:'Buildings',floors:'Building floors',bim:'BIM models',bim_elements:'BIM elements',simulation_runs:'Simulation runs',ai_results:'AI results',forecasts:'Forecast results',alerts:'Alerts',alert_severity:'Alert severity',alert_status:'Alert status',notifications:'Notifications',roles:'Roles'};
  const cols=dataset?.rows.length?Object.keys(dataset.rows[0]):[];
  return <section className="admin-page">
   <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1><p>PostgreSQL + TimescaleDB · Read-only monitoring data</p></div><div className="admin-heading-actions"><button type="button" className="admin-outline" onClick={onClose}>Close</button><button type="button" className="admin-outline" onClick={onLogout}>Logout</button></div></div>
-  {summary&&<div className="admin-summary"><div className="surface"><small>Database</small><strong>{summary.database.database}</strong></div><div className="surface"><small>PostgreSQL</small><strong>{summary.database.postgres_version}</strong></div><div className="surface"><small>TimescaleDB</small><strong>{summary.timescaledb.installed?summary.timescaledb.version:'Not enabled'}</strong></div><div className="surface"><small>Hypertables</small><strong>{summary.timescaledb.hypertables.map(h=>h.hypertable_name).join(', ')||'None'}</strong></div></div>}
-  <div className="admin-tabs">{tables.map(t=><button key={t} className={active===t?'selected':''} onClick={()=>setActive(t)}>{t==='readings'?'Sensor readings':t==='sensors'?'Sensor registry':t==='maintenance'?'Maintenance events':'Locations'}</button>)}</div>
+  {summary&&<div className="admin-summary"><div className="surface"><small>Database / Schema</small><strong>{summary.database.database} / {summary.active_schema||'twin18'}</strong></div><div className="surface"><small>PostgreSQL</small><strong>{summary.database.postgres_version}</strong></div><div className="surface"><small>TimescaleDB</small><strong>{summary.timescaledb.installed?summary.timescaledb.version:'Not enabled'}</strong></div><div className="surface"><small>Hypertables</small><strong>{summary.timescaledb.hypertables.map(h=>h.hypertable_name).join(', ')||'None'}</strong></div></div>}
+  <div className="admin-tabs">{available.map(t=><button key={t} className={active===t?'selected':''} onClick={()=>setActive(t)}>{names[t]||t}</button>)}</div>
   {error&&<p className="admin-error" role="alert">{error}</p>}
   <div className="surface admin-table-wrap"><div className="admin-table-title"><strong>{active}</strong><button className="admin-outline" disabled={loading} onClick={()=>load(active,dataset?.offset||0)}>Refresh</button></div>
   {loading?<p>Loading database records…</p>:dataset?.rows.length?<table className="admin-table"><thead><tr>{cols.map(k=><th key={k}>{k}</th>)}</tr></thead><tbody>{dataset.rows.map((row,i)=><tr key={i}>{cols.map(k=><td key={k}>{row[k]===null?'—':typeof row[k]==='object'?JSON.stringify(row[k]):String(row[k])}</td>)}</tr>)}</tbody></table>:<p>No rows to display. Check database migration if the table is unavailable.</p>}
