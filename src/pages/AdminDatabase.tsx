@@ -20,6 +20,7 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
  const [building,setBuilding]=useState('');
  const [location,setLocation]=useState('');
  const [point,setPoint]=useState('');
+ const [floor,setFloor]=useState('');
  const [search,setSearch]=useState('');
  const [start,setStart]=useState('');
  const [end,setEnd]=useState('');
@@ -45,22 +46,23 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
   notifications:'Stored notifications, when the notification service becomes active.'
  };
  const go=(next:string)=>{setActive(next);setSearch('');setStart('');setEnd('');setStatus('');setQuality('');setReload(n=>n+1);};
- const chooseBuilding=(code:string)=>{setBuilding(code);setLocation('');setPoint('');go('locations');};
+ const chooseBuilding=(code:string)=>{setBuilding(code);setFloor('');setLocation('');setPoint('');go('locations');};
  const chooseLocation=(code:string)=>{setLocation(code);setPoint('');go('sensors');};
  const navigate=(row:Record<string,unknown>)=>{
   if(active==='buildings')chooseBuilding(String(row.building_code||''));
-  else if(active==='floors'){setBuilding(String(row.building_code||''));go('locations');}
+  else if(active==='floors'){setBuilding(String(row.building_code||''));setFloor(String(row.floor_level||''));setLocation('');setPoint('');go('locations');}
   else if(active==='bim'||active==='bim_elements'){setBuilding(String(row.building_code||''));go('locations');}
   else if(active==='locations')chooseLocation(String(row.location_code||''));
   else if(active==='sensors'){setLocation(String(row.location_code||''));setPoint(String(row.point_code||''));go('readings');}
  };
  const navigable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
  const showBuilding=summary?.active_schema==='digital_twin'&&buildings.length>1&&['floors','bim','bim_elements','locations','sensors','readings','ai_results','forecasts','maintenance'].includes(active);
- const showContext=showBuilding||Boolean(location)&&['sensors','readings','ai_results','forecasts','maintenance'].includes(active)||Boolean(point)&&['readings','ai_results','forecasts'].includes(active);
+ const showContext=Boolean(floor)&&active==='locations'||showBuilding||Boolean(location)&&['sensors','readings','ai_results','forecasts','maintenance'].includes(active)||Boolean(point)&&['readings','ai_results','forecasts'].includes(active);
  const load=useCallback(async(table:string,offset=0)=>{
   setLoading(true);setError('');
   const params=new URLSearchParams({offset:String(offset)});
   if(building&&table!=='buildings')params.set('building',building);
+  if(floor&&table==='locations')params.set('floor',floor);
   if(location&&['sensors','readings','maintenance','ai_results','forecasts'].includes(table))params.set('location',location);
   if(point&&['readings','ai_results','forecasts'].includes(table))params.set('point',point);
   if(search&&['buildings','locations','sensors'].includes(table))params.set('search',search);
@@ -71,7 +73,7 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
   try{setDataset(await json(`/api/admin/database/${table}?${params}`) as DataSet)}
   catch(e){setError(String(e));setDataset(null)}
   finally{setLoading(false)}
- },[building,location,point,search,start,end,status,quality]);
+ },[building,location,point,floor,search,start,end,status,quality]);
  useEffect(()=>{json('/api/admin/database/summary').then(data=>{const value=data as Summary;setSummary(value);if(value.active_schema==='twin18')setActive('locations')}).catch(e=>setError(String(e)))},[]);
  useEffect(()=>{json('/api/admin/buildings').then(data=>setBuildings((data as {buildings:BuildingOption[]}).buildings)).catch(()=>setBuildings([]))},[]);
  useEffect(()=>{void load(active)},[active,load,reload]);
@@ -82,9 +84,9 @@ export function AdminDatabase({onLogout,onClose}:{onLogout:()=>void;onClose:()=>
   <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1><p>PostgreSQL + TimescaleDB · Read-only operational data</p></div><div className="admin-heading-actions"><button type="button" className="admin-outline" onClick={onClose}>Close</button><button type="button" className="admin-outline" onClick={onLogout}>Logout</button></div></div>
   {summary&&<div className="admin-summary"><div className="surface"><small>Database / Schema</small><strong>{summary.database.database} / {summary.active_schema||'twin18'}</strong></div><div className="surface"><small>PostgreSQL</small><strong>{summary.database.postgres_version}</strong></div><div className="surface"><small>TimescaleDB</small><strong>{summary.timescaledb.installed?summary.timescaledb.version:'Not enabled'}</strong></div><div className="surface"><small>Hypertables</small><strong>{summary.timescaledb.hypertables.map(h=>h.hypertable_name).join(', ')||'None'}</strong></div></div>}
   <div className="admin-view-groups">{sections.map(group=>{const keys=group.keys.filter(t=>available.includes(t));return keys.length?<div className="admin-view-group" key={group.title}><span className="admin-group-label">{group.title}</span><div className="admin-tabs">{keys.map(t=><button type="button" key={t} className={active===t?'selected':''} onClick={()=>go(t)}>{names[t]||t}</button>)}</div></div>:null})}</div>
-  {showContext&&<div className="admin-context-bar">{showBuilding&&<div className="admin-context-field"><label htmlFor="admin-building">Building</label><select id="admin-building" value={building} onChange={e=>{setBuilding(e.target.value);setLocation('');setPoint('')}}><option value="">All buildings</option>{buildings.map(b=><option key={b.building_code} value={b.building_code}>{b.building_name}</option>)}</select></div>}{location&&<div className="admin-context-scope"><span>Location: {location}</span><button type="button" className="admin-outline" onClick={()=>{setLocation('');setPoint('')}}>Clear</button></div>}{point&&<div className="admin-context-scope"><span>Sensor: {point}</span><button type="button" className="admin-outline" onClick={()=>setPoint('')}>Clear</button></div>}</div>}
+  {showContext&&<div className="admin-context-bar">{showBuilding&&<div className="admin-context-field"><label htmlFor="admin-building">Building</label><select id="admin-building" value={building} onChange={e=>{setBuilding(e.target.value);setFloor('');setLocation('');setPoint('')}}><option value="">All buildings</option>{buildings.map(b=><option key={b.building_code} value={b.building_code}>{b.building_name}</option>)}</select></div>}{floor&&active==='locations'&&<div className="admin-context-scope"><span>Floor: {floor}</span><button type="button" className="admin-outline" onClick={()=>setFloor('')}>Clear</button></div>}{location&&<div className="admin-context-scope"><span>Location: {location}</span><button type="button" className="admin-outline" onClick={()=>{setLocation('');setPoint('')}}>Clear</button></div>}{point&&<div className="admin-context-scope"><span>Sensor: {point}</span><button type="button" className="admin-outline" onClick={()=>setPoint('')}>Clear</button></div>}</div>}
   {hasFilters&&<div className="admin-task-filters">
-    {['buildings','locations','sensors'].includes(active)&&<label>Search<input value={search} onChange={e=>setSearch(e.target.value)} placeholder={active==='buildings'?'Building name or code':active==='locations'?'Location name or code':'Sensor code or type'}/></label>}
+    {['buildings','locations','sensors'].includes(active)&&!(active==='buildings'&&buildings.length<=1)&&<label>Search<input value={search} onChange={e=>setSearch(e.target.value)} placeholder={active==='buildings'?'Building name or code':active==='locations'?'Location name or code':'Sensor code or type'}/></label>}
     {['readings','ai_results','forecasts'].includes(active)&&<><label>From<input type="datetime-local" value={start} onChange={e=>setStart(e.target.value)}/></label><label>To<input type="datetime-local" value={end} min={start||undefined} onChange={e=>setEnd(e.target.value)}/></label></>}
     {active==='readings'&&<label>Quality<select value={quality} onChange={e=>setQuality(e.target.value)}><option value="">All qualities</option><option value="synthetic">Synthetic</option><option value="missing">Missing</option></select></label>}
     {active==='ai_results'&&<label>Prediction<select value={status} onChange={e=>setStatus(e.target.value)}><option value="">All predictions</option><option value="Normal">Normal</option><option value="Abnormal">Abnormal</option><option value="Unknown">Unknown</option></select></label>}
