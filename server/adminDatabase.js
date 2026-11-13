@@ -57,7 +57,8 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     }
   };
   const connectNotifications=async()=>{
-    if(!pool||listener||connecting||subscribers.size===0)return;
+    if(connecting)return connecting;
+    if(!pool||listener||subscribers.size===0)return;
     connecting=(async()=>{
       const client=await pool.connect();
       try{
