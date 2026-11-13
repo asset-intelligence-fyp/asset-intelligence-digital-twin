@@ -1,4 +1,5 @@
 import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
+import {Building2,MapPin} from 'lucide-react';
 import './admin.css';
 type Session={authenticated:boolean;username:string|null};
 type Summary={database:{database:string;database_user:string;postgres_version:string};active_schema?:string;available_views?:string[];tables:string[];timescaledb:{installed:boolean;version:string|null;hypertables:{hypertable_schema:string;hypertable_name:string}[]}};
@@ -158,8 +159,8 @@ export function AdminDatabase() {
     <div className="admin-table-heading">
      {scopedReadings?<><span className="admin-heading-overline">SENSOR READINGS</span><strong className="admin-reading-sensor-title">{point}</strong><p>{selectedSensorType}{displayLocation?' · '+displayLocation:''} · Historical sensor observations</p></>
       :<><strong>{names[active]||active}</strong>
-      {scopedLocations?<p className="admin-table-context">⌂ {buildingLabel} · {dataset?.total??dataset?.rows.length??0} monitoring locations</p>
-       :scopedSensors?<p className="admin-table-context">⌖ {displayLocation} ({location}) · {dataset?.total??dataset?.rows.length??0} sensors</p>
+      {scopedLocations?<p className="admin-table-context"><Building2 size={13} aria-hidden="true"/> {buildingLabel} · {dataset?.total??dataset?.rows.length??0} monitoring locations</p>
+       :scopedSensors?<p className="admin-table-context"><MapPin size={13} aria-hidden="true"/> {displayLocation} ({location}) · {dataset?.total??dataset?.rows.length??0} sensors</p>
        :<p>{descriptions[active]||'Database records'}</p>}</>}
     </div>
     <button className="admin-outline" disabled={loading} onClick={()=>void load(active,offsetRef.current)}>Refresh</button>
