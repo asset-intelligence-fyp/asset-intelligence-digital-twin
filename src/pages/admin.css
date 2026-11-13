@@ -150,3 +150,7 @@
 .page-container > .admin-page .admin-reading-details[open]{min-width:200px}
 .page-container > .admin-page .admin-reading-details div{display:flex;flex-direction:column;gap:4px;margin-top:10px;white-space:normal;overflow-wrap:anywhere;font-size:11px}
 .page-container > .admin-page .admin-reading-details b{font-size:10px;color:var(--muted);font-weight:600}
+
+/* Override generic table-heading typography for the selected sensor identity. */
+.page-container > .admin-page .admin-table-title .admin-reading-sensor-title{font-size:19px;font-weight:650;letter-spacing:-.3px;line-height:1.35}
+.page-container > .admin-page .admin-sensor-overview td:first-child strong.admin-sensor-code{font-size:14px;font-weight:650;letter-spacing:.1px}
