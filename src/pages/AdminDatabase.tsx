@@ -22,6 +22,7 @@ export function AdminDatabase() {
  const [location,setLocation]=useState('');
  const [locationName,setLocationName]=useState('');
  const offsetRef=useRef(0);
+ const latestRequestRef=useRef(0);
  const [point,setPoint]=useState('');
  const [floor,setFloor]=useState('');
  const [search,setSearch]=useState('');
@@ -80,9 +81,10 @@ export function AdminDatabase() {
  const buildingLabel=buildings.find(b=>b.building_code===building)?.building_code||building;
  const displayLocation=locationName||location;
  const [selectedSensorType,setSelectedSensorType]=useState('Sensor');
- const load=useCallback(async(table:string,offset=0)=>{
+ const load=useCallback(async(table:string,offset=0,silent=false)=>{
   offsetRef.current=offset;
-  setLoading(true);setError('');
+  const requestId=++latestRequestRef.current;
+  if(!silent){setLoading(true);setError('');}
   const params=new URLSearchParams({offset:String(offset)});
   if(building&&table!=='buildings')params.set('building',building);
   if(floor&&table==='locations')params.set('floor',floor);
@@ -93,9 +95,14 @@ export function AdminDatabase() {
   if(end&&['readings','ai_results','forecasts'].includes(table))params.set('end',new Date(end).toISOString());
   if(status&&['ai_results','alerts','maintenance'].includes(table))params.set('status',status);
   if(quality&&table==='readings')params.set('quality',quality);
-  try{setDataset(await json(`/api/admin/database/${table}?${params}`) as DataSet)}
-  catch(e){setError(String(e));setDataset(null)}
-  finally{setLoading(false)}
+  try{
+   const result=await json(`/api/admin/database/${table}?${params}`) as DataSet;
+   if(requestId===latestRequestRef.current)setDataset(result);
+  }catch(e){
+   if(requestId===latestRequestRef.current){setError(String(e));if(!silent)setDataset(null)}
+  }finally{
+   if(requestId===latestRequestRef.current&&!silent)setLoading(false);
+  }
  },[building,location,point,floor,search,start,end,status,quality]);
  useEffect(()=>{json('/api/admin/database/summary').then(data=>{const value=data as Summary;setSummary(value);if(value.active_schema==='twin18')setActive('locations');}).catch(e=>setError(String(e)))},[]);
  useEffect(()=>{json('/api/admin/buildings').then(data=>setBuildings((data as {buildings:BuildingOption[]}).buildings)).catch(()=>setBuildings([]))},[]);
@@ -106,7 +113,7 @@ export function AdminDatabase() {
   if(!['sensors','readings'].includes(active)||typeof EventSource==='undefined')return;
   const stream=new EventSource('/api/admin/database/updates');
   let pending:ReturnType<typeof setTimeout>|undefined;
-  const refresh=()=>{if(pending)clearTimeout(pending);pending=setTimeout(()=>{void load(active,offsetRef.current)},120)};
+  const refresh=()=>{if(pending)clearTimeout(pending);pending=setTimeout(()=>{void load(active,offsetRef.current,true)},120)};
   stream.addEventListener('readings-changed',refresh);
   stream.addEventListener('open',refresh);
   const visible=()=>{if(document.visibilityState==='visible')refresh()};
