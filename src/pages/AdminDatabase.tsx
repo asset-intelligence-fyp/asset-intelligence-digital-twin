@@ -108,9 +108,9 @@ export function AdminDatabase() {
  const navigable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
  const showBuilding=summary?.active_schema==='digital_twin'&&buildings.length>1&&['floors','bim','bim_elements','locations','sensors','readings','ai_results','forecasts','maintenance'].includes(active);
  const scopedLocations=active==='locations'&&Boolean(building);
- const scopedSensors=active==='sensors'&&Boolean(location);
- const scopedReadings=active==='readings'&&Boolean(point);
  const globalSensors=mainTab==='sensors'&&active==='sensors'&&historyStack.length===0;
+ const scopedSensors=active==='sensors'&&Boolean(location)&&!globalSensors;
+ const scopedReadings=active==='readings'&&Boolean(point);
  const showContext=(Boolean(floor)&&active==='locations')||(showBuilding&&!globalSensors&&!scopedLocations&&!scopedSensors&&!scopedReadings)||(Boolean(location)&&['ai_results','forecasts','maintenance'].includes(active))||(Boolean(point)&&['ai_results','forecasts'].includes(active));
  const availableLocations=locationOptions.filter(loc=>(!building||loc.building_code===building)&&(!floor||loc.floor_level===floor));
  const availableFloors=[...new Set(locationOptions.filter(loc=>!building||loc.building_code===building).map(loc=>loc.floor_level))].sort();
