@@ -181,7 +181,15 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
         `SELECT ${columns} FROM ${from}${latestJoin} ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY ${order} LIMIT ${bind(LIMIT)} OFFSET ${bind(offset)}`,
         params);
       res.setHeader('Cache-Control','no-store');
-      res.json({table,rows:result.rows,offset,limit:LIMIT});
+      // Count all matching locations/sensors, not merely the current page.
+      let total;
+      if(table==='locations'||table==='sensors'){
+        const totalResult=await pool.query(
+          `SELECT COUNT(*)::int AS total FROM ${from} ${where.length?'WHERE '+where.join(' AND '):''}`,
+          params.slice(0,-2));
+        total=totalResult.rows[0]?.total;
+      }
+      res.json({table,rows:result.rows,offset,limit:LIMIT,...(total===undefined?{}:{total})});
     }catch(e){errorJson(res,e);}
   });
 }
