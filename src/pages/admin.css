@@ -139,3 +139,14 @@
 
 /* Logged-out state uses the original Login pill; authenticated state uses the round icon. */
 .top-actions .admin-profile .admin-login-trigger.admin-login-text{display:inline-flex;width:auto;min-width:64px;height:38px;padding:0 14px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:0;white-space:nowrap}
+
+/* Context belongs to the active drill-down table, not a redundant clear-filter bar. */
+.page-container > .admin-page .admin-table-context{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;line-height:1.5;margin:2px 0 0;text-transform:none}
+.page-container > .admin-page .admin-heading-overline{font-family:var(--mono);font-size:10px;letter-spacing:1.1px;color:var(--muted);text-transform:uppercase}
+.page-container > .admin-page .admin-reading-sensor-title{font-size:19px;font-weight:650;letter-spacing:-.3px;text-transform:none;overflow-wrap:anywhere}
+.page-container > .admin-page .admin-sensor-overview td:first-child .admin-sensor-code{display:block;font-family:var(--mono);font-size:13px;line-height:1.6;font-weight:650;color:var(--ink)}
+.page-container > .admin-page .admin-sensor-overview td:first-child .admin-sensor-type{display:block;margin-top:4px;font-family:Inter,Arial,Helvetica,sans-serif;font-size:11px;font-weight:400;color:var(--muted)}
+.page-container > .admin-page .admin-reading-details summary{cursor:pointer;color:var(--teal);font-size:11px}
+.page-container > .admin-page .admin-reading-details[open]{min-width:200px}
+.page-container > .admin-page .admin-reading-details div{display:flex;flex-direction:column;gap:4px;margin-top:10px;white-space:normal;overflow-wrap:anywhere;font-size:11px}
+.page-container > .admin-page .admin-reading-details b{font-size:10px;color:var(--muted);font-weight:600}
