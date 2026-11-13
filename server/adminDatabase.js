@@ -110,6 +110,19 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
       res.json({buildings:result.rows});
     }catch(e){errorJson(res,e);}
   });
+  // Options for the global Sensors explorer, sourced from the active database.
+  app.get('/api/admin/database/filter-options',requireAdmin,async(_req,res)=>{
+    if(!pool)return res.status(503).json({error:'Configure PostgreSQL first.'});
+    if(schema!=='digital_twin')return res.json({locations:[],sensor_types:[]});
+    try{
+      const [locations,types]=await Promise.all([
+        pool.query('SELECT location_code,display_name,floor_level,building_code FROM digital_twin.monitoring_locations ORDER BY floor_level,display_name'),
+        pool.query('SELECT DISTINCT measurement_type FROM digital_twin.sensor_registry ORDER BY measurement_type')
+      ]);
+      res.setHeader('Cache-Control','no-store');
+      res.json({locations:locations.rows,sensor_types:types.rows.map(r=>r.measurement_type)});
+    }catch(e){errorJson(res,e)}
+  });
   app.get('/api/admin/database/:table',requireAdmin,async(req,res)=>{
     if(!pool) return res.status(503).json({error:'Configure PostgreSQL first.'});
     const qualified=TABLES[req.params.table];
@@ -119,8 +132,8 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     const readParam=(key)=>typeof req.query[key]==='string'?req.query[key].trim():'';
     const building=readParam('building'),location=readParam('location'),point=readParam('point'),floor=readParam('floor');
     const search=readParam('search'),start=readParam('start'),end=readParam('end');
-    const status=readParam('status'),quality=readParam('quality');
-    if([building,location,point,floor,search,status,quality].some(v=>v.length>120)||[start,end].some(v=>v.length>40))
+    const status=readParam('status'),quality=readParam('quality'),measurementType=readParam('measurement_type');
+    if([building,location,point,floor,search,status,quality,measurementType].some(v=>v.length>120)||[start,end].some(v=>v.length>40))
       return res.status(400).json({error:'Invalid filter length'});
     if((start&&!Number.isFinite(Date.parse(start)))||(end&&!Number.isFinite(Date.parse(end)))||(start&&end&&Date.parse(start)>Date.parse(end)))
       return res.status(400).json({error:'Invalid date range'});
@@ -139,7 +152,12 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
       }
       if(table==='sensors'){
         if(location)where.push(`r.location_code=${bind(location)}`);
-        if(building){from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';where.push(`l.building_code=${bind(building)}`);}
+        if(building||floor){
+          from+=' JOIN digital_twin.monitoring_locations l ON l.location_code=r.location_code';
+          if(building)where.push(`l.building_code=${bind(building)}`);
+          if(floor)where.push(`l.floor_level=${bind(floor)}`);
+        }
+        if(measurementType)where.push(`r.measurement_type=${bind(measurementType)}`);
         textSearch(['r.point_code','r.measurement_type','r.ifc_sensor_id']);
       }
       if(table==='readings'||table==='ai_results'||table==='forecasts'){
