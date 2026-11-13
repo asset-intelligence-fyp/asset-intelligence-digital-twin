@@ -56,6 +56,23 @@ try{
  const ext=await client.query("SELECT extversion FROM pg_extension WHERE extname='timescaledb'");
  if(!ext.rowCount)throw new Error('TimescaleDB extension not installed in this database. The v3 tables and registry are ready; install/enable TimescaleDB then rerun setup.');
  await client.query("SELECT create_hypertable('digital_twin.sensor_readings','reading_timestamp',if_not_exists => TRUE,migrate_data => TRUE)");
+ // Additive live-update signal. The notification is delivered only on COMMIT,
+ // including inserts/updates made directly through pgAdmin or other producers.
+ // PostgreSQL folds identical NOTIFY messages in the same transaction.
+ await client.query(`
+  CREATE OR REPLACE FUNCTION digital_twin.notify_sensor_readings_changed()
+  RETURNS trigger LANGUAGE plpgsql AS $function$
+  BEGIN
+    PERFORM pg_notify('twinlabs_sensor_readings', '');
+    RETURN NULL;
+  END;
+  $function$;
+  DROP TRIGGER IF EXISTS digital_twin_readings_changed ON digital_twin.sensor_readings;
+  CREATE TRIGGER digital_twin_readings_changed
+  AFTER INSERT OR UPDATE ON digital_twin.sensor_readings
+  FOR EACH ROW EXECUTE FUNCTION digital_twin.notify_sensor_readings_changed();
+ `);
+ console.log('Database change notifications ready (sensor_readings trigger).');
  const status=await client.query(`SELECT (SELECT count(*) FROM digital_twin.sensor_registry)::int AS sensor_points,
   (SELECT count(*) FROM digital_twin.monitoring_locations)::int AS locations,
   (SELECT count(*) FROM digital_twin.sensor_readings)::int AS readings`);
