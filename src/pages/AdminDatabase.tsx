@@ -101,7 +101,7 @@ export function AdminDatabase() {
   }catch(e){
    if(requestId===latestRequestRef.current){setError(String(e));if(!silent)setDataset(null)}
   }finally{
-   if(requestId===latestRequestRef.current&&!silent)setLoading(false);
+   if(requestId===latestRequestRef.current)setLoading(false);
   }
  },[building,location,point,floor,search,start,end,status,quality]);
  useEffect(()=>{json('/api/admin/database/summary').then(data=>{const value=data as Summary;setSummary(value);if(value.active_schema==='twin18')setActive('locations');}).catch(e=>setError(String(e)))},[]);
