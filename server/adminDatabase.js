@@ -53,7 +53,7 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
   const broadcast=()=>{
     for(const res of subscribers){
       if(res.destroyed||res.writableEnded){subscribers.delete(res);continue;}
-      try{res.write('event: readings-changed\\ndata: {}\\n\\n')}catch{subscribers.delete(res)}
+      try{res.write('event: readings-changed\ndata: {}\n\n')}catch{subscribers.delete(res)}
     }
   };
   const connectNotifications=async()=>{
@@ -69,7 +69,7 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
           console.error('Database reading notifications interrupted:',error.message);
           if(listener===client)listener=null;
           try{client.release(true)}catch{}
-          for(const res of subscribers){try{res.write('event: resync\\ndata: {}\\n\\n')}catch{}}
+          for(const res of subscribers){try{res.write('event: resync\ndata: {}\n\n')}catch{}}
           setTimeout(()=>{void connectNotifications()},1000).unref?.();
         });
       }catch(error){client.release();throw error}
@@ -81,15 +81,22 @@ export function registerAdminDatabase(app,pool,activeSchema='twin18') {
     if(!pool)return res.status(503).json({error:'PostgreSQL not configured'});
     res.set({'Content-Type':'text/event-stream','Cache-Control':'no-cache, no-transform',Connection:'keep-alive','X-Accel-Buffering':'no'});
     res.flushHeaders();
-    res.write(': connected\\n\\n');
+    res.write(': connected\nretry: 1000\n\n');
     subscribers.add(res);
-    await connectNotifications();
-    if(!res.destroyed)res.write('event: resync\\ndata: {}\\n\\n');
-    const heartbeat=setInterval(()=>{if(!res.destroyed){try{res.write(': keepalive\\n\\n')}catch{}}},15000);
-    req.on('close',()=>{
+    let heartbeat;
+    const cleanup=()=>{
       clearInterval(heartbeat);subscribers.delete(res);
-      if(subscribers.size===0&&listener){const client=listener;listener=null;client.query('UNLISTEN twinlabs_sensor_readings').catch(()=>{}).finally(()=>client.release())}
-    });
+      if(subscribers.size===0&&listener){
+        const client=listener;listener=null;
+        client.query('UNLISTEN twinlabs_sensor_readings').catch(()=>{}).finally(()=>client.release());
+      }
+    };
+    req.on('close',cleanup);
+    await connectNotifications();
+    if(!listener){cleanup();res.end();return;}
+    if(res.destroyed||res.writableEnded){cleanup();return;}
+    res.write('event: resync\ndata: {}\n\n');
+    heartbeat=setInterval(()=>{if(!res.destroyed){try{res.write(': keepalive\n\n')}catch{}}},15000);
   });
   // Building selector options come from the same active PostgreSQL schema.
   // Legacy twin18 has no buildings table, so it has no building selector.
