@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {AssistantMessage} from './AssistantMessage';
 import {ASSETS,POINTS,useTwin} from '../services/twin';
 import '../room-ai-velvet.css';
 
@@ -85,11 +86,11 @@ export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
    </form>
    {analysis&&<article className="room-ai-result" aria-live="polite">
     <strong>Status: {analysis.status.replaceAll('_',' ')}</strong>
-    <p>{analysis.result?.finding||'No verified finding returned.'}</p>
+    <AssistantMessage text={analysis.result?.finding||'No verified finding returned.'}/>
     <p className="room-ai-subtle">Numerical verification: {analysis.numeric_verification_passed?'passed':'not fully verified'} · Human review: {analysis.human_review_required?'required':'not required'}</p>
     {analysis.result?.evidence?.length?<details><summary>Verified sensor evidence</summary><ul>{analysis.result.evidence.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}
     {analysis.result?.possible_explanations?.length?<details><summary>Possible explanations</summary><ul>{analysis.result.possible_explanations.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}
-    {analysis.result?.recommended_checks?.length?<details><summary>Recommended checks</summary><ul>{analysis.result.recommended_checks.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}
+    {analysis.result?.recommended_checks?.length?<details open><summary>Recommended checks</summary><ul>{analysis.result.recommended_checks.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}
     {analysis.result?.limitations?.length?<details><summary>Limitations</summary><ul>{analysis.result.limitations.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}
    </article>}
   </section>
@@ -127,3 +128,4 @@ export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
   <p className="room-ai-caution">Synthetic readings only. This tool supports investigation, not confirmed fault diagnosis. Forecast accuracy requires separate ground-truth evaluation.</p>
  </div>;
 }
+

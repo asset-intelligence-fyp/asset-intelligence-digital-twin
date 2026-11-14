@@ -1,7 +1,7 @@
 import {useId,useMemo} from 'react';import {POINTS,useTwin,type Reading} from '../services/twin';import {roomTitle} from '../viewer/sensorPresentation.js';
 const palette=['#20d2d9','#9b83ed','#56a8e0','#e4af61'];
-export function TelemetryChart({codes,title,height=170,limit=90,windowHours}:{codes:string[];title?:string;height?:number;limit?:number;windowHours?:number}){
- const {history}=useTwin(),uid=useId().replaceAll(':','');
+export function TelemetryChart({codes,title,height=170,limit=90,windowHours,evidence}:{codes:string[];title?:string;height?:number;limit?:number;windowHours?:number;evidence?:Reading[]}){
+ const twin=useTwin(),history=evidence??twin.history,uid=useId().replaceAll(':','');
  const series=useMemo(()=>codes.map(code=>{const rows=history.filter(r=>r.point_code===code);const end=Math.max(...rows.map(r=>Date.parse(r.timestamp)));return {code,rows:windowHours?rows.filter(r=>Date.parse(r.timestamp)>=end-windowHours*3600000):rows.slice(-limit)}}),[history,codes.join('|'),limit,windowHours]);
  const values=series.flatMap(s=>s.rows.map(r=>r.value)).filter((v):v is number=>typeof v==='number'&&Number.isFinite(v));
  if(!values.length)return <div className="chart-skeleton" role="status"><i/><i/><i/><span>Collecting sensor history…</span></div>;
@@ -17,3 +17,4 @@ export function TelemetryChart({codes,title,height=170,limit=90,windowHours}:{co
  {series.flatMap((s,i)=>{const segments:Reading[][]=[[]];for(const row of s.rows){if(row.value===null){if(segments.at(-1)!.length)segments.push([])}else segments.at(-1)!.push(row)}return segments.filter(rows=>rows.length).map((rows,j)=>{const coords=rows.map(r=>`${x(r)},${y(r.value!)}`),d='M'+coords.join(' L');return <g key={s.code+j}>{codes.length===1&&rows.length>1&&<path d={d+` L${x(rows.at(-1)!)},181 L${x(rows[0])},181 Z`} fill={`url(#${uid}-${i})`}/>}<path d={d} fill="none" stroke={codes.length===1?accent:palette[i%palette.length]} strokeWidth="1.8" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round"/>{rows.length===1&&<circle cx={x(rows[0])} cy={y(rows[0].value!)} r="2.5" fill={accent}/>}</g>})})}
  </svg><div className="chart-time-axis"><span>{format(first)}</span><small>{min.toFixed(1)} – {max.toFixed(1)} {point?.unit}</small><span>{format(last)}</span></div>{codes.length>1&&<div className="twin-chart-legend">{series.map((s,i)=><span key={s.code}><i style={{background:palette[i%palette.length]}}/>{roomTitle(POINTS.find(p=>p.code===s.code)!)} {s.rows.at(-1)?.value?.toFixed(2)??'Unavailable'}</span>)}</div>}</div>;
 }
+

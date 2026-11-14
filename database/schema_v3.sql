@@ -141,3 +141,26 @@ COMMIT;
 
 -- Timescale conversion is executed by setup-v3.mjs separately, outside transaction.
 -- No retention/delete policies are enabled by this schema.
+
+
+-- Automatic synthetic rule alerts. Evidence remains after raw-history retention.
+CREATE TABLE IF NOT EXISTS digital_twin.alert_severity (
+ alert_severity_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, severity_name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS digital_twin.alert_status (
+ alert_status_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, status_name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS digital_twin.alerts (
+ alert_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ point_code TEXT REFERENCES digital_twin.sensor_registry(point_code),
+ alert_severity_id BIGINT NOT NULL REFERENCES digital_twin.alert_severity(alert_severity_id),
+ alert_status_id BIGINT NOT NULL REFERENCES digital_twin.alert_status(alert_status_id),
+ alert_type TEXT NOT NULL, message TEXT NOT NULL,
+ triggered_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ
+);
+ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS replay_id TEXT;
+ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS detector TEXT;
+ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS evidence JSONB NOT NULL DEFAULT '[]'::jsonb;
+CREATE INDEX IF NOT EXISTS auto_alert_point ON digital_twin.alerts(point_code) WHERE resolved_at IS NULL;
+INSERT INTO digital_twin.alert_severity(severity_name) VALUES('Medium'),('Critical') ON CONFLICT DO NOTHING;
+INSERT INTO digital_twin.alert_status(status_name) VALUES('New'),('Review'),('Acknowledged'),('Closed') ON CONFLICT DO NOTHING;

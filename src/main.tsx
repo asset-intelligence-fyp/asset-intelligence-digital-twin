@@ -8,6 +8,7 @@ import {Sensors} from './pages/Sensors';
 import {Analytics} from './pages/Analytics';
 import {SystemStatus} from './pages/SystemStatus';
 import {AssistantWorkspace} from './components/AssistantWorkspace';
+import {Guide} from './pages/Guide';
 import {Events} from './pages/Events';
 import {Simulator} from './pages/Simulator';
 import {CommandPalette} from './components/ExperiencePanel';
@@ -29,18 +30,23 @@ function App(){
  useEffect(()=>{if(page==='database'&&!session.authenticated)updatePage('overview')},[page,session.authenticated]);
  useEffect(()=>{if(!adminOpen)return;const handler=(event:KeyboardEvent)=>{if(event.key==='Escape')setAdminOpen(false)};document.addEventListener('keydown',handler);return()=>document.removeEventListener('keydown',handler)},[adminOpen]);
  const [assistantDraft,setAssistantDraft]=useState<{question:string;scope:string;nonce:number}|null>(null);
+ const [investigationId,setInvestigationId]=useState<number|null>(null);
+ const [eventRequest,setEventRequest]=useState(0);
+ const [selectedEventId,setSelectedEventId]=useState<number|null>(null);
+ const openEvent=(id:number)=>{setSelectedEventId(id);setEventRequest(n=>n+1);setPage('events')};
  const [selectedCode,setSelectedCode]=useState('TEMP-L03-OPEN-01');
  const focus=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;setSelectedCode(code);setSelectedAsset(p.assetId);setPage('overview');setCommandRequest(n=>n+1)};
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
- return <><Shell page={page} setPage={setPage} adminAuthenticated={session.authenticated} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
+ return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.authenticated} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
   {page==='database'&&session.authenticated&&<AdminDatabase/>}
-  {page==='overview'&&<Overview externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
+  {page==='overview'&&<Overview investigationId={investigationId} onDismissInvestigation={()=>setInvestigationId(null)} onEvent={openEvent} externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='sensors'&&<Sensors initialCode={selectedCode}/>}
   {page==='analytics'&&<Analytics/>}
-  {page==='events'&&<Events onSensor={focus} onAsk={askSensor}/>}
+  {page==='events'&&<Events key={eventRequest} initialEventId={selectedEventId} onSensor={(code,id)=>{focus(code);setInvestigationId(id??null)}} onAsk={askSensor}/>}
   {page==='simulator'&&<Simulator/>}
   {page==='status'&&<SystemStatus/>}
+  {page==='guide'&&<Guide setPage={setPage}/>}
  <div className={page==='assistant'?'assistant-page-inner':''} ><AssistantWorkspace fullPage={page==='assistant'} onExpand={()=>setPage('assistant')} onSensor={focus} draft={assistantDraft}/></div>
  <CommandPalette onSelect={code=>{const point=POINTS.find(p=>p.code===code);if(point){setSelectedCode(code);setSelectedAsset(point.assetId);setPage('overview');setCommandRequest(n=>n+1)}}}/>
  </Shell>
@@ -48,4 +54,5 @@ function App(){
  </>;
 }
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{window.location.hash==='#presentation'?<Presentation/>:<TwinProvider><App/></TwinProvider>}</React.StrictMode>);
+
 

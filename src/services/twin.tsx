@@ -7,8 +7,9 @@ export type PointCode = string;
 export type AssetId = string;
 export const ASSETS: AssetId[] = [...new Set(POINTS.map(p=>p.assetId))];
 export interface Reading { point_code:string; value:number|null; timestamp:string; quality:string; source:'random'|'http'|'stored'; received_at_utc?:string; trace?:{trace_id:string;batch_size:number} }
-export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean;point_code?:string;reading_snapshot?:{value:number|null;timestamp:string;quality:string} }
+export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean;automatic?:boolean;resolved_at?:string|null;detector?:string;rule?:string;evidence?:Array<{point_code:string;value:number|null;timestamp:string;quality:string}>;point_code?:string;reading_snapshot?:{value:number|null;timestamp:string;quality:string} }
 interface Bootstrap {storage?:string;simulation?:{replay_id:string|null};data?:{
+  Alerts?:EventRecord[];
   Assets?: Array<{asset_id:string;asset_name:string;asset_type:string;status:string;ifc_global_id?:string;manufacturer?:string;model?:string}>;
   Maintenance_Events?: Array<{maintenance_id:number;asset_id:string;event_date:string;event_type:string;maintenance_status:string;description:string}>;
   Sensor_Readings?: Array<{point_code:string;value:number|null;latest_update:string;quality:string}>;
@@ -46,7 +47,7 @@ function nextValues(previous:Record<string,number>){
   return [p.code,value];
  }));
 }
-function storeEvents(events:EventRecord[]){try{localStorage.setItem('twinlabs_test_events_v1',JSON.stringify(events.filter(e=>e.synthetic).slice(0,100)))}catch{}}
+function storeEvents(events:EventRecord[]){try{localStorage.setItem('twinlabs_test_events_v1',JSON.stringify(events.filter(e=>e.id<0).slice(0,100)))}catch{}}
 function restoreEvents():EventRecord[]{try{const x=JSON.parse(localStorage.getItem('twinlabs_test_events_v1')||'[]');return Array.isArray(x)?x:[]}catch{return []}}
 function fromDb(data:Bootstrap['data']){
  const readings:Reading[]=(data?.Sensor_Readings||[]).map(r=>({point_code:r.point_code,value:r.value===null?null:Number(r.value),timestamp:r.latest_update,quality:r.quality||'simulated',source:'stored'}));
@@ -72,6 +73,7 @@ export function TwinProvider({children}:{children:ReactNode}){
  const [storage,setStorage]=useState('unknown');
  const [httpCoverage,setHttpCoverage]=useState(0);
  const generator=useRef({...initial});
+ const alertRevision=useRef(0);
  const sourceSession=useRef<string|null|undefined>(undefined),sourceRevision=useRef(0);
  const seenEvents=useRef(new Set<string>());
  const [bootstrapVersion,setBootstrapVersion]=useState(0);
@@ -98,7 +100,7 @@ export function TwinProvider({children}:{children:ReactNode}){
  useEffect(()=>{
   let active=true;
   const fetchData=async()=>{
-   const revision=sourceRevision.current;
+   const revision=sourceRevision.current,alertsAtStart=alertRevision.current;
    try{const response=await fetch('/api/bootstrap',{cache:'no-store'});if(!response.ok)throw new Error('API unavailable');
     const payload:Bootstrap=await response.json();if(!active||revision!==sourceRevision.current)return;
     const session=payload.simulation?.replay_id??null;
@@ -116,7 +118,11 @@ export function TwinProvider({children}:{children:ReactNode}){
       description:item.description||'Recorded anomaly',source:item.asset_id,zone:'Whole building',time:item.timestamp,
       acknowledged:/acknowledged|closed/i.test(item.anomaly_status||''),synthetic:false
     }));
-    setEvents(old=>[...incoming,...old.filter(e=>e.synthetic)]);
+    setEvents(old=>{
+     const remote=[...(data?.Alerts||[]),...incoming];
+     if(alertRevision.current!==alertsAtStart)return [...new Map([...remote,...old].map(e=>[e.id,e])).values()].sort((a,b)=>b.id-a.id);
+     return [...remote,...old.filter(e=>e.id<0)];
+    });
    }catch{if(active)setBackendConnected(false)}
   };
   void fetchData();return()=>{active=false};
@@ -130,11 +136,13 @@ export function TwinProvider({children}:{children:ReactNode}){
   if(mode!=='http')return;
   const source=new EventSource('/api/events?format=batch');
   source.onopen=()=>setBootstrapVersion(v=>v+1);
+  source.onerror=()=>setBackendConnected(false);
   source.addEventListener('resync',()=>setBootstrapVersion(v=>v+1));
   const reset=(session:string|null)=>{
    sourceSession.current=session;sourceRevision.current++;seenEvents.current.clear();pendingTraces.current.clear();setReadings({});setHistory([]);setReplayTime(null);
   };
   source.addEventListener('source-reset',event=>{try{reset(JSON.parse((event as MessageEvent).data).replay_id??null)}catch{}});
+  source.addEventListener('alert',event=>{try{const item=JSON.parse((event as MessageEvent).data) as EventRecord;if(!Number.isSafeInteger(item.id)||!POINTS.some(p=>p.code===item.point_code))return;alertRevision.current++;setEvents(old=>[item,...old.filter(e=>e.id!==item.id)].sort((a,b)=>b.id-a.id).slice(0,600));}catch{}});
   source.addEventListener('sensor-batch',event=>{
    try{
     const data=JSON.parse((event as MessageEvent).data);
@@ -164,9 +172,10 @@ export function TwinProvider({children}:{children:ReactNode}){
  const acknowledge=useCallback(async(id:number)=>{
   if(demo&&[-10001,-10002].includes(id)){setDemoAcknowledged(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id]);return;}
   const item=events.find(e=>e.id===id);if(!item)return;
-  if(!item.synthetic){
+  if(item.automatic||!item.synthetic){
    const response=await fetch(`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:item.acknowledged?'Review':'Acknowledged'})});
    if(!response.ok)throw new Error(`Unable to update anomaly (${response.status})`);
+   const saved=await response.json();setEvents(prev=>prev.map(e=>e.id===id?saved:e));return;
   }
   setEvents(prev=>prev.map(e=>e.id===id?{...e,acknowledged:!e.acknowledged}:e));
  },[events,demo]);
@@ -202,4 +211,5 @@ export function TwinProvider({children}:{children:ReactNode}){
 }
 export function useTwin(){const context=useContext(TwinContext);if(!context)throw Error('TwinProvider is missing');return context;}
 export function historyFor(history:Reading[],codes:string[],limit=80){return history.filter(r=>codes.includes(r.point_code)).slice(-limit);}
+
 

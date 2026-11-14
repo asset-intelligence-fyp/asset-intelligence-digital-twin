@@ -1,3 +1,4 @@
+import {createAlertService,definitions} from './alertService.js';
 import {registerBuildingAssistant} from './buildingAssistant.js';
 import {adminAuth} from './adminAuth.js';
 import {registerAdminDatabase} from './adminDatabase.js';
@@ -11,8 +12,11 @@ import path from 'node:path';import fs from 'node:fs';import {fileURLToPath} fro
 import {registry,normalizeReadings} from './sensorContract.js';
 dotenv.config();
 // Only two explicitly supported schemas; never interpolate an arbitrary env value into SQL.
-const ACTIVE_SCHEMA=process.env.TWIN_DB_SCHEMA==='digital_twin'?'digital_twin':'twin18';
-export function createSensorApp({pool=null}={}) {
+const DEFAULT_SCHEMA=process.env.TWIN_DB_SCHEMA==='digital_twin'?'digital_twin':'twin18';
+export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
+ if(!['twin18','digital_twin'].includes(schema))throw Error('Unsupported database schema');
+ const ACTIVE_SCHEMA=schema;
+ const alerts=createAlertService(ACTIVE_SCHEMA);
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
  adminAuth(app);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
  registerSimulationControls(app);
@@ -21,9 +25,17 @@ export function createSensorApp({pool=null}={}) {
  const latency=createLatencyMetrics({storage:pool?'postgresql':'temporary_memory'});latency.routes(app);
  const send=(res,text)=>{if(res.destroyed)return;try{if(!res.write(text)){res.end();clients.delete(res)}}catch{clients.delete(res)}};
  const control=(name,data)=>{for(const [res] of clients)send(res,`event: ${name}\ndata: ${JSON.stringify(data)}\n\n`)};
- const historyFor=async(codes=null)=>{if(pool&&activeReplay===undefined){const saved=await pool.query(`SELECT replay_id FROM ${ACTIVE_SCHEMA}.sensor_readings ORDER BY received_at DESC LIMIT 1`);activeReplay=saved.rows[0]?.replay_id??null;}return pool?(await pool.query(`SELECT point_code,reading_timestamp AS timestamp,reading_value::float8 AS value,quality FROM (SELECT * FROM ${ACTIVE_SCHEMA}.sensor_readings WHERE replay_id IS NOT DISTINCT FROM $1${codes?' AND point_code=ANY($2::text[])':''} ORDER BY reading_timestamp DESC LIMIT 18000) r ORDER BY reading_timestamp`,codes?[activeReplay,codes]:[activeReplay])).rows:memory.filter(r=>r.replay_id===activeReplay&&(!codes||codes.includes(r.point_code))).slice().sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));};
- app.get('/api/health',async(_req,res)=>{try{if(pool)await pool.query('SELECT 1');res.json({ok:true,storage:pool?'postgresql':'temporary_memory',synthetic:true})}catch{res.status(503).json({ok:false,error:'PostgreSQL unavailable'})}});
- app.get('/api/sensor-registry',(_req,res)=>res.json({points:registry,mapping:'demonstration_alias'}));
+ const historyFor=async(codes=null,db=pool)=>{if(db&&activeReplay===undefined){const saved=await db.query(`SELECT replay_id FROM ${ACTIVE_SCHEMA}.sensor_readings ORDER BY received_at DESC LIMIT 1`);activeReplay=saved.rows[0]?.replay_id??null;}return db?(await db.query(`SELECT point_code,reading_timestamp AS timestamp,reading_value::float8 AS value,quality FROM (SELECT * FROM ${ACTIVE_SCHEMA}.sensor_readings WHERE replay_id IS NOT DISTINCT FROM $1${codes?' AND point_code=ANY($2::text[])':''} ORDER BY reading_timestamp DESC LIMIT 18000) r ORDER BY reading_timestamp`,codes?[activeReplay,codes]:[activeReplay])).rows:memory.filter(r=>r.replay_id===activeReplay&&(!codes||codes.includes(r.point_code))).slice().sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp));};
+ app.get('/api/health',async(_req,res)=>{try{
+  let timescale={installed:false,version:null,hypertable:false};
+  if(pool){
+   await pool.query('SELECT 1');
+   const extension=await pool.query("SELECT extversion FROM pg_extension WHERE extname='timescaledb'");
+   if(extension.rows.length){const table=await pool.query('SELECT hypertable_name FROM timescaledb_information.hypertables WHERE hypertable_schema=$1 AND hypertable_name=$2',[ACTIVE_SCHEMA,'sensor_readings']);timescale={installed:true,version:extension.rows[0].extversion,hypertable:table.rows.length>0};}
+  }
+  res.json({ok:true,storage:pool?'postgresql':'temporary_memory',synthetic:true,schema:pool?ACTIVE_SCHEMA:null,timescale,alerts:'threshold_v1'})
+ }catch{res.status(503).json({ok:false,error:'PostgreSQL unavailable or not ready'})}});
+ app.get('/api/sensor-registry',(_req,res)=>res.json({points:registry,mapping:'demonstration_alias',definitions,alert_policy:'demonstration thresholds, not validated safety limits'}));
  app.get('/api/live-status',(_req,res)=>{
   const points=registry.map(p=>{const at=received.get(p.code);return {point_code:p.code,last_received_at:at||null,recent:!!at&&Date.now()-Date.parse(at)<90000}});
   res.setHeader('Cache-Control','no-store');res.json({transport:'http_batch_then_sse',expected_points:18,received_points:points.filter(p=>p.recent).length,points,recent:points.every(p=>p.recent),source:'synthetic_simulator',producer:lastSource,storage:pool?'postgresql':'temporary_memory'});
@@ -44,6 +56,8 @@ export function createSensorApp({pool=null}={}) {
   const receivedAt=Date.now();let release;const priorIngestion=ingestion;ingestion=new Promise(resolve=>{release=resolve});await priorIngestion;try{
   let batch,replay=null,batchKey=null,bodyHash=null,simulation=null;
   try{
+   const cached=typeof req.body?.batch_id==='string'&&completed.get(req.body.batch_id);
+   if(cached){if(cached.hash!==createHash('sha256').update(JSON.stringify(req.body)).digest('hex'))return res.status(409).json({error:'Batch ID reused with different contents'});return res.status(201).json({...cached.response,duplicate:true})}
    batch=normalizeReadings(req.body);
    if(req.body.replay_id!==undefined){
     replay=req.body.replay_id;
@@ -56,13 +70,16 @@ export function createSensorApp({pool=null}={}) {
     if(activeReplay===replay&&lastSource&&req.body.sequence<=lastSource.sequence)return res.status(409).json({error:'Out-of-order replay sequence'});
    }
   }catch(e){return res.status(400).json({error:e.message})}
-  const trace=latency.begin(req.body,receivedAt);let client;
+  const trace=latency.begin(req.body,receivedAt);let client,alertChanges=[];
   try{
+   if(pool){client=await pool.connect();await client.query('BEGIN')}
+   const priorHistory=await historyFor(null,client||pool);
    if(pool){
-    client=await pool.connect();await client.query('BEGIN');
     for(const r of batch)await client.query(`INSERT INTO ${ACTIVE_SCHEMA}.sensor_readings(point_code,reading_timestamp,reading_value,quality,replay_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT(point_code,reading_timestamp) DO UPDATE SET reading_value=EXCLUDED.reading_value,quality=EXCLUDED.quality,replay_id=EXCLUDED.replay_id,received_at=clock_timestamp()`,[r.point_code,r.timestamp,r.value,r.quality,replay]);
+    alertChanges=await alerts.process(client,batch,replay===activeReplay?priorHistory:[],replay);
     await client.query('COMMIT');
    }else{
+    alertChanges=await alerts.process(null,batch,replay===activeReplay?priorHistory:[],replay);
     if(replay!==activeReplay)memory=[];
     const keys=new Set(batch.map(r=>`${r.point_code}|${r.timestamp}`));
     memory=memory.filter(r=>!keys.has(`${r.point_code}|${r.timestamp}`));
@@ -78,6 +95,7 @@ export function createSensorApp({pool=null}={}) {
    const text=`id: ${eventId}\nevent: sensor-batch\ndata: ${JSON.stringify(payload)}\n\n`;
    ring.push({id:eventId,text});if(ring.length>128)ring.shift();
    for(const [c,format] of clients){if(format==='batch')send(c,text);else for(const row of batch)send(c,`event: sensor-reading\ndata: ${JSON.stringify(row)}\n\n`)}
+   for(const alert of alertChanges)control('alert',alert);
    const response={success:true,accepted:batch.length,storage:pool?'postgresql':'temporary_memory',event_id:eventId};
    if(batchKey){completed.set(batchKey,{hash:bodyHash,response});if(completed.size>256)completed.delete(completed.keys().next().value)}
    res.status(201).json(response);
@@ -91,11 +109,17 @@ export function createSensorApp({pool=null}={}) {
    let maintenance=[];
    if(pool){const present=await pool.query(`SELECT to_regclass('${ACTIVE_SCHEMA}.maintenance_events') AS name`);if(present.rows[0]?.name){const query=await pool.query(`SELECT maintenance_id, location_code AS asset_id, event_date, event_type, maintenance_status, description FROM ${ACTIVE_SCHEMA}.maintenance_events ORDER BY event_date DESC LIMIT 200`);maintenance=query.rows;}}
    res.setHeader('Cache-Control','no-store');res.json({storage:pool?'postgresql':'temporary_memory',synthetic:true,simulation:lastSource||{replay_id:activeReplay},data:{
-    Assets:locations.map(id=>({asset_id:id,asset_name:registry.find(p=>p.assetId===id).locationLabel,asset_type:'Monitoring location',status:'Monitoring'})),Maintenance_Events:maintenance,Anomaly_Results:[],
+    Assets:locations.map(id=>({asset_id:id,asset_name:registry.find(p=>p.assetId===id).locationLabel,asset_type:'Monitoring location',status:'Monitoring'})),Maintenance_Events:maintenance,Anomaly_Results:[],Alerts:await alerts.list(pool),
     Sensor_Readings:[...latest.values()].map(r=>({...r,latest_update:r.timestamp})),Historical_Sensor_Readings:history,
     Sensors:registry,BIM_Models:[{model_name:'FYP whole building · 18 markers',file_reference:'/models/FYP_WholeBuilding_18Sensors.xkt'}]
    }});
   }catch(e){res.status(503).json({error:'Database not ready; run npm run db:setup',detail:e.message})}
+ });
+ app.get('/api/alerts',async(_req,res)=>{try{res.setHeader('Cache-Control','no-store');res.json({events:await alerts.list(pool)})}catch{res.status(503).json({error:'Alert storage unavailable; rerun database setup'})}});
+ app.patch('/api/anomalies/:id/status',async(req,res)=>{
+  const id=Number(req.params.id),status=req.body?.status;
+  if(!Number.isSafeInteger(id)||id<1||!['Review','Acknowledged'].includes(status))return res.status(400).json({error:'Invalid alert ID or status'});
+  try{const event=await alerts.acknowledge(pool,id,status);if(!event)return res.status(404).json({error:'Alert not found'});control('alert',event);res.json(event)}catch{res.status(503).json({error:'Unable to save acknowledgement'})}
  });
  registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource});
  registerRoomAssistant(app,{getHistory:codes=>historyFor(codes)});
@@ -109,3 +133,4 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
  const port=Number(process.env.SERVER_PORT||3001);const server=createSensorApp({pool}).listen(port,()=>console.log(`Twin18 API: http://localhost:${port} · ${memory?'temporary memory':'PostgreSQL'}`));
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await pool?.end();process.exit(0)}));
 }
+

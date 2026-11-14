@@ -1,0 +1,9 @@
+{
+ "temperature":{"meaning":"Air temperature at the virtual monitoring point","range":[-50,80],"low":16,"high":30,"criticalHigh":35},
+ "humidity":{"meaning":"Relative humidity, not absolute moisture content","range":[0,100],"low":25,"high":75,"criticalHigh":90},
+ "co2":{"meaning":"Carbon dioxide concentration in parts per million","range":[0,100000],"high":1200,"criticalHigh":2000},
+ "occupancy":{"meaning":"Binary presence: 0 vacant, 1 occupied; not a people count","range":[0,1]},
+ "light":{"meaning":"Illuminance at the virtual monitoring point, in lux","range":[0,200000]},
+ "power":{"meaning":"Instantaneous virtual electrical power in kW; not cumulative kWh","range":[0,100000],"high":8,"criticalHigh":12},
+ "water_leakage":{"meaning":"Binary moisture flag: 0 dry, 1 leak detected","range":[0,1],"high":0,"criticalHigh":1}
+}

@@ -1,3 +1,7 @@
+# Integrated website: start here
+
+See [Run and demonstrate TwinLabs](docs/working-website-guide.md) for Amanda’s database setup, automatic alerts, sensor definitions, incident investigation and chatbot instructions. The website also includes **How to use** in the sidebar.
+
 # TwinLabs · simulation-only building digital twin
 
 The current website uses an 18-point **synthetic Python HTTP stream**, the whole-building
@@ -109,3 +113,4 @@ replacing Velvet's simulator or dashboard. See
 ## Amanda branch: PostgreSQL + Admin database viewer
 
 This branch includes a non-destructive maintenance/location migration, an optional TimescaleDB hypertable migration, and a read-only administrator database page. The sensor API still uses `twin18.sensor_readings`; the old V2 `public` schema is not automatically migrated or replaced. See [Amanda Windows pgAdmin + Admin setup](docs/amanda-admin-setup.md) before connecting your local PostgreSQL. Do not run historical reset SQL against populated databases.
+

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 export const registry = JSON.parse(fs.readFileSync(new URL('../shared/sensorRegistry.json', import.meta.url),'utf8'));
+const definitions=JSON.parse(fs.readFileSync(new URL('../shared/sensorDefinitions.json',import.meta.url),'utf8'));
 const byCode = new Map(registry.map(p=>[p.code,p]));
 export function normalizeReadings(body) {
  const batch = Array.isArray(body?.readings) ? body.readings : [body];
@@ -14,8 +15,11 @@ export function normalizeReadings(body) {
   if (r.quality_flag==='missing'&&!missing) throw new Error('Missing quality requires NULL value');
   if (r.quality_flag!==undefined&&!['ok','missing'].includes(r.quality_flag)) throw new Error('Invalid source quality flag');
   if (!missing&&point.unit==='binary'&&r.value!==0&&r.value!==1) throw new Error('Invalid binary reading');
+  const range=definitions[point.sensorType].range;
+  if(!missing&&(r.value<range[0]||r.value>range[1]))throw new Error('Reading outside supported measurement range');
   if (keys.has(point.code)) throw new Error('Duplicate sensor in batch');
   keys.add(point.code);
   return {point_code:point.code,value:r.value,timestamp:new Date(r.timestamp).toISOString(),quality:missing?'missing':'synthetic',source:'http',location_code:point.assetId,simulator_room_id:point.simulatorRoomId,ifc_global_id:point.guid};
  });
 }
+
