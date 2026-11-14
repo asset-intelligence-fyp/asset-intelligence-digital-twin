@@ -16,7 +16,7 @@ const mainTabs:{id:MainTab;label:string;section:string}[]=[
  {id:'maintenance',label:'Maintenance',section:'maintenance'}
 ];
 const secondaryViews:Record<MainTab,{id:string;label:string}[]>={
- buildings:[{id:'floors',label:'Building floors'},{id:'bim',label:'BIM models'},{id:'bim_elements',label:'BIM elements'}],
+ buildings:[],
  sensors:[],
  ai:[{id:'ai_results',label:'Anomaly results'},{id:'forecasts',label:'Forecast results'}],
  alerts:[{id:'alerts',label:'Alerts'},{id:'notifications',label:'Notifications'}],
@@ -94,7 +94,7 @@ export function AdminDatabase() {
  };
  const home=()=>switchView(summary?.active_schema==='twin18'?'locations':'buildings','buildings');
  const navigate=(row:Record<string,unknown>)=>{
-  if(active==='buildings')pushPage('locations',{building:String(row.building_code||''),floor:'',location:'',point:''});
+  if(active==='buildings')pushPage('floors',{building:String(row.building_code||''),floor:'',location:'',point:''});
   else if(active==='floors')pushPage('locations',{building:String(row.building_code||''),floor:String(row.floor_level||''),location:'',point:''});
   else if(active==='bim'||active==='bim_elements')pushPage('locations',{building:String(row.building_code||''),floor:'',location:'',point:''});
   else if(active==='locations')pushPage('sensors',{location:String(row.location_code||''),locationName:String(row.display_name||row.location_code||''),point:''});
@@ -108,6 +108,9 @@ export function AdminDatabase() {
  const navigable=['buildings','floors','bim','bim_elements','locations','sensors'].includes(active);
  const showBuilding=summary?.active_schema==='digital_twin'&&buildings.length>1&&['floors','bim','bim_elements','locations','sensors','readings','ai_results','forecasts','maintenance'].includes(active);
  const scopedLocations=active==='locations'&&Boolean(building);
+ // Highlight Sensors while viewing registry/readings, even when reached from Buildings.
+ // Breadcrumb and Back still retain the complete Buildings > Floors > Locations route.
+ const highlightedTab:MainTab=['sensors','readings'].includes(active)?'sensors':mainTab;
  const globalSensors=mainTab==='sensors'&&active==='sensors'&&historyStack.length===0;
  const scopedSensors=active==='sensors'&&Boolean(location)&&!globalSensors;
  const scopedReadings=active==='readings'&&Boolean(point);
@@ -174,7 +177,7 @@ export function AdminDatabase() {
  return <section className="admin-page">
   <div className="page-heading admin-heading"><div><span className="eyebrow admin-eyebrow">DATABASE / ADMINISTRATOR</span><h1>Database Management</h1></div></div>
   <nav className="admin-main-tabs" aria-label="Database sections">
-   {mainTabs.filter(tab=>available.includes(tab.section)||tab.id==='buildings').map(tab=><button key={tab.id} type="button" className={mainTab===tab.id?'selected':''} aria-current={mainTab===tab.id?'page':undefined} onClick={()=>switchView(tab.section,tab.id)}>{tab.label}</button>)}
+   {mainTabs.filter(tab=>available.includes(tab.section)||tab.id==='buildings').map(tab=><button key={tab.id} type="button" className={highlightedTab===tab.id?'selected':''} aria-current={highlightedTab===tab.id?'page':undefined} onClick={()=>switchView(tab.section,tab.id)}>{tab.label}</button>)}
   </nav>
   <nav className="admin-breadcrumb" aria-label="Database navigation">
    {historyStack.length>0&&<button type="button" className="admin-outline" onClick={back}>← Back</button>}
@@ -213,7 +216,8 @@ export function AdminDatabase() {
     <div className="admin-table-heading">
      {scopedReadings?<><span className="admin-heading-overline">SENSOR READINGS</span><strong className="admin-reading-sensor-title">{point}</strong><p>{selectedSensorType}{displayLocation?' · '+displayLocation:''} · Historical sensor observations</p></>
       :<><strong>{globalSensors?'All Sensors':names[active]||active}</strong>
-      {scopedLocations?<p className="admin-table-context"><Building2 size={13} aria-hidden="true"/> {buildingLabel} · {dataset?.total??dataset?.rows.length??0} monitoring locations</p>
+      {active==='floors'&&Boolean(building)?<p className="admin-table-context"><Building2 size={13} aria-hidden="true"/> {buildingLabel} · Building floors</p>
+       :scopedLocations?<p className="admin-table-context"><Building2 size={13} aria-hidden="true"/> {buildingLabel} · {dataset?.total??dataset?.rows.length??0} monitoring locations</p>
        :scopedSensors?<p className="admin-table-context"><MapPin size={13} aria-hidden="true"/> {displayLocation} ({location}) · {dataset?.total??dataset?.rows.length??0} sensors</p>
        :globalSensors?<p>{dataset?.total??dataset?.rows.length??0} registered sensors · Select a sensor to view its historical readings.</p>
        :<p>{descriptions[active]||'Database records'}</p>}</>}
