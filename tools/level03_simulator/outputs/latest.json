@@ -1,0 +1,176 @@
+{
+  "sequence": 21,
+  "simulated_time": "2026-11-03T01:38:30.341000+08:00",
+  "readings": [
+    {
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "room_id": "L03-OPEN-01",
+      "sensor_type": "temperature",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 26.99,
+      "unit": "°C",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "RH-L03-OPEN-01",
+      "room_id": "L03-OPEN-01",
+      "sensor_type": "humidity",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 68.86,
+      "unit": "%RH",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "CO2-L03-OPEN-01",
+      "room_id": "L03-OPEN-01",
+      "sensor_type": "co2",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 437,
+      "unit": "ppm",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "PIR-L03-OPEN-01",
+      "room_id": "L03-OPEN-01",
+      "sensor_type": "occupancy",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "binary",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "LUX-L03-OPEN-01",
+      "room_id": "L03-OPEN-01",
+      "sensor_type": "light",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "lux",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "TEMP-L03-MEET-01",
+      "room_id": "L03-MEET-01",
+      "sensor_type": "temperature",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 27.01,
+      "unit": "°C",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "RH-L03-MEET-01",
+      "room_id": "L03-MEET-01",
+      "sensor_type": "humidity",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 68.76,
+      "unit": "%RH",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "CO2-L03-MEET-01",
+      "room_id": "L03-MEET-01",
+      "sensor_type": "co2",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 437,
+      "unit": "ppm",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "PIR-L03-MEET-01",
+      "room_id": "L03-MEET-01",
+      "sensor_type": "occupancy",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "binary",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "LUX-L03-MEET-01",
+      "room_id": "L03-MEET-01",
+      "sensor_type": "light",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "lux",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "PIR-L03-WC-01",
+      "room_id": "L03-WC-01",
+      "sensor_type": "occupancy",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "binary",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "LUX-L03-WC-01",
+      "room_id": "L03-WC-01",
+      "sensor_type": "light",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "lux",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "RH-L03-WC-01",
+      "room_id": "L03-WC-01",
+      "sensor_type": "humidity",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 68.63,
+      "unit": "%RH",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "LEAK-L03-WC-01",
+      "room_id": "L03-WC-01",
+      "sensor_type": "water_leakage",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "binary",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "PIR-L03-CLEAN-01",
+      "room_id": "L03-CLEAN-01",
+      "sensor_type": "occupancy",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "binary",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "LUX-L03-CLEAN-01",
+      "room_id": "L03-CLEAN-01",
+      "sensor_type": "light",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "lux",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "LEAK-L03-CLEAN-01",
+      "room_id": "L03-CLEAN-01",
+      "sensor_type": "water_leakage",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 0,
+      "unit": "binary",
+      "source": "simulated"
+    },
+    {
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "room_id": "L03-PWR-POINT-01",
+      "sensor_type": "power",
+      "timestamp": "2026-11-03T01:38:30.341000+08:00",
+      "value": 1.146,
+      "unit": "kW",
+      "source": "simulated"
+    }
+  ],
+  "simulation_context": {
+    "outdoor_temperature_c": 26.38,
+    "ac_on": 0,
+    "ac_setpoint_c": 24.0
+  },
+  "generated_at_utc": "2026-11-02T17:20:10.680+00:00",
+  "source": "synthetic_demo",
+  "warning": "Synthetic data, not measurements from physical building sensors."
+}

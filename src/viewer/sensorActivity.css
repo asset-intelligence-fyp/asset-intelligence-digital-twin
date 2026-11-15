@@ -1,0 +1,13 @@
+.bim-pin-layer .sensor-receiving .sensor-anchor-core{fill:#37d7e8;stroke:#8cecf5;filter:drop-shadow(0 0 4px #28d7edb3);animation:sensor-twinkle 3.2s ease-in-out infinite;animation-delay:var(--sensor-delay,0s)}
+.bim-pin-layer .sensor-arrival-ring{fill:none;stroke:#45d8eb;stroke-width:1.5;pointer-events:none;transform-box:fill-box;transform-origin:center;animation:sensor-receive-ring 3.2s ease-out infinite;animation-delay:var(--sensor-delay,0s)}
+.bim-pin-layer .bim-sensor-pin.sensor-receiving{animation:sensor-badge-glow 3.2s ease-in-out infinite;animation-delay:var(--sensor-delay,0s)}
+.bim-pin-layer .sensor-missing circle,.bim-pin-layer .sensor-stale circle,.bim-pin-layer .sensor-stored circle,.bim-pin-layer .sensor-historical circle{stroke:#8292a5;fill:#273444;filter:none}
+.bim-pin-layer .sensor-missing line,.bim-pin-layer .sensor-stale line,.bim-pin-layer .sensor-stored line,.bim-pin-layer .sensor-historical line{stroke:#65778d;stroke-opacity:.35}
+.bim-pin-layer .bim-sensor-pin.sensor-missing,.bim-pin-layer .bim-sensor-pin.sensor-stale,.bim-pin-layer .bim-sensor-pin.sensor-stored,.bim-pin-layer .bim-sensor-pin.sensor-historical{background:#15202d;color:#a1afc0;border-color:#6a7b90;box-shadow:none;animation:none}
+.bim-pin-layer .bim-sensor-pin:not(.sensor-receiving):after{animation:none;border-color:#8597ad;opacity:.3}
+.sensor-motion-toggle{white-space:nowrap}.sensor-activity-key{opacity:.75;font-size:8px;letter-spacing:0}
+.sensor-motion-off .bim-sensor-pin,.sensor-motion-off .sensor-anchor-core,.sensor-motion-off .sensor-arrival-ring,.sensor-motion-off .bim-sensor-pin:after{animation:none!important}.sensor-motion-off .sensor-arrival-ring{display:none}
+@keyframes sensor-twinkle{0%,100%{opacity:.62}45%{opacity:1}}
+@keyframes sensor-receive-ring{0%{opacity:.65;scale:.65}78%,100%{opacity:0;scale:2.4}}
+@keyframes sensor-badge-glow{0%,100%{box-shadow:0 0 4px #27d4e51a}45%{box-shadow:0 0 13px #27d4e55c}}
+@media(prefers-reduced-motion:reduce){.bim-pin-layer .bim-sensor-pin,.bim-pin-layer .sensor-anchor-core,.bim-pin-layer .sensor-arrival-ring,.bim-pin-layer .bim-sensor-pin:after{animation:none!important}.bim-pin-layer .sensor-arrival-ring{display:none}}

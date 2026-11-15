@@ -1,0 +1,81 @@
+{
+  "version": "hybrid_v1",
+  "profile_id": "9fef2c224b4cd457",
+  "calibration_split": "normal_weather_2023_2025",
+  "fit_period": "2023-01-01/2024-12-31",
+  "validation_period": "2025-01-01/2025-12-31",
+  "fit_batches_stride_15min": 70176,
+  "features": [
+    "intercept",
+    "outdoor_temp_centered",
+    "outdoor_rh_centered",
+    "solar_kw_m2",
+    "occupancy_ratio",
+    "ac_on",
+    "sin_hour",
+    "cos_hour"
+  ],
+  "validation_scope": "Equilibrium regression on held-out normal 2025 inputs, not full trajectory fidelity or anomaly accuracy.",
+  "sensors": {
+    "TEMP-L03-OPEN-01": {
+      "n": 35040,
+      "rmse": 0.611413,
+      "bias": 0.09458
+    },
+    "RH-L03-OPEN-01": {
+      "n": 35040,
+      "rmse": 1.260518,
+      "bias": 0.237992
+    },
+    "CO2-L03-OPEN-01": {
+      "n": 35040,
+      "rmse": 58.793759,
+      "bias": 7.631279
+    },
+    "LUX-L03-OPEN-01": {
+      "n": 35040,
+      "rmse": 69.108916,
+      "bias": -7.491731
+    },
+    "TEMP-L03-MEET-01": {
+      "n": 35040,
+      "rmse": 0.600164,
+      "bias": 0.019393
+    },
+    "RH-L03-MEET-01": {
+      "n": 35040,
+      "rmse": 1.552877,
+      "bias": 0.017643
+    },
+    "CO2-L03-MEET-01": {
+      "n": 35040,
+      "rmse": 95.329923,
+      "bias": -2.226367
+    },
+    "LUX-L03-MEET-01": {
+      "n": 35040,
+      "rmse": 27.257941,
+      "bias": 0.06491
+    },
+    "LUX-L03-WC-01": {
+      "n": 35040,
+      "rmse": 1.67489,
+      "bias": 0.034793
+    },
+    "RH-L03-WC-01": {
+      "n": 35040,
+      "rmse": 1.946915,
+      "bias": -0.191052
+    },
+    "LUX-L03-CLEAN-01": {
+      "n": 35040,
+      "rmse": 12.413375,
+      "bias": -0.076635
+    },
+    "PWR-L03-PWR-POINT-01": {
+      "n": 35040,
+      "rmse": 0.117525,
+      "bias": -0.003276
+    }
+  }
+}

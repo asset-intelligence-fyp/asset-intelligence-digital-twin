@@ -1,0 +1,48 @@
+-- Isolated, additive schema. No existing project tables are dropped or renamed.
+CREATE SCHEMA IF NOT EXISTS twin18;
+CREATE TABLE IF NOT EXISTS twin18.sensor_registry (
+ point_code TEXT PRIMARY KEY, simulator_room_id TEXT NOT NULL,
+ ifc_sensor_id TEXT NOT NULL UNIQUE, ifc_global_id TEXT NOT NULL UNIQUE,
+ location_code TEXT NOT NULL, floor_level TEXT NOT NULL,
+ measurement_type TEXT NOT NULL, unit TEXT NOT NULL,
+ mapping_status TEXT NOT NULL DEFAULT 'demonstration_alias'
+);
+CREATE TABLE IF NOT EXISTS twin18.sensor_readings (
+ point_code TEXT NOT NULL REFERENCES twin18.sensor_registry(point_code),
+ reading_timestamp TIMESTAMPTZ NOT NULL, reading_value DOUBLE PRECISION NOT NULL,
+ quality TEXT NOT NULL, PRIMARY KEY(point_code,reading_timestamp)
+);
+CREATE INDEX IF NOT EXISTS twin18_reading_time ON twin18.sensor_readings(reading_timestamp DESC);
+
+-- Additive upgrade for isolated dataset replay sessions.
+ALTER TABLE twin18.sensor_readings ADD COLUMN IF NOT EXISTS replay_id TEXT;
+CREATE INDEX IF NOT EXISTS twin18_replay_time ON twin18.sensor_readings(replay_id,reading_timestamp DESC);
+
+-- A missing observation stays NULL, never a fabricated zero.
+ALTER TABLE twin18.sensor_readings ALTER COLUMN reading_value DROP NOT NULL;
+
+ALTER TABLE twin18.sensor_readings ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp();
+CREATE INDEX IF NOT EXISTS twin18_received_time ON twin18.sensor_readings(received_at DESC);
+
+
+-- Automatic synthetic rule alerts. Evidence remains after raw-history retention.
+CREATE TABLE IF NOT EXISTS twin18.alert_severity (
+ alert_severity_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, severity_name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS twin18.alert_status (
+ alert_status_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, status_name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS twin18.alerts (
+ alert_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ point_code TEXT REFERENCES twin18.sensor_registry(point_code),
+ alert_severity_id BIGINT NOT NULL REFERENCES twin18.alert_severity(alert_severity_id),
+ alert_status_id BIGINT NOT NULL REFERENCES twin18.alert_status(alert_status_id),
+ alert_type TEXT NOT NULL, message TEXT NOT NULL,
+ triggered_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ
+);
+ALTER TABLE twin18.alerts ADD COLUMN IF NOT EXISTS replay_id TEXT;
+ALTER TABLE twin18.alerts ADD COLUMN IF NOT EXISTS detector TEXT;
+ALTER TABLE twin18.alerts ADD COLUMN IF NOT EXISTS evidence JSONB NOT NULL DEFAULT '[]'::jsonb;
+CREATE INDEX IF NOT EXISTS auto_alert_point ON twin18.alerts(point_code) WHERE resolved_at IS NULL;
+INSERT INTO twin18.alert_severity(severity_name) VALUES('Medium'),('Critical') ON CONFLICT DO NOTHING;
+INSERT INTO twin18.alert_status(status_name) VALUES('New'),('Review'),('Acknowledged'),('Closed') ON CONFLICT DO NOTHING;

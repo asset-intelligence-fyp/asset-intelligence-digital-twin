@@ -1,0 +1,40 @@
+{
+  "source": "Existing normal_train.csv only (first 70 percent of LBNL-conditioned synthetic year)",
+  "source_rows": 367878,
+  "train_date_min": "2018-01-01",
+  "train_date_max": "2018-09-13",
+  "outdoor_seasonal_fit_c": {
+    "intercept": 9.814015,
+    "sin_annual": -3.719998,
+    "cos_annual": -13.442197
+  },
+  "hourly_outdoor_deviation_c": [
+    -2.53862,
+    -2.866,
+    -3.06664,
+    -3.29223,
+    -3.5508,
+    -3.47381,
+    -2.66595,
+    -1.37763,
+    -0.06546,
+    1.17475,
+    2.20031,
+    2.97885,
+    3.55938,
+    3.88481,
+    3.89299,
+    3.66132,
+    3.17567,
+    2.36164,
+    1.25184,
+    0.18515,
+    -0.603,
+    -1.15822,
+    -1.60541,
+    -2.06295
+  ],
+  "daily_residual_std_c": 4.6911,
+  "limitations": "Outdoor-air statistical reference only. No chronological LBNL samples are copied into the live feed. The 3-HRU engineering model uses illustrative, not field-validated, thermal parameters."
+}
+

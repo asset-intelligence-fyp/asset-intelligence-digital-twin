@@ -1,0 +1,257 @@
+{
+  "normal_weather_2023_2025": {
+    "generator": "people_driven_v3.0",
+    "rows": 5681664,
+    "expected_rows": 5681664,
+    "first": "2023-01-01T00:00:00+08:00",
+    "last": "2025-12-31T23:55:00+08:00",
+    "sensors": {
+      "TEMP-L03-OPEN-01": 315648,
+      "RH-L03-OPEN-01": 315648,
+      "CO2-L03-OPEN-01": 315648,
+      "PIR-L03-OPEN-01": 315648,
+      "LUX-L03-OPEN-01": 315648,
+      "TEMP-L03-MEET-01": 315648,
+      "RH-L03-MEET-01": 315648,
+      "CO2-L03-MEET-01": 315648,
+      "PIR-L03-MEET-01": 315648,
+      "LUX-L03-MEET-01": 315648,
+      "PIR-L03-CLEAN-01": 315648,
+      "LUX-L03-CLEAN-01": 315648,
+      "LEAK-L03-CLEAN-01": 315648,
+      "RH-L03-WC-01": 315648,
+      "PIR-L03-WC-01": 315648,
+      "LUX-L03-WC-01": 315648,
+      "LEAK-L03-WC-01": 315648,
+      "PWR-L03-PWR-POINT-01": 315648
+    },
+    "units": {
+      "TEMP-L03-OPEN-01": [
+        "temperature",
+        "\u00b0C",
+        "L03-OPEN-01"
+      ],
+      "RH-L03-OPEN-01": [
+        "humidity",
+        "%RH",
+        "L03-OPEN-01"
+      ],
+      "CO2-L03-OPEN-01": [
+        "co2",
+        "ppm",
+        "L03-OPEN-01"
+      ],
+      "PIR-L03-OPEN-01": [
+        "occupancy",
+        "binary",
+        "L03-OPEN-01"
+      ],
+      "LUX-L03-OPEN-01": [
+        "light",
+        "lux",
+        "L03-OPEN-01"
+      ],
+      "TEMP-L03-MEET-01": [
+        "temperature",
+        "\u00b0C",
+        "L03-MEET-01"
+      ],
+      "RH-L03-MEET-01": [
+        "humidity",
+        "%RH",
+        "L03-MEET-01"
+      ],
+      "CO2-L03-MEET-01": [
+        "co2",
+        "ppm",
+        "L03-MEET-01"
+      ],
+      "PIR-L03-MEET-01": [
+        "occupancy",
+        "binary",
+        "L03-MEET-01"
+      ],
+      "LUX-L03-MEET-01": [
+        "light",
+        "lux",
+        "L03-MEET-01"
+      ],
+      "PIR-L03-CLEAN-01": [
+        "occupancy",
+        "binary",
+        "L03-CLEAN-01"
+      ],
+      "LUX-L03-CLEAN-01": [
+        "light",
+        "lux",
+        "L03-CLEAN-01"
+      ],
+      "LEAK-L03-CLEAN-01": [
+        "water_leakage",
+        "binary",
+        "L03-CLEAN-01"
+      ],
+      "RH-L03-WC-01": [
+        "humidity",
+        "%RH",
+        "L03-WC-01"
+      ],
+      "PIR-L03-WC-01": [
+        "occupancy",
+        "binary",
+        "L03-WC-01"
+      ],
+      "LUX-L03-WC-01": [
+        "light",
+        "lux",
+        "L03-WC-01"
+      ],
+      "LEAK-L03-WC-01": [
+        "water_leakage",
+        "binary",
+        "L03-WC-01"
+      ],
+      "PWR-L03-PWR-POINT-01": [
+        "power",
+        "kW",
+        "L03-PWR-POINT-01"
+      ]
+    },
+    "quality": {
+      "ok": 5681664
+    },
+    "bad_batches": 0,
+    "out_of_order_batches": 0,
+    "sampling_minutes": 5,
+    "fault_events": 0
+  },
+  "fault_weather_2026_q1": {
+    "generator": "people_driven_v3.0",
+    "rows": 466560,
+    "expected_rows": 466560,
+    "first": "2026-01-01T00:00:00+08:00",
+    "last": "2026-03-31T23:55:00+08:00",
+    "sensors": {
+      "TEMP-L03-OPEN-01": 25920,
+      "RH-L03-OPEN-01": 25920,
+      "CO2-L03-OPEN-01": 25920,
+      "PIR-L03-OPEN-01": 25920,
+      "LUX-L03-OPEN-01": 25920,
+      "TEMP-L03-MEET-01": 25920,
+      "RH-L03-MEET-01": 25920,
+      "CO2-L03-MEET-01": 25920,
+      "PIR-L03-MEET-01": 25920,
+      "LUX-L03-MEET-01": 25920,
+      "PIR-L03-CLEAN-01": 25920,
+      "LUX-L03-CLEAN-01": 25920,
+      "LEAK-L03-CLEAN-01": 25920,
+      "RH-L03-WC-01": 25920,
+      "PIR-L03-WC-01": 25920,
+      "LUX-L03-WC-01": 25920,
+      "LEAK-L03-WC-01": 25920,
+      "PWR-L03-PWR-POINT-01": 25920
+    },
+    "units": {
+      "TEMP-L03-OPEN-01": [
+        "temperature",
+        "\u00b0C",
+        "L03-OPEN-01"
+      ],
+      "RH-L03-OPEN-01": [
+        "humidity",
+        "%RH",
+        "L03-OPEN-01"
+      ],
+      "CO2-L03-OPEN-01": [
+        "co2",
+        "ppm",
+        "L03-OPEN-01"
+      ],
+      "PIR-L03-OPEN-01": [
+        "occupancy",
+        "binary",
+        "L03-OPEN-01"
+      ],
+      "LUX-L03-OPEN-01": [
+        "light",
+        "lux",
+        "L03-OPEN-01"
+      ],
+      "TEMP-L03-MEET-01": [
+        "temperature",
+        "\u00b0C",
+        "L03-MEET-01"
+      ],
+      "RH-L03-MEET-01": [
+        "humidity",
+        "%RH",
+        "L03-MEET-01"
+      ],
+      "CO2-L03-MEET-01": [
+        "co2",
+        "ppm",
+        "L03-MEET-01"
+      ],
+      "PIR-L03-MEET-01": [
+        "occupancy",
+        "binary",
+        "L03-MEET-01"
+      ],
+      "LUX-L03-MEET-01": [
+        "light",
+        "lux",
+        "L03-MEET-01"
+      ],
+      "PIR-L03-CLEAN-01": [
+        "occupancy",
+        "binary",
+        "L03-CLEAN-01"
+      ],
+      "LUX-L03-CLEAN-01": [
+        "light",
+        "lux",
+        "L03-CLEAN-01"
+      ],
+      "LEAK-L03-CLEAN-01": [
+        "water_leakage",
+        "binary",
+        "L03-CLEAN-01"
+      ],
+      "RH-L03-WC-01": [
+        "humidity",
+        "%RH",
+        "L03-WC-01"
+      ],
+      "PIR-L03-WC-01": [
+        "occupancy",
+        "binary",
+        "L03-WC-01"
+      ],
+      "LUX-L03-WC-01": [
+        "light",
+        "lux",
+        "L03-WC-01"
+      ],
+      "LEAK-L03-WC-01": [
+        "water_leakage",
+        "binary",
+        "L03-WC-01"
+      ],
+      "PWR-L03-PWR-POINT-01": [
+        "power",
+        "kW",
+        "L03-PWR-POINT-01"
+      ]
+    },
+    "quality": {
+      "ok": 464659,
+      "noisy": 312,
+      "missing": 223,
+      "drift": 1366
+    },
+    "bad_batches": 0,
+    "out_of_order_batches": 0,
+    "sampling_minutes": 5,
+    "fault_events": 216
+  }
+}

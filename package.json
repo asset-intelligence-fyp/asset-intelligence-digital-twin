@@ -1,0 +1,51 @@
+{
+  "name": "twinlabs-digital-twin-integrated",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:api": "node --watch server/sensorServer.js",
+    "dev:web": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "start": "node server/sensorServer.js",
+    "db:setup": "node scripts/setup-twin18.mjs",
+    "simulator": "node scripts/run-simulator.mjs",
+    "test": "node --test tests/twin18.test.mjs tests/navigation.test.mjs tests/experience.test.mjs tests/datasetStream.test.mjs tests/latencyMetrics.test.mjs tests/hybridStream.test.mjs tests/buildingAssistant.test.mjs tests/alerts.test.mjs",
+    "model:convert": "node scripts/convert-whole-building.mjs && python3 scripts/export-navigation.py && python3 scripts/export-room-footprints.py",
+    "demo": "TWIN_STORAGE=memory concurrently -k -n API,WEB,SIM \"npm:dev:api\" \"npm:dev:web\" \"npm:simulator\"",
+    "model:verify": "node scripts/verify-model.mjs",
+    "model:navigation": "python3 scripts/export-navigation.py && python3 scripts/export-room-footprints.py",
+    "simulator:calibrate": "python3 -m tools.hybrid_simulator.calibrate",
+    "eval:llm:one-month": "python3 scripts/evaluate_llm_one_month.py",
+    "eval:llm:anomaly:score": "python3 scripts/evaluate_llm_anomalies.py score",
+    "eval:llm:report": "python3 scripts/build_llm_evaluation_report.py",
+    "test:ai": "node --test tests/roomAssistantValidated.test.mjs tests/roomPrediction.test.mjs tests/oneMonthEvaluationEndpoint.test.mjs tests/velvetRoomAI.test.mjs",
+    "db:setup:v3": "node scripts/setup-v3.mjs",
+    "test:alerts": "node --test tests/alerts.test.mjs",
+    "db:check": "node scripts/check-database.mjs"
+  },
+  "dependencies": {
+    "@xeokit/xeokit-sdk": "^2.6.114",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "lucide-react": "^0.468.0",
+    "mqtt": "^5.16.0",
+    "pg": "^8.13.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.14",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@xeokit/xeokit-convert": "^1.3.2",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.5",
+    "web-ifc": "^0.0.78"
+  }
+}

@@ -1,0 +1,230 @@
+
+{
+  "timezone": "Asia/Kuching",
+  "office_start_hour": 8,
+  "office_end_hour": 18,
+  "ac_setpoint_c": 24.0,
+  "ac_start_hour": 8,
+  "ac_end_hour": 18,
+  "outdoor_hourly_c": [
+    27.0,
+    26.7,
+    26.5,
+    26.2,
+    26.0,
+    25.8,
+    26.0,
+    27.0,
+    28.5,
+    30.0,
+    31.5,
+    32.5,
+    33.5,
+    34.0,
+    34.5,
+    34.2,
+    33.5,
+    32.0,
+    30.5,
+    29.0,
+    28.0,
+    27.5,
+    27.2,
+    27.0
+  ],
+  "outdoor_rh": 78,
+  "co2_background_ppm": 430,
+  "ventilation_occupied_per_hour": 2.0,
+  "ventilation_unoccupied_per_hour": 0.7,
+  "temperature_tau_ac_on_min": 55,
+  "temperature_tau_ac_off_min": 240,
+  "occupied_target_rh": 56,
+  "unoccupied_target_rh": 70,
+  "fault_start_minute": 180,
+  "fault_duration_minutes": 120,
+  "http_timeout_seconds": 2.0,
+  "temperature": {
+    "unconditioned_base_c": 26.2,
+    "outdoor_coupling": 0.18,
+    "solar_gain_c": 0.2,
+    "conditioned_offset_c": 0.55
+  },
+  "humidity": {
+    "response_tau_min": 100,
+    "wc_target_rh": 67.5
+  },
+  "co2": {
+    "emission_litre_per_person_min": 0.3
+  },
+  "lighting": {
+    "switch_off_delay_minutes": 5,
+    "office_artificial_lux": 390,
+    "office_daylight_lux": 105,
+    "service_artificial_lux": 250,
+    "service_daylight_lux": 35
+  },
+  
+  "live_faults": {
+    "events_per_day_probabilities": {
+      "0": 0.40,
+      "1": 0.40,
+      "2": 0.17,
+      "3": 0.03
+    },
+    "max_events_per_day": 3,
+    "allow_overlapping_faults": true,
+    "allow_same_sensor_overlap": false
+  },
+  "abnormal_scenarios": {
+    "temperature": [
+      {
+        "name": "sustained_high_temperature",
+        "eligible_room_types": [
+          "open_office",
+          "meeting_room"
+        ],
+        "start_hours": [
+          9,
+          16
+        ],
+        "occupied_required": true,
+        "duration_minutes": [
+          60,
+          180
+        ],
+        "severity_range": [
+          5.5,
+          7.5
+        ]
+      }
+    ],
+    "humidity": [
+      {
+        "name": "excessive_humidity",
+        "eligible_room_types": [
+          "toilet"
+        ],
+        "start_hours": [
+          8,
+          18
+        ],
+        "duration_minutes": [
+          60,
+          180
+        ],
+        "severity_range": [
+          78,
+          85
+        ]
+      }
+    ],
+    "co2": [
+      {
+        "name": "reduced_ventilation",
+        "eligible_room_types": [
+          "meeting_room",
+          "open_office"
+        ],
+        "start_hours": [
+          9,
+          16
+        ],
+        "occupied_required": true,
+        "duration_minutes": [
+          45,
+          150
+        ],
+        "severity_range": [
+          0.08,
+          0.25
+        ]
+      }
+    ],
+    "occupancy": [
+      {
+        "name": "pir_stuck_on",
+        "eligible_room_types": [
+          "meeting_room",
+          "open_office",
+          "toilet",
+          "cleaning_room"
+        ],
+        "start_hours": [
+          9,
+          18
+        ],
+        "duration_minutes": [
+          30,
+          120
+        ],
+        "severity_range": [
+          1,
+          1
+        ]
+      }
+    ],
+    "light": [
+      {
+        "name": "insufficient_lighting",
+        "eligible_room_types": [
+          "open_office",
+          "meeting_room"
+        ],
+        "start_hours": [
+          9,
+          16
+        ],
+        "occupied_required": true,
+        "duration_minutes": [
+          15,
+          90
+        ],
+        "severity_range": [
+          0.15,
+          0.35
+        ]
+      }
+    ],
+    "power": [
+      {
+        "name": "unexpected_after_hours_load",
+        "eligible_room_types": [
+          "distribution_board"
+        ],
+        "start_hours": [
+          18,
+          23
+        ],
+        "duration_minutes": [
+          30,
+          180
+        ],
+        "severity_range": [
+          1,
+          3
+        ]
+      }
+    ],
+    "water_leakage": [
+      {
+        "name": "water_detected",
+        "eligible_room_types": [
+          "toilet",
+          "cleaning_room"
+        ],
+        "start_hours": [
+          8,
+          20
+        ],
+        "duration_minutes": [
+          10,
+          90
+        ],
+        "severity_range": [
+          1,
+          1
+        ]
+      }
+    ]
+  }
+}
