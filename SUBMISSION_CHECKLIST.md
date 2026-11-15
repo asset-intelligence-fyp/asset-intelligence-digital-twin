@@ -11,7 +11,7 @@ This file separates what is committed from what must be verified on the computer
 - [ ] Confirm `npm run model:verify` can read the full XKT model, not an LFS pointer.
 - [ ] Confirm no private `.env`, passwords, private fault labels, local SQLite history or credentials are committed. Rotate any secrets already exposed historically.
 
-## Build and tests
+## Administrator demonstration\n\n- [x] `npm run admin:setup` safely generates a separate local admin password and hash while preserving the existing .env database settings. No shared login credentials are checked into GitHub.\n- [ ] On the demonstration computer, run `npm run admin:setup` and keep the generated password private. Restart the API.\n- [ ] Run `npm run admin:check -- --verify-login`; verify authenticated login/session and, if PostgreSQL is configured, database table access.\n- [ ] Log in through the website at http://localhost:5173, open Database, and capture proof without exposing the password or hash.\n- [ ] If an instructor runs a separate clone, have them generate their own local credentials. The hash previously shared between students is not a login password.\n\n## Build and tests
 
 ```bash
 npm ci
