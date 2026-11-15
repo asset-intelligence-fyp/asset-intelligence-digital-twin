@@ -38,7 +38,7 @@ export function adminAuth(app) {
     if(record && record.until > now && record.count >= MAX_ATTEMPTS) return res.status(429).json({error:'Too many login attempts. Try again later.'});
     const name = process.env.ADMIN_USERNAME;
     const hash = process.env.ADMIN_PASSWORD_HASH;
-    if(!name || !hash) return res.status(503).json({error:'Admin login not configured. See docs/amanda-admin-setup.md'});
+    if(!name || !/^scrypt:[a-f0-9]{32}:[a-f0-9]{128}$/.test(hash||'')) return res.status(503).json({error:'Admin login is not configured on this computer. Run npm run admin:setup, then restart npm run dev.'});
     const valid = typeof req.body?.username === 'string' && req.body.username === name && verifyPassword(req.body?.password,hash);
     if(!valid) {
       const prev = record?.until > now ? record.count : 0;
