@@ -119,6 +119,7 @@ npm run build
 npm test
 npm run test:ai
 npm run test:alerts
+npm run test:admin
 npm run model:verify            # requires downloaded Git LFS BIM model
 python3 -m unittest discover -s tests -p 'test_*.py'
 npm run db:check                # PostgreSQL/TimescaleDB mode only
