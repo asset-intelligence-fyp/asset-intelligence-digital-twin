@@ -55,3 +55,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media(max-width:760px){.assistant-scope label:first-child,.assistant-scope label:nth-child(2){max-width:none;width:100%}.assistant-answer-meta{gap:8px}.chat-welcome .prompt-chips{grid-template-columns:1fr}.assistant-workspace .assistant-messages{padding:22px 16px}.assistant-source-actions{gap:10px}}
 .assistant-panel .chat-welcome .prompt-chips{grid-template-columns:1fr}.assistant-panel .assistant-workspace .assistant-messages{padding:20px}
 .assistant-model-fallback{border:1px solid var(--border);border-radius:9px;padding:12px 15px;margin:0 0 22px;font-size:12px;color:var(--muted);line-height:1.7}.assistant-model-fallback strong{color:var(--ink);font-size:12px}.assistant-model-fallback p{margin:4px 0}.assistant-model-fallback small{font-size:10px;opacity:.75}.assistant-retained-detail{font-size:11px;color:var(--muted);line-height:1.7;margin:8px 0}
+
+/* The assistant page belongs to the document, with one page scrollbar. */
+.page-container.assistant-main{padding:64px 0 26px}
+.page-container.assistant-main>.assistant-page-inner{width:100%;max-width:none;margin:0}
+.assistant-page-inner .assistant-workspace.assistant-workspace-page{width:100%;max-width:none;min-height:calc(100dvh - 90px);height:auto;margin:0;border:0;border-radius:0;box-shadow:none;overflow:visible;background:transparent}
+.assistant-workspace-page .assistant-head,.assistant-workspace-page .assistant-ai-tabs,.assistant-workspace-page .assistant-scope{padding-left:clamp(18px,4vw,64px);padding-right:clamp(18px,4vw,64px)}
+.assistant-workspace-page .assistant-messages{height:auto;max-height:none;overflow:visible;overscroll-behavior:auto;scrollbar-gutter:auto;flex:1 0 auto;padding:30px clamp(18px,4vw,64px)}
+:root[data-theme=dark] .assistant-workspace-page.assistant-workspace .assistant-messages{background:transparent}
+.assistant-workspace-page .chat-turn,.assistant-workspace-page .chat-welcome,.assistant-workspace-page .assistant-thinking{width:100%;max-width:920px;margin-left:auto;margin-right:auto}
+.assistant-workspace-page .chat-answer{max-width:820px}
+.assistant-workspace-page .assistant-followups{width:100%;max-width:960px;margin:0 auto;padding:6px 20px 16px}
+.assistant-workspace-page .assistant-composer{position:sticky;bottom:38px;z-index:10;flex-shrink:0;width:calc(100% - 40px);max-width:920px;margin:0 auto;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 24px #00000020}
+.assistant-workspace-page .assistant-note{width:100%;max-width:960px;margin:0 auto;border:0;text-align:center;padding-bottom:16px}
+.assistant-workspace-page .room-ai-velvet{height:auto;max-height:none;overflow:visible;overscroll-behavior:auto;width:100%;max-width:1048px;margin:0 auto;padding:26px clamp(18px,4vw,64px)}
+@media(max-width:760px){.page-container.assistant-main{padding-top:64px;padding-bottom:26px}.assistant-workspace-page .assistant-messages{padding:24px 16px}.assistant-workspace-page .assistant-composer{width:calc(100% - 24px);bottom:34px}.assistant-workspace-page .assistant-note{font-size:9px;padding-left:14px;padding-right:14px}}
