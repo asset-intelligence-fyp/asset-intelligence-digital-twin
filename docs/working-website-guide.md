@@ -1,17 +1,20 @@
-# Run and demonstrate the integrated TwinLabs website
+# Run and demonstrate the TwinLabs Alpha submission
 
 This version includes Amanda's committed database/admin updates and the Velvet UI. The automatic alert pipeline uses explicit demonstration rules, not Qwen-generated diagnoses.
 
 ## Update your Mac checkout
 
-In your existing repository, check `git status` first. Commit your own uncommitted work before switching or pulling; do not discard it. Then:
+In your existing repository, check `git status` first. Commit or stash your own uncommitted work before switching or pulling; do not discard it. For the **submitted release** (the repository default branch):
 
 ```bash
-git switch feature/velvet-ui
-git pull --ff-only
+git fetch origin
+git switch main
+git pull --ff-only origin main
 git lfs pull
 npm ci
 ```
+
+The frozen submission snapshot is also on `release/alpha-submission-2026`; use `git switch release/alpha-submission-2026` after fetching if you specifically need that branch. The old `feature/velvet-ui` remains as a development-history branch; do not reset a working local checkout to change branch names.
 
 `git lfs pull` retrieves the existing 16 MB XKT building model. If the viewer cannot load, run `npm run model:verify`. Do not replace the model with a Git LFS pointer.
 
