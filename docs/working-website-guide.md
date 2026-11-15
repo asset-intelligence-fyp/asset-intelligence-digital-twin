@@ -1,63 +1,58 @@
-# Run and demonstrate the TwinLabs Alpha submission\n\n**Administrator access:** Run `npm run admin:setup` locally, restart the API, then `npm run admin:check -- --verify-login`. A working admin login does not imply PostgreSQL is connected. See [teacher / lecturer admin setup](admin-teacher-setup.md).
+# Run and demonstrate TwinLabs
 
-This version includes Amanda's committed database/admin updates and the Velvet UI. The automatic alert pipeline uses explicit demonstration rules, not Qwen-generated diagnoses.
+This is the companion walkthrough for the integrated **main** branch. It contains details of the 18-point synthetic simulator, persistent rule-based alert evidence, and the local Qwen assistant. **Begin with the [README](../README.md)** for complete Mac, Linux, Windows, and PostgreSQL/TimescaleDB instructions.
 
-## Update your Mac checkout
+**Administrator access:** Run `npm run admin:setup` locally to generate the password, then restart the API. Use `npm run admin:check -- --verify-login` to check an authenticated session and the availability of the database page. Admin login can work even when PostgreSQL is not configured. See [administrator setup](admin-teacher-setup.md).
 
-In your existing repository, check `git status` first. Commit or stash your own uncommitted work before switching or pulling; do not discard it. For the **submitted release** (the repository default branch):
+## Clone and launch
+
+For a new checkout (requires access to the repository, Node.js 22+, Python 3.10+, and Git LFS):
 
 ```bash
-git fetch origin
-git switch main
-git pull --ff-only origin main
+git clone https://github.com/asset-intelligence-fyp/asset-intelligence-digital-twin.git
+cd asset-intelligence-digital-twin
+git lfs install
 git lfs pull
 npm ci
+npm run admin:setup
+TWIN_STORAGE=memory npm run dev
 ```
 
-The frozen submission snapshot is also on `release/alpha-submission-2026`; use `git switch release/alpha-submission-2026` after fetching if you specifically need that branch. The old `feature/velvet-ui` remains as a development-history branch; do not reset a working local checkout to change branch names.
+On Windows PowerShell, use `$env:TWIN_STORAGE = "memory"` followed by `npm run dev` instead of the Unix-style environment prefix. Open **http://localhost:5173**. The complete BIM model requires Git LFS; use `npm run model:verify` if it fails to load.
 
-`git lfs pull` retrieves the existing 16 MB XKT building model. If the viewer cannot load, run `npm run model:verify`. Do not replace the model with a Git LFS pointer.
+If you already have a working checkout on another branch, **do not force-reset or overwrite it**. Check `git status -sb`, preserve local changes, and use a fresh clone or a separate Git worktree from `origin/main` if the histories have diverged.
 
-## Use Amanda's PostgreSQL and TimescaleDB
+## Enable PostgreSQL + TimescaleDB
 
-Keep your existing `.env` credentials. Match the database host, port, name and account to Amanda's working configuration. Add or update:
+The Git repository includes the SQL schema and 18-point registry seed, **not another teammate's running database or credentials**. PostgreSQL and TimescaleDB must be installed on the local evaluation computer, and the extension must be enabled in the chosen database.
+
+Configure the local, Git-ignored `.env` with your actual PostgreSQL database and role (do not assume `postgres` is an existing role):
 
 ```dotenv
 PGHOST=localhost
 PGPORT=5432
-PGDATABASE=digital_twin_18
+PGDATABASE=YOUR_EXISTING_OR_NEW_DATABASE
+PGUSER=YOUR_ACTUAL_POSTGRES_ROLE
+# PGPASSWORD=YOUR_LOCAL_PASSWORD_IF_REQUIRED
 TWIN_DB_SCHEMA=digital_twin
 SIMULATOR_MODE=hybrid
 SIM_INTERVAL_SECONDS=5
 SIM_STEP_SECONDS=5
 ```
 
-Set `PGUSER` and `PGPASSWORD` locally if your PostgreSQL server requires them. `DATABASE_URL`, if set, takes precedence over these individual connection settings. Remove `TWIN_STORAGE=memory` from the file and terminal environment to use PostgreSQL. Do not commit `.env` or credentials.
+Keep the generated `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH`; they are separate from database authentication. Back up an existing database before schema changes, and never run the legacy destructive `database/postgres_init.sql` on populated data.
 
-With PostgreSQL running and the TimescaleDB extension already enabled in this database:
+Stop the memory-mode server, remove `TWIN_STORAGE=memory` from the shell and `.env`, and verify TimescaleDB is installed **in the selected database**. For a new local PostgreSQL instance, follow [README `2B](../README.md#2b-full-postgresql--timescaledb-mode) for database creation and extension setup.
 
 ```bash
 npm run db:setup:v3
 npm run db:check
-npm run build
 npm run dev
 ```
 
-Use the localhost address printed by Vite, normally http://localhost:5173. Keep the terminal open. The development command starts the API, browser frontend, Python bridge and hybrid generator.
+The database checker should report `schema: "digital_twin"`, `sensors: 18`, a TimescaleDB version, and `readings_hypertable: true`. The website's System status and `http://localhost:3001/api/health` report the active storage. In-memory readings/alerts reset on restart; PostgreSQL records persist.
 
-Rerun setup even if Amanda already created the v3 schema: this update adds the columns required to retain automatic alert evidence. Setup is additive and rerunnable; it does not remove the old `twin18` tables or copy their history into `digital_twin`. Back up an important local database before any schema update.
-
-If setup reports that TimescaleDB is missing, enable the extension in the selected PostgreSQL database using your normal administrator process, then rerun setup. The extension must be available to that PostgreSQL installation. Do not claim TimescaleDB is active just because the schema exists.
-
-`npm run db:check` should report 18 sensors, `schema: "digital_twin"`, a TimescaleDB version and `readings_hypertable: true`. The website's System status page and http://localhost:3001/api/health report the active storage, schema and hypertable state.
-
-For a temporary demonstration without a database:
-
-```bash
-TWIN_STORAGE=memory npm run dev
-```
-
-Readings, automatic alerts and acknowledgements then reset when the API stops. Plain PostgreSQL with `TWIN_DB_SCHEMA=twin18` also supports alerts after `npm run db:setup`, but is a different schema from Amanda's v3 database.
+The v3 script is additive and rerunnable, but it does **not** copy historical readings from the older `twin18` tables. If the Database page says “Configure PostgreSQL first”, the server is still running in memory mode or its database configuration is not active.
 
 ## Demonstrate a complete incident
 
