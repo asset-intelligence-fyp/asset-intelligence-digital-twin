@@ -85,15 +85,32 @@ curl http://localhost:3001/api/assistant/building/health
 
 A generated explanation is decision-support text, not a validated diagnosis. If the model is missing, unreachable, too slow or returns unsupported content, the building-evidence path shows a labelled fallback. Neither the current retrieval system nor the fixed-route room assistant should be described as a completed/benchmarked **iterative Agentic RAG** implementation. See [current AI integration](docs/whole-building-llm.md) and [research evaluation procedures](README_LLM_RESEARCH_EVALUATION.md).
 
-## 5. Administrator database viewer
+## 5. Administrator login and database viewer (teacher/demo setup)
 
-The authenticated **Database** page is available after setting `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` in the local `.env`. Generate a hash using:
+**Do not copy someone else's password hash or commit a fixed demo password.** The shared `scrypt:...` text is a salted verifier, **not the password**. Each computer needs its own local `.env` credentials. There is no hardcoded admin account or public bypass.
+
+From the repository root, run:
 
 ```bash
-node scripts/generate-admin-hash.mjs
+npm run admin:setup
 ```
 
-The current admin viewer is **read-only**, and its login uses locally configured credentials/in-memory sessions, not the future `digital_twin.users` table. It can inspect the available building, location, sensor, readings, AI, alert and maintenance tables in the selected schema. Some result tables remain empty until their application workflow is implemented. See [database schema details](docs/unified-database-v3.md) and [admin setup](docs/amanda-admin-setup.md).
+This generates a strong, **random administrator password**, prints it **once in your local terminal**, and safely creates/updates the **Git-ignored `.env`** with `ADMIN_USERNAME=admin` and a matching `ADMIN_PASSWORD_HASH`. It preserves your existing PostgreSQL, TimescaleDB, simulator and Ollama settings. Record the generated password privately and give it to your lecturer **out of band** if they need admin access. Rerunning the command **rotates** the password and invalidates the previous credentials after restarting the API.
+
+Next, start/restart the server (or restart an already running `npm run dev` process), then check readiness:
+
+```bash
+npm run dev
+# In a second terminal from the same folder:
+npm run admin:check
+npm run admin:check -- --verify-login
+```
+
+The last command asks for the password **without echoing it**, tests the real local API login and authenticated session cookie, and checks whether the database viewer can be queried. Then open **http://localhost:5173 → Login**, enter username `admin` and your generated password. A successful login displays the **Database** navigation entry.
+
+**Login and database availability are independent.** In `TWIN_STORAGE=memory` mode you can log in, but the Database page cannot query PostgreSQL. To demonstrate Amanda's TimescaleDB schema, run the persistent PostgreSQL setup in section 2 and verify `npm run db:check`. The viewer is **read-only** and uses locally configured credentials with in-memory sessions, not the future `digital_twin.users` table. Some AI/forecast/notification tables remain empty until their workflows are implemented.
+
+For troubleshooting, see [administrator and teacher verification](docs/admin-teacher-setup.md), [database schema details](docs/unified-database-v3.md), and [Amanda's original Windows setup](docs/amanda-admin-setup.md).
 
 ## 6. Verification
 
