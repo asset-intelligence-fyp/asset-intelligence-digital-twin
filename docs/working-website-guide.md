@@ -1,4 +1,4 @@
-# Run and demonstrate the TwinLabs Alpha submission
+# Run and demonstrate the TwinLabs Alpha submission\n\n**Administrator access:** Run `npm run admin:setup` locally, restart the API, then `npm run admin:check -- --verify-login`. A working admin login does not imply PostgreSQL is connected. See [teacher / lecturer admin setup](admin-teacher-setup.md).
 
 This version includes Amanda's committed database/admin updates and the Velvet UI. The automatic alert pipeline uses explicit demonstration rules, not Qwen-generated diagnoses.
 
