@@ -1,84 +1,55 @@
-# Unified Database Schema v3 (Amanda branch)
+# Unified Database v3 — PostgreSQL + TimescaleDB
 
-## Design decision
+The unified schema is `digital_twin` inside whichever **PostgreSQL database** is specified by your local connection settings (`PGDATABASE` or `DATABASE_URL`). A schema is not a second database. This is an **additive schema consolidation**: existing `public` and `twin18` objects remain separate, and their sensor rows are not silently migrated to v3.
 
-This is **schema consolidation**, not migration of old fake sensor data.
+## Tables and responsibilities
 
-- Keep the *concepts* unique to `database/postgres_schema_v2.sql`: buildings,
-  building floors, BIM models/elements, roles, users, AI results, severity/status,
-  alerts, notifications.
-- Use current `twin18` design when concepts overlap: 5 monitoring locations,
-  18-point sensor registry with simulator/BIM aliases, sensor readings using
-  `(point_code, reading_timestamp)`, quality, replay_id, received_at.
-- Add forecast results, simulation-run metadata and maintenance events.
-- The canonical *new* schema is `digital_twin` inside the existing **digital twin**
-  PostgreSQL database. It is not a new database.
-- `public` and `twin18` stay untouched while testing v3.
-- No old fake sensor data is copied. Synthetic readings can be regenerated.
-- IMPORTANT: The website's 18 sensor codes use simulator Level 03 aliases mapped
-  onto five website locations across Levels 02–05. `mapping_status` remains
-  `demonstration_alias`, not an independently verified physical mapping.
+- `buildings`, `building_floors`, `bim_models`, `bim_elements`, `monitoring_locations`, `sensor_registry`: fixed building metadata, BIM references and 18 simulator-to-IFC demonstration aliases across five locations.
+- `sensor_readings`: timestamped readings, quality, replay ID and receipt time. The v3 setup converts this table to a **TimescaleDB hypertable**.
+- `simulation_runs`: prepared run metadata (not automatically populated by current ingestion).
+- `alerts`, `alert_severity`, `alert_status`: **automatic threshold-based synthetic alerts are now wired into the active sensor API**. Stored incidents include replay, detector and JSON evidence; acknowledgement and recovery are separate. These are **not Qwen decisions**.
+- `maintenance_events`: optional reference to a location, point and alert; not proof of real-world maintenance.
+- `ai_results`, `forecast_results`: schema prepared, but the current assistant **does not persist its model outputs to these tables**.
+- `roles`, `users`, `notifications`: future data model; admin authentication currently uses the local `.env` hash and in-memory sessions. External notification delivery is not implemented.
 
-## Local setup (first back up the database)
+The application registry `shared/sensorRegistry.json` is currently the authoritative sensor mapping and seeds PostgreSQL; metadata is not dynamically discovered from the database at runtime.
 
-1. Stop `npm run dev`. Verify local `.env` points at your development DB
-   (e.g. `PGDATABASE=digital twin`), not production. Never commit secrets.
-2. On branch `amanda`: `git pull --ff-only origin amanda`.
-3. Run `npm run db:setup:v3`. This creates/updates **only** v3 schema and
-   its fixed metadata seed. It creates a TimescaleDB hypertable for v3
-   readings. Requires TimescaleDB already installed in the target database.
-4. Before switching, validate in pgAdmin:
+## Installation (development database only)
 
-   ```sql
-   SELECT count(*) FROM digital_twin.sensor_registry; -- 18
-   SELECT count(*) FROM digital_twin.monitoring_locations; -- 5
-   SELECT hypertable_schema,hypertable_name
-   FROM timescaledb_information.hypertables
-   WHERE hypertable_schema='digital_twin';
-   ```
+1. Back up any existing database. Verify `PGDATABASE`/`DATABASE_URL` targets your intended **development** instance. Do not run legacy `database/postgres_init.sql` because it drops and recreates older demo tables.
+2. Install/enable a matching TimescaleDB extension for your PostgreSQL instance and selected database.
+3. In an untracked `.env`, set `TWIN_DB_SCHEMA=digital_twin`; remove `TWIN_STORAGE=memory`. Configure your PostgreSQL connection.
+4. Run:
 
-5. **Opt-in**: add `TWIN_DB_SCHEMA=digital_twin` to your *local* `.env`.
-   Restart `npm run dev`. With this value, the Sensor API reads/writes
-   `digital_twin.sensor_readings`, Bootstrap loads v3 maintenance,
-   and Admin Database previews v3 business tables.
-6. To revert to the current behavior, remove that line or set
-   `TWIN_DB_SCHEMA=twin18`; restart. No data is moved or deleted.
-   The two schemas have separate readings history.
-
-## Current limitations / next integration stages
-
-- `shared/sensorRegistry.json` is still the authoritative runtime sensor
-  mapping. The v3 seed copies its 18 points into PostgreSQL, but UI/API
-  sensor metadata is not yet dynamically loaded from v3.
-- The existing admin login remains configured through `.env` and in-memory
-  sessions. `digital_twin.users` and `roles` are a **future** auth design;
-  they are not integrated. The admin viewer intentionally excludes users.
-- The Qwen LLM and Events UI have **not** been wired to persist
-  `digital_twin.ai_results`, `forecast_results`, or `alerts`.
-  Those tables will initially be empty; do not present simulation test events
-  as AI detections.
-- `simulation_runs` metadata table is ready, but the current ingestion path
-  does not populate it yet. The `replay_id` is not a mandatory foreign key.
-- No retention, compression, archiving or deletion policies are created.
-- Time filtering, Chunk Explorer and historical statistics are separate UI/API
-  features and not part of this schema consolidation.
-- No existing `public` tables are dropped. The earlier `postgres_init.sql`
-  is destructive and **must not** be run on the populated database.
-- Existing tests should continue to target `twin18` unless configured to use
-  v3 explicitly. End-to-end v3 validation is needed on the local PostgreSQL
-  instance after executing setup.
-
-## Relationship summary
-
-```text
-buildings -> building_floors -> monitoring_locations -> sensor_registry
-         -> bim_models / bim_elements
-sensor_registry -> sensor_readings (TimescaleDB hypertable)
-                -> ai_results -> alerts -> notifications
-                -> forecast_results
-monitoring_locations -> maintenance_events (optional alert reference)
-users -> roles; notifications -> users
-simulation_runs (optional metadata keyed by replay_id)
+```bash
+npm run db:setup:v3
+npm run db:check
+npm run dev
 ```
 
-Synthetic data is not automatically copied from old v2 or twin18.
+Setup creates the additive `digital_twin` tables and 18 sensor definitions, checks the TimescaleDB extension, converts `digital_twin.sensor_readings` to a hypertable, and installs a PostgreSQL `NOTIFY` trigger used by the database viewer. It does **not** delete existing `twin18`/public data or automatically transfer their histories.
+
+Verify in pgAdmin:
+
+```sql
+SELECT extversion FROM pg_extension WHERE extname='timescaledb';
+SELECT hypertable_schema,hypertable_name
+FROM timescaledb_information.hypertables
+WHERE hypertable_schema='digital_twin' AND hypertable_name='sensor_readings';
+SELECT count(*) FROM digital_twin.sensor_registry; -- expected 18
+SELECT count(*) FROM digital_twin.monitoring_locations; -- expected 5
+SELECT count(*) FROM digital_twin.sensor_readings; -- grows while simulator runs
+SELECT count(*) FROM digital_twin.alerts WHERE detector='threshold_v1'; -- grows after threshold tests
+```
+
+The `npm run db:check` command additionally confirms `readings_hypertable: true`. Merely finding a SQL script or an empty table is **not** confirmation of a working TimescaleDB server.
+
+## Runtime behavior and limitations
+
+Set `TWIN_DB_SCHEMA=twin18` to continue using the older PostgreSQL-compatible schema; that is **a different readings/alerts history**. The default schema is `twin18` unless you explicitly select v3. Memory mode bypasses PostgreSQL entirely and resets on restart.
+
+Sensor ingestion writes readings and threshold alerts in a transaction and streams changes to the UI. Persisted incidents can be inspected in the Event log, linked back to the BIM location, acknowledged and marked recovered when sensor values return to permitted bounds. The read-only admin viewer exposes available database tables; users, model outputs, forecasts and external notification delivery are not automatically written.
+
+No TimescaleDB compression, retention, deletion, archival, or continuous-aggregate policy is automatically enabled. Historical normal-context retrieval for research Qwen analysis can still use a **separate local SQLite reference**; the v3 schema does not replace it. All current telemetry and alerts are **synthetic experiments**, not real BMS readings or maintenance events.
+
+See [full setup and alert walkthrough](working-website-guide.md), [previous verified tests](integration-verification.md), and [top-level README](../README.md).
