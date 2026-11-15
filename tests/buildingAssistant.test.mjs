@@ -50,3 +50,27 @@ test('Invented evidence, new measurements, HTML and asserted repairs reject mode
 test('Failed incident storage is not described as an absence of incidents',async()=>{
  await run(async()=>{throw Error('offline')},async base=>{const d=await(await ask(base,{question:'Review earlier incidents',scope:leak.code})).json();assert.equal(d.incident_lookup_available,false);assert.match(d.answer,/Alert retrieval is unavailable/);assert.doesNotMatch(d.answer,/No matching alert/);assert.match(d.limitations[0],/retrieval failed/)},{getAlerts:async()=>{throw Error('database unavailable')}});
 });
+test('Fallback distinguishes an offline Ollama, a missing model and response rejection',async()=>{
+ for(const [fetchImpl,code] of [
+  [async()=>{throw Error('offline')},'MODEL_UNREACHABLE'],
+  [async()=>({ok:false,status:404}),'MODEL_NOT_FOUND'],
+  [async()=>({ok:true,json:async()=>({response:'not JSON'})}),'MODEL_RESPONSE_REJECTED'],
+ ])await run(fetchImpl,async base=>{const d=await(await ask(base,{question:'Explain the leak',scope:leak.code})).json();assert.equal(d.model_used,false);assert.equal(d.model_failure.code,code);assert.ok(d.model_failure.message.length>10)});
+});
+test('Invalid output gets one bounded corrective attempt with exact source IDs',async()=>{
+ let calls=0;
+ await run(async(_url,args)=>{
+  calls++;const p=JSON.parse(args.body);assert.ok(p.format.properties.interpretation.items.properties.evidence_ids.items.enum.includes('incident:7'));
+  if(calls===1)return {ok:true,json:async()=>({response:'{truncated',done_reason:'length'})};
+  assert.match(JSON.parse(p.prompt).retry_instruction,/response_truncated/);
+  return {ok:true,json:async()=>({response:JSON.stringify(explanation)})};
+ },async base=>{const d=await(await ask(base,{question:'Explain the earlier leak',scope:leak.code})).json();assert.equal(d.model_used,true);assert.equal(d.model_attempts,2);assert.equal(d.model_failure,null);assert.equal(calls,2)}, {getHistory:async()=>[row(0,2)],getAlerts:async()=>[incident]});
+});
+test('Copied incident numbers and explicit uncertainty are allowed; invented measurements are rejected',()=>{
+ const facts=buildingFacts([row(0,2)],null,{scope:leak.code,alerts:[incident]}).facts;
+ assert.equal(validateExplanation({...explanation,interpretation:[{text:'Alert 7 does not prove the sensor was repaired.',evidence_ids:['incident:7']}]},facts),true);
+ assert.equal(validateExplanation({...explanation,interpretation:[{text:'A temperature of 999 is recorded.',evidence_ids:['incident:7']}]},facts),false);
+});
+test('Dry readings from a fresh run are explained without inventing a transition or a repair',async()=>{
+ await run(async()=>{throw Error('offline')},async base=>{const d=await(await ask(base,{question:'Why is it dry after the leak?',scope:leak.code})).json();assert.match(d.answer,/current simulation run contains dry readings/);assert.match(d.answer,/does not contain that earlier leak-to-dry transition/);assert.doesNotMatch(d.answer,/Retained observations/);assert.match(d.facts.find(f=>f.incident).detail,/Retained observations/);assert.match(d.facts.find(f=>f.history&&!f.incident).text,/1:02:00 PM MYT/)}, {getHistory:async()=>[row(0,2)],getSource:()=>({replay_id:'new'}),getAlerts:async()=>[incident]});
+});

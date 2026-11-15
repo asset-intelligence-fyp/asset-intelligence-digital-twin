@@ -122,4 +122,12 @@ Notifications are in-app (bell, Event Log and recent activity). Email, SMS and p
 
 The recent-history selector offers 15 minutes, one hour or four hours, but the available history remains capped at 18,000 readings for the active simulation run. Incidents come from the latest 500 automatic rule alerts, with up to eight scoped records retrieved and up to three summarised in the answer. Model-reference and format checks do not establish factual accuracy of its general explanation; operator review is still required. This is a bounded retrieval-and-explanation workflow, not an iterative Agentic RAG benchmark.
 
-Validation includes seven building-assistant tests, persisted incident retrieval after restart for both supported database schemas, and the unchanged room-AI regression suite. Model tests use controlled responses; actual Qwen output and latency require the user's local Ollama runtime.
+Validation includes eleven building-assistant tests, persisted incident retrieval after restart for both supported database schemas, and the unchanged room-AI regression suite. Model tests use controlled responses; actual Qwen output and latency require the user's local Ollama runtime.
+
+### If the answer says stored evidence / fallback
+
+The fallback banner now distinguishes **MODEL_UNREACHABLE** (open Ollama or run `ollama serve` in another terminal), **MODEL_NOT_FOUND** (run `ollama pull qwen3:1.7b`), **MODEL_TIMEOUT**, and **MODEL_RESPONSE_REJECTED**. Inspect connectivity at `http://localhost:3001/api/assistant/building/health`. A connected health response establishes model availability, not successful generation.
+
+The explanation path permits numbers copied from the supplied evidence and statements expressing uncertainty about a repair. It constrains source IDs during generation and makes one shorter corrective attempt for malformed, truncated or rejected responses. These checks do not prove that a generated explanation is factually correct. Unreachable services are not retried.
+
+For sub-minute simulator windows, trend spans, transitions and retained observations include seconds. The answer summarises each incident; the full retained-observation list stays under Sources. Restarting the simulator can create a new run, so a current dry-only window must not be described as if it contains an earlier run's leak-to-dry transition.
