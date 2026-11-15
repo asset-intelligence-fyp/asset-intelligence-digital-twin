@@ -21,6 +21,8 @@ From the repository root:
 ```bash
 git lfs pull
 npm ci
+# Optional: configure local admin login for lecturer demonstration
+npm run admin:setup
 TWIN_STORAGE=memory npm run dev
 ```
 
@@ -39,7 +41,8 @@ On macOS, `Open_TwinLabs.command` provides a memory-mode launcher. Its convenien
 3. Set up the additive v3 schema and verify the running database:
 
 ```bash
-cp .env.example .env
+# Only create .env if you do not have one; NEVER overwrite local credentials.
+[ -f .env ] || cp .env.example .env
 # Edit .env for YOUR local PostgreSQL instance. Never commit it.
 npm ci
 npm run db:setup:v3
@@ -153,4 +156,4 @@ Tests include synthetic HTTP/SSE ingestion, simulator contracts, navigation, det
 - **Unfinished integration:** AI-generated result/forecast persistence, Agentic RAG iteration, external notifications, production-grade auth/security and live BMS integration remain future work.
 - **Security:** Keep `.env`, API keys, PostgreSQL credentials, private test labels and local SQLite history out of Git. Do not expose the local prototype or Ollama ports publicly.
 
-**Submission:** The complete Alpha release is maintained on the repository's default `main` branch and the snapshot branch `release/alpha-submission-2026`; original development branches are preserved for traceability.
+**Submission:** The current integrated Alpha code is on the default `main` branch, with a release branch `release/alpha-submission-2026`. The original development branches remain for traceability. Instructors generate their own local administrator credentials; none are embedded in the submitted source.
