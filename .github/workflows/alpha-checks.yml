@@ -29,7 +29,9 @@ jobs:
         run: npm run build
       - name: Node integration tests
         run: npm test
-      - name: Administrator credential and HTTP login tests\n        run: npm run test:admin\n      - name: AI contract regression tests
+      - name: Administrator credential and HTTP login tests
+        run: npm run test:admin
+      - name: AI contract regression tests
         run: npm run test:ai
       - name: Automatic alert tests
         run: npm run test:alerts
