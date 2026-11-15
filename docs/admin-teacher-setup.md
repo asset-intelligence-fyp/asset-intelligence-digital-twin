@@ -4,13 +4,18 @@ This guide applies to the **default `main` branch** and the integrated TwinLabs 
 
 ## A. Setup on a fresh checkout
 
-Install Node.js 22+, Python 3.10+ and Git LFS. From the cloned repository:
+Install Node.js 22+, Python 3.10+ and Git LFS. The repository may be private, so obtain GitHub access before cloning. Then run:
 
 ```bash
+git clone https://github.com/asset-intelligence-fyp/asset-intelligence-digital-twin.git
+cd asset-intelligence-digital-twin
+git lfs install
 git lfs pull
 npm ci
 npm run admin:setup
 ```
+
+This is the same first-run process in the [main README](../README.md). On another machine, generate a **new local password**; GitHub does not contain a universal administrator password.
 
 `admin:setup` creates `.env` if needed or **preserves the existing database and simulator settings** in `.env` while replacing old admin credentials. It prints **Username: admin** and a newly generated password once. Save the password somewhere private. Neither the plaintext password nor the salted verifier is committed to GitHub.
 
@@ -43,7 +48,7 @@ Use this process **after** restarting `npm run dev` whenever credentials are reg
 
 1. Back up existing PostgreSQL data and verify you selected your intended development database.
 2. In local `.env`, configure correct `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`/`PGPASSWORD` or `DATABASE_URL`. Configure `TWIN_DB_SCHEMA=digital_twin`. **Remove `TWIN_STORAGE=memory`** from `.env` and from the current shell.
-3. Enable the TimescaleDB extension on that database before setup.
+3. Confirm the PostgreSQL role you configured actually exists on this computer (it may not be named `postgres`). Use pgAdmin or run `SELECT current_user` from an authenticated `psql` session to check. Create a new development database only if needed. Install TimescaleDB on the server and enable the extension **inside that selected database** with `CREATE EXTENSION IF NOT EXISTS timescaledb;` before setup. [See detailed database creation and extension commands](../README.md#2b-full-postgresql--timescaledb-mode).
 4. Run:
 
 ```bash
