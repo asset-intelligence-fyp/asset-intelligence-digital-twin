@@ -1,4 +1,4 @@
-# Amanda local PostgreSQL + TimescaleDB + Admin setup (Windows)
+> **For the integrated main submission and lecturer/demo login, use [the current admin setup](admin-teacher-setup.md) and `npm run admin:setup` instead.** This page records Amanda's original standalone Windows workflow; it is not the default runbook for the combined release.\n\n# Amanda local PostgreSQL + TimescaleDB + Admin setup (Windows)
 
 All code changes in this guide target the **amanda** branch only. The original Velvet UI pages are retained.
 The running Node server remains `server/sensorServer.js`; the live readings table is **twin18.sensor_readings**, NOT the older V2 `public.sensor_readings`.
