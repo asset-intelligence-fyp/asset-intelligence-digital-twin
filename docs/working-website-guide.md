@@ -91,11 +91,11 @@ These are editable demonstration thresholds, not client-approved operating limit
 
 ## Chatbot and local Qwen
 
-- **Building evidence** works from API history even when Ollama is unavailable, and labels that fallback.
+- **Building evidence** retrieves current-run readings and persisted rule alerts. It computes numeric trends and binary state transitions, then asks Qwen to explain implications and suggest checks. If Ollama is unavailable or the explanation fails reference/format checks, the stored-evidence summary remains available and is labelled as a fallback.
 - **Qwen room AI** needs local Ollama/Qwen and the Python bridge. Historical comparisons additionally need the configured normal-history SQLite reference; that database has not been silently replaced with PostgreSQL.
 - Start Ollama as usual and ensure `qwen3:1.7b` is installed. Existing `OLLAMA_URL`, `LLM_BRIDGE_URL` and `LLM_HISTORY_DB` settings remain supported.
-- Enter sends, Shift+Enter inserts a line. Replies safely render headings, paragraphs, numbered/bullet lists, bold text and inline code; raw model HTML is not executed.
-- **Ask about this sensor** uses the current sensor history. The incident's saved trigger evidence is displayed in the Event Log and twin investigation banner; it is not automatically used as the chatbot's historical cutoff.
+- Enter sends, Shift+Enter inserts a line. Replies safely render headings, paragraphs, numbered/bullet lists, bold text and inline code. Inline source references open the sensor or incident; full sources are collapsed by default. MYT timestamps and a recent-history selector keep observation time and retrieval coverage visible. Raw model HTML is not executed.
+- **Ask about this sensor** uses the current sensor history. The assistant now retrieves matching persisted alerts, including their retained trigger observations, alongside current history. Earlier simulation runs are explicitly labelled; an ended alert is not proof of a physical repair. This does not change the chatbot's current-history cutoff to the incident time.
 
 ## Verification and limits
 
@@ -110,3 +110,16 @@ npm run db:check
 The added alert tests cover memory mode and PostgreSQL-compatible execution for both `twin18` and `digital_twin`: trigger evidence, SSE delivery, acknowledgement, duplicate suppression, recovery, recurrence, restart restoration and rollback on alert-write failure. This does not substitute for testing the actual TimescaleDB extension on your machine. The existing geometry test requires the real Git LFS XKT. The optional dataset replay test requires its dataset fixture.
 
 Notifications are in-app (bell, Event Log and recent activity). Email, SMS and push notifications outside the application are not configured. AI-generated alert classification and Agentic RAG remain separate future work.
+
+## Explain a recovered incident in the building assistant
+
+1. Generate a leak, then stop the fault and wait for dry readings.
+2. In **AI assistant → Building evidence**, select **Toilet · Water leakage**.
+3. Ask: **Why is the sensor dry now when there was a leak earlier? Explain the trend and previous incident.**
+4. Current condition, recent trend and previous incidents are computed from stored records. When local Ollama is available, Qwen adds an interpretation, explicitly unverified possible explanations, and recommended checks. It cannot turn an earlier alert into a confirmed cause or repair.
+5. Click an inline source number or **Open incident** to inspect the saved evidence. Use **View sensor in twin** for the live location. Full records are under **Sources**.
+6. Use a follow-up chip or type a follow-up. Up to four earlier question texts from the same scope are passed for conversational context; earlier answers are not treated as new measurements.
+
+The recent-history selector offers 15 minutes, one hour or four hours, but the available history remains capped at 18,000 readings for the active simulation run. Incidents come from the latest 500 automatic rule alerts, with up to eight scoped records retrieved and up to three summarised in the answer. Model-reference and format checks do not establish factual accuracy of its general explanation; operator review is still required. This is a bounded retrieval-and-explanation workflow, not an iterative Agentic RAG benchmark.
+
+Validation includes seven building-assistant tests, persisted incident retrieval after restart for both supported database schemas, and the unchanged room-AI regression suite. Model tests use controlled responses; actual Qwen output and latency require the user's local Ollama runtime.

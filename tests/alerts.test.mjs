@@ -40,6 +40,9 @@ for(const schema of ['twin18','digital_twin'])test(`${schema}: atomic persistent
  try{await server(pool,schema,lifecycle);
  await server(pool,schema,async url=>{
   assert.equal((await events(url)).length,2);assert.equal((await events(url))[1].acknowledged,true);
+  const assistant=await fetch(url+'/api/assistant/building',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'Explain the current leak reading and earlier incidents',scope:leak.code,use_model:false})});
+  assert.equal(assistant.status,200);const answer=await assistant.json();
+  assert.equal(answer.facts.filter(f=>f.incident).length,2);assert.match(answer.answer,/Previous incidents/);assert.ok(answer.facts.some(f=>f.incident&&f.resolved));
   await send(url,row(1,9));assert.equal((await events(url)).length,2);
   const health=await(await fetch(url+'/api/health')).json();assert.equal(health.schema,schema);assert.equal(health.timescale.hypertable,false);
  });

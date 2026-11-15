@@ -121,7 +121,7 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   if(!Number.isSafeInteger(id)||id<1||!['Review','Acknowledged'].includes(status))return res.status(400).json({error:'Invalid alert ID or status'});
   try{const event=await alerts.acknowledge(pool,id,status);if(!event)return res.status(404).json({error:'Alert not found'});control('alert',event);res.json(event)}catch{res.status(503).json({error:'Unable to save acknowledgement'})}
  });
- registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource});
+ registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource||{replay_id:activeReplay},getAlerts:()=>alerts.list(pool)});
  registerRoomAssistant(app,{getHistory:codes=>historyFor(codes)});
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
  if(fs.existsSync(path.join(root,'dist')))app.use(express.static(path.join(root,'dist')));

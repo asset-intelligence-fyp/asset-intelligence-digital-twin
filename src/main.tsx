@@ -47,7 +47,7 @@ function App(){
   {page==='simulator'&&<Simulator/>}
   {page==='status'&&<SystemStatus/>}
   {page==='guide'&&<Guide setPage={setPage}/>}
- <div className={page==='assistant'?'assistant-page-inner':''} ><AssistantWorkspace fullPage={page==='assistant'} onExpand={()=>setPage('assistant')} onSensor={focus} draft={assistantDraft}/></div>
+ <div className={page==='assistant'?'assistant-page-inner':''} ><AssistantWorkspace fullPage={page==='assistant'} onExpand={()=>setPage('assistant')} onSensor={(code,id)=>{setInvestigationId(id??null);focus(code)}} onEvent={openEvent} draft={assistantDraft}/></div>
  <CommandPalette onSelect={code=>{const point=POINTS.find(p=>p.code===code);if(point){setSelectedCode(code);setSelectedAsset(point.assetId);setPage('overview');setCommandRequest(n=>n+1)}}}/>
  </Shell>
  {adminOpen&&!session.authenticated&&<div className="admin-overlay" onMouseDown={event=>{if(event.target===event.currentTarget)setAdminOpen(false)}}><div className="admin-modal" role="dialog" aria-modal="true" aria-label="Admin Login"><AdminLogin onSuccess={result=>{setSession(result);setAdminOpen(false);updatePage('database');window.scrollTo({top:0,behavior:'instant'});}} onClose={()=>setAdminOpen(false)}/></div></div>}
