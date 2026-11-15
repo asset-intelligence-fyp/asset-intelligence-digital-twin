@@ -1,159 +1,304 @@
-# TwinLabs — Asset Intelligence Digital Twin
-**COS40005 Computing Technology Project A · Alpha research prototype · November 2026**
+# TwinLabs — BIM-Integrated Asset Intelligence Digital Twin
 
-TwinLabs is a **simulation-only BIM-integrated building monitoring proof of concept**. It displays an IFC/XKT office-building model with **18 indoor virtual sensor channels across five monitoring locations**, a calibrated hybrid Python simulator, interactive operating-condition and fault controls, automatic **rule-based** sensor alerts, incident investigation, and a local Qwen3 AI assistant. Four virtual outdoor weather channels provide environmental context. **No physical building sensors, BMS connection or independently verified fault diagnosis are claimed.**
+TwinLabs is a **simulation-only building digital twin prototype** combining a whole-building BIM model, 18 virtual indoor sensor channels, a calibrated hybrid Python simulator, weather/occupancy controls, automatic rule-based alerts, incident investigation, and an optional local Qwen3 assistant. Four virtual outdoor weather channels are displayed separately from the 18 indoor channels.
 
-> **Start here:** Use the quick start below for an evaluation without a database. For persistent PostgreSQL + TimescaleDB, follow the separate database setup. The application's actual storage mode is reported by `/api/health`; repository SQL files do **not** prove that TimescaleDB is installed on your computer.
+**No physical building/BMS stream is connected.** Sensor-to-BIM associations are demonstration mappings, and threshold alerts are synthetic rule outputs, not verified AI fault diagnoses.
 
-## Requirements
+## Choose how to run
 
-- **Node.js 22+**, npm, **Python 3.10+**, and Git LFS
-- A WebGL 2-capable browser (Chrome or Edge recommended for the xeokit BIM viewer)
-- **Optional:** Ollama with the local `qwen3:1.7b` model for generated explanations and room analysis
-- **Optional:** PostgreSQL with the TimescaleDB extension for durable sensor readings and alerts
+| Mode | What works | Additional software |
+| --- | --- | --- |
+| **A. Quick local demo** | BIM viewer, sensor dashboard, hybrid simulation, weather/fault controls, automatic rule-based alerts, Events, evidence assistant, and admin login | Node.js, Python, Git LFS |
+| **B. Full database mode** | Everything in A **plus** persistent sensor readings and incidents, PostgreSQL/TimescaleDB time series, and an authenticated read-only Database viewer | PostgreSQL **with TimescaleDB installed and enabled in the chosen database** |
 
-**Git LFS is required for the BIM assets.** After cloning, execute `git lfs pull`. Do not replace an XKT or IFC file with its text LFS pointer.
+The **Database** page cannot display PostgreSQL tables in memory mode. Logging in as admin does not automatically connect to a database.
 
-## 1. Quick start: working simulation without a database
+### Prerequisites
 
-From the repository root:
+- **Git + Git LFS**, **Node.js 22+ / npm**, **Python 3.10+**
+- A modern **WebGL 2** browser (Chrome or Edge recommended for xeokit)
+- Optional **PostgreSQL + TimescaleDB** for Mode B
+- Optional **Ollama and `qwen3:1.7b`** for locally generated AI explanations
+
+## 1. Clone the repository (both modes)
+
+This repository may be private: you need GitHub access before cloning.
 
 ```bash
+git clone https://github.com/asset-intelligence-fyp/asset-intelligence-digital-twin.git
+cd asset-intelligence-digital-twin
+
+git lfs install
 git lfs pull
 npm ci
-# Optional: configure local admin login for lecturer demonstration
+npm run model:verify
+```
+
+`git lfs pull` downloads the real BIM geometry rather than leaving Git LFS pointer files. `npm run model:verify` checks the model asset. If using a ZIP instead of Git, make sure the complete LFS-managed model was included.
+
+## 2A. Quick local demo — no PostgreSQL installation
+
+From the repository root, generate **your own local administrator credentials**:
+
+```bash
 npm run admin:setup
+```
+
+The command safely creates or updates the Git-ignored `.env` file, prints **Username: admin** and a **new random password once**, and preserves existing database/simulator settings. Save that password privately. Never enter the generated hash as the password.
+
+Start TwinLabs in temporary-memory mode:
+
+**macOS / Linux**
+
+```bash
 TWIN_STORAGE=memory npm run dev
 ```
 
-Open **http://localhost:5173** (the Vite terminal shows the actual URL).
+**Windows PowerShell**
 
-The dev command launches the **Node/Express API (3001)**, **React/Vite UI (5173)**, **Python AI bridge (8011)**, and **hybrid synthetic simulator**. Memory mode is suitable for a self-contained presentation, but readings, alerts and acknowledgements **reset on API restart**. The core BIM/simulator/alerts functions do not require Ollama. The Qwen-specific functionality requires a reachable model and, for historical room comparisons, the separate local historical database.
-
-On macOS, `Open_TwinLabs.command` provides a memory-mode launcher. Its convenience mode is **not** evidence of PostgreSQL persistence.
-
-## 2. Persistent PostgreSQL + TimescaleDB mode
-
-**Back up any existing database first.** The repository retains older SQL scripts for research history; **do not run** `database/postgres_init.sql` against a populated database because it drops/recreates legacy tables.
-
-1. Install and start PostgreSQL, and install/enable a compatible **TimescaleDB extension in the selected database**. Create a **development database** if necessary; `digital_twin_18` is only an example name.
-2. Copy `.env.example` to an untracked `.env`. Configure `PGHOST`, `PGPORT`, `PGDATABASE`, and local `PGUSER`/`PGPASSWORD` if needed. Alternatively set `DATABASE_URL`, which takes precedence. Set `TWIN_DB_SCHEMA=digital_twin`. **Do not set `TWIN_STORAGE=memory`** in the shell or `.env`.
-3. Set up the additive v3 schema and verify the running database:
-
-```bash
-# Only create .env if you do not have one; NEVER overwrite local credentials.
-[ -f .env ] || cp .env.example .env
-# Edit .env for YOUR local PostgreSQL instance. Never commit it.
-npm ci
-npm run db:setup:v3
-npm run db:check
-npm run build
+```powershell
+$env:TWIN_STORAGE = "memory"
 npm run dev
 ```
 
-`npm run db:check` should report `schema: "digital_twin"`, `sensors: 18`, a non-null `timescaledb_version`, and `readings_hypertable: true`. On a fresh database, `readings: 0` and `alerts: 0` are expected until the simulator sends data. Also check **http://localhost:3001/api/health** and **System status** in the UI. Those checks are needed on the actual evaluation machine; CI tests cannot establish that your local TimescaleDB server is installed.
+Open **http://localhost:5173** (or the local URL printed by Vite).
 
-The unified `digital_twin` schema keeps `twin18` and historical `public` tables untouched. Data are **not automatically copied** between schemas. For a PostgreSQL-only compatibility demonstration without TimescaleDB, `TWIN_DB_SCHEMA=twin18` with `npm run db:setup` remains supported; do not call this TimescaleDB mode.
+`npm run dev` starts the **React/Vite website** (normally port 5173), **Express sensor API** (3001), **Python assistant bridge** (8011), and the **hybrid Python simulator**. One simulator publishes 18 indoor channels per generated batch. Stop the process with **Ctrl+C**.
 
-## 3. Demonstrate the complete working flow
+Log in using the **Login** button at the top right with username `admin` and your locally generated password. The Database navigation entry appears, but table browsing will correctly say **“Configure PostgreSQL first”** until Mode B is configured.
 
-1. Open **System status** and verify active telemetry (up to 18/18 indoor channels); confirm the reported storage/schema.
-2. Open **Building overview** to navigate the BIM viewer, use X-ray/floor controls, and inspect selected sensors and assets.
-3. Open **Simulation lab**. Use **Normal day**, **Rainy day**, **Public holiday**, or **Busy building**, or adjust weather, attendance, AC, ventilation and simulation pace. These alter **generated** conditions; rain alone never means an indoor water leak.
-4. For a reliable alert test, select **Toilet → Water leakage → Leak → Start test**. Keep the simulator unpaused; allow the next batch to arrive.
-5. Click the **bell / Event log**. The Node backend evaluates defined sensor thresholds and creates an automatic **synthetic rule alert**, preserving trigger evidence and preceding readings. Open the record, use **View in twin**, and **Acknowledge** it.
-6. Return to **Simulation lab → Stop fault**. The next qualifying normal reading marks recovery; acknowledgement and recovery are distinct.
-7. Open **AI assistant**. **Building evidence** retrieves readings and incident records and can show a deterministic evidence fallback without Ollama. **Qwen room AI** and one-month prediction require a configured AI runtime and valid historical inputs.
+**Important:** Sensor readings, generated rule alerts, and acknowledgements in memory mode are lost when the API stops. This is expected.
 
-A separate **Create an event record** action is for manual UI testing, **not** an automatically detected fault. Alerts are currently **in-app**; email, SMS and push notifications are not implemented.
+For macOS, `Open_TwinLabs.command` is a convenience launcher for **memory mode only**; it does not enable database persistence.
 
-See [full demo walkthrough](docs/working-website-guide.md) and the in-app **How to use** page.
+## 2B. Full PostgreSQL + TimescaleDB mode
 
-## 4. Optional local Qwen3 assistant
+Use this mode to demonstrate the administrator's database tables, durable readings, and the TimescaleDB hypertable.
 
-Install Ollama, start the Ollama service, then:
+### B1. Create a local PostgreSQL database
 
-```bash
-ollama pull qwen3:1.7b
-# In another terminal, if the Ollama application is not already running:
-ollama serve
+Install/start a compatible PostgreSQL server and **TimescaleDB extension** on the computer running the app. Installation is operating-system-specific; the PostgreSQL server, roles, and databases are **not included** in a Git clone.
+
+Use an **existing PostgreSQL role that actually exists on your computer**. Do not assume the role is named `postgres`. On some macOS installations it is the local username; Windows and other installations may differ.
+
+Check your role and existing databases in `psql` or pgAdmin:
+
+```sql
+SELECT current_user, current_database();
+SELECT datname FROM pg_database WHERE datistemplate = false;
 ```
 
-`npm run dev` starts `llm_service/bridge.py`. Default connections are `OLLAMA_URL=http://127.0.0.1:11434` and `LLM_BRIDGE_URL=http://127.0.0.1:8011`. The historical Qwen experiments additionally use a **separate local normal-history SQLite file** referenced by `LLM_HISTORY_DB`; this file is intentionally excluded from Git. The unified PostgreSQL schema does **not** automatically replace that research reference.
+For a **fresh, empty** database, create a database named `twinlabs_demo` through pgAdmin or with a suitably privileged PostgreSQL role:
 
 ```bash
-python3 scripts/check_llm_history.py
-curl http://localhost:3001/api/assistant/building/health
+createdb -U YOUR_EXISTING_POSTGRES_ROLE twinlabs_demo
 ```
 
-A generated explanation is decision-support text, not a validated diagnosis. If the model is missing, unreachable, too slow or returns unsupported content, the building-evidence path shows a labelled fallback. Neither the current retrieval system nor the fixed-route room assistant should be described as a completed/benchmarked **iterative Agentic RAG** implementation. See [current AI integration](docs/whole-building-llm.md) and [research evaluation procedures](README_LLM_RESEARCH_EVALUATION.md).
+Replace `YOUR_EXISTING_POSTGRES_ROLE` with the actual role. **Do not run this against an existing database or delete existing data.** If you prefer an existing development database, back it up first and use its actual name instead.
 
-## 5. Administrator login and database viewer (teacher/demo setup)
+Enable TimescaleDB **inside that database**, using an account authorised to create extensions:
 
-**Do not copy someone else's password hash or commit a fixed demo password.** The shared `scrypt:...` text is a salted verifier, **not the password**. Each computer needs its own local `.env` credentials. There is no hardcoded admin account or public bypass.
+```bash
+psql -U YOUR_EXISTING_POSTGRES_ROLE -d twinlabs_demo -c "CREATE EXTENSION IF NOT EXISTS timescaledb;"
+```
 
-From the repository root, run:
+TimescaleDB must already be installed on the PostgreSQL server. Confirm the extension is enabled in `twinlabs_demo` (it is enabled per database, not globally):
+
+```bash
+psql -U YOUR_EXISTING_POSTGRES_ROLE -d twinlabs_demo -c "SELECT extversion FROM pg_extension WHERE extname='timescaledb';"
+```
+
+An available-but-not-installed extension is **not** enough: the query above must return a version. If the command fails due to permissions or installation, use your PostgreSQL administrator/pgAdmin to finish setup before continuing.
+
+### B2. Set up your local `.env`
+
+If `.env` does not exist, copy `.env.example`. **Do not overwrite an existing `.env`**, especially after running `npm run admin:setup`.
+
+**macOS / Linux**
+
+```bash
+test -f .env || cp .env.example .env
+```
+
+**Windows PowerShell**
+
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+Edit `.env` with your **own** PostgreSQL connection details:
+
+```dotenv
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=twinlabs_demo
+PGUSER=YOUR_EXISTING_POSTGRES_ROLE
+# PGPASSWORD=YOUR_LOCAL_POSTGRES_PASSWORD  # only if required
+
+TWIN_DB_SCHEMA=digital_twin
+SIMULATOR_MODE=hybrid
+SIM_INTERVAL_SECONDS=5
+SIM_STEP_SECONDS=5
+```
+
+- `PGUSER` is a **PostgreSQL database role**, not the website's admin username.
+- If your role requires a password, set `PGPASSWORD` to its actual local password. If it does not, leave `PGPASSWORD` **unset** rather than using a placeholder.
+- `DATABASE_URL`, if exported or set, takes precedence over the individual `PG*` settings.
+- Keep the locally generated `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` lines from `npm run admin:setup`. They are **different credentials** from PostgreSQL.
+- **Do not set `TWIN_STORAGE=memory`** in `.env` or the shell for Mode B.
+
+If you have not created the admin account yet, run `npm run admin:setup` now; it preserves the database settings just entered.
+
+### B3. Initialize, verify, and start
+
+Back up a populated database before schema updates. The current v3 setup is additive; **do not run the legacy `database/postgres_init.sql` against an existing database**, as it contains destructive historical initialization.
+
+If you previously ran Mode A, stop that server first (**Ctrl+C**), then clear any terminal-only memory override:
+
+**macOS / Linux**
+
+```bash
+unset TWIN_STORAGE
+```
+
+**Windows PowerShell**
+
+```powershell
+Remove-Item Env:TWIN_STORAGE -ErrorAction SilentlyContinue
+```
+
+Then run:
+
+```bash
+npm run db:setup:v3
+npm run db:check
+npm run dev
+```
+
+`npm run db:setup:v3` creates/updates the `digital_twin` schema, registers **18 sensors across five locations**, and configures the TimescaleDB `digital_twin.sensor_readings` hypertable. It does not import another person's data or copy the legacy `twin18` history.
+
+`npm run db:check` should show fields similar to:
+
+```json
+{
+  "schema": "digital_twin",
+  "sensors": 18,
+  "timescaledb_version": "2.x",
+  "readings_hypertable": true
+}
+```
+
+The version printed depends on your installed TimescaleDB. `readings: 0` and `alerts: 0` are normal on a fresh database until the simulator produces events.
+
+Visit **http://localhost:3001/api/health** and confirm `storage` is `postgresql`, `schema` is `digital_twin`, and `timescale.hypertable` is `true`.
+
+Open the website at **http://localhost:5173**, log in with your local **admin** password, then choose **Database**. You should see the seeded registry and time-series readings as the simulator runs. Login succeeds independently from database connection, so if the Database page says “Configure PostgreSQL first”, verify you really stopped Mode A and started without `TWIN_STORAGE=memory`.
+
+**Existing database:** If you use a pre-existing PostgreSQL database, inspect and back it up first; choose its actual database name and role in `.env`. Do not create/rename/destroy databases just to match the examples above. The SQL schema is reproducible, but Amanda's historical stored readings are **not part of the GitHub repository**.
+
+For details, see [database architecture](docs/unified-database-v3.md) and [local administrator setup](docs/admin-teacher-setup.md).
+
+## 3. Administrator login and verification
+
+For either mode:
 
 ```bash
 npm run admin:setup
 ```
 
-This generates a strong, **random administrator password**, prints it **once in your local terminal**, and safely creates/updates the **Git-ignored `.env`** with `ADMIN_USERNAME=admin` and a matching `ADMIN_PASSWORD_HASH`. It preserves your existing PostgreSQL, TimescaleDB, simulator and Ollama settings. Record the generated password privately and give it to your lecturer **out of band** if they need admin access. Rerunning the command **rotates** the password and invalidates the previous credentials after restarting the API.
+This generates a new password and writes a matching **salted scrypt verifier** to the Git-ignored `.env`. **Restart `npm run dev` after changing credentials.** Never commit either the password or a teammate's hash.
 
-Next, start/restart the server (or restart an already running `npm run dev` process), then check readiness:
+Once the app is running, open **http://localhost:5173 → Login** and enter `admin` with your generated password.
+
+To verify the actual API login/session from **a second terminal**, in the project directory run:
 
 ```bash
-npm run dev
-# In a second terminal from the same folder:
 npm run admin:check
 npm run admin:check -- --verify-login
 ```
 
-The last command asks for the password **without echoing it**, tests the real local API login and authenticated session cookie, and checks whether the database viewer can be queried. Then open **http://localhost:5173 → Login**, enter username `admin` and your generated password. A successful login displays the **Database** navigation entry.
+The second command prompts for the password without echoing it, checks the session cookie, and reports whether authenticated database views can be queried. Logging in can work in Mode A while database queries correctly remain unavailable.
 
-**Login and database availability are independent.** In `TWIN_STORAGE=memory` mode you can log in, but the Database page cannot query PostgreSQL. To demonstrate Amanda's TimescaleDB schema, run the persistent PostgreSQL setup in section 2 and verify `npm run db:check`. The viewer is **read-only** and uses locally configured credentials with in-memory sessions, not the future `digital_twin.users` table. Some AI/forecast/notification tables remain empty until their workflows are implemented.
+The viewer is read-only. Its local authentication and eight-hour in-memory sessions are for the prototype, not a production identity service.
 
-For troubleshooting, see [administrator and teacher verification](docs/admin-teacher-setup.md), [database schema details](docs/unified-database-v3.md), and [Amanda's original Windows setup](docs/amanda-admin-setup.md).
+## 4. Optional local Qwen3 AI
 
-## 6. Verification
+To enable generated building explanations, install/start [Ollama](https://ollama.com) on the same computer and pull the model:
+
+```bash
+ollama pull qwen3:1.7b
+# If Ollama is not already running, start its app or run:
+ollama serve
+```
+
+The default model endpoint is `http://127.0.0.1:11434`; the Python bridge starts with `npm run dev` at `http://127.0.0.1:8011`. Check the API at:
+
+```bash
+curl http://localhost:3001/api/assistant/building/health
+```
+
+The **Building evidence** workflow can produce a labelled deterministic summary when Ollama is unavailable. Some **Qwen room analysis and one-month forecasting** functions additionally require a separate normal-history SQLite file configured via `LLM_HISTORY_DB`; that dataset is not included in Git. Model output is explanatory decision support, **not** a confirmed sensor fault diagnosis. No benchmarked iterative Agentic RAG capability is claimed.
+
+See [AI integration details](docs/whole-building-llm.md).
+
+## 5. Walk through the website
+
+1. **System status:** Verify up to 18/18 indoor channels reporting and check storage mode.
+2. **Building overview:** Open the BIM model, select floor/location/sensor, and inspect virtual readings.
+3. **Simulation lab:** Change weather, occupancy, ventilation, AC, or choose preset scenarios. Weather affects generated readings; rain by itself does **not** cause a water-leak alarm.
+4. **Generate a test alert:** In abnormal-sensor testing, select **Toilet → Water leakage → Leak → Start test** and wait for the next simulated batch.
+5. **Events:** Open the notification bell or Event log, inspect the automatically recorded **rule-based synthetic** alert, view retained readings, open the BIM sensor, and acknowledge it.
+6. **Recovery:** Stop the injected fault. A later normal reading marks recovery; acknowledgement and recovery are separate.
+7. **AI assistant:** Ask about recent sensor evidence and previous incidents. Generated Qwen explanations require Ollama; fallback evidence summaries do not.
+
+The manual **Create an event record** control is for UI testing, not evidence of automatic anomaly detection. External email/SMS/push notifications are not configured. [Detailed walkthrough](docs/working-website-guide.md).
+
+## 6. Build and checks
 
 ```bash
 npm run build
 npm test
-npm run test:ai
-npm run test:alerts
 npm run test:admin
-npm run model:verify            # requires downloaded Git LFS BIM model
+npm run test:alerts
+npm run test:ai
 python3 -m unittest discover -s tests -p 'test_*.py'
-npm run db:check                # PostgreSQL/TimescaleDB mode only
+npm run model:verify
+# Mode B only, when the database is configured:
+npm run db:check
 ```
 
-Tests include synthetic HTTP/SSE ingestion, simulator contracts, navigation, deterministic alert creation, evidence, acknowledgement, recovery, and AI bridge contracts. Mocked model outputs and PGlite SQL compatibility **do not** prove performance against physical building data, actual local Ollama inference, or TimescaleDB runtime installation. For prior recorded tests and limitations, see [integration verification](docs/integration-verification.md).
+Some tests use mocked model responses or PostgreSQL-compatible test engines; they do **not** by themselves validate a real TimescaleDB server, physical telemetry, or local Ollama inference. Demonstrate and verify those components on the target computer.
 
-## 7. Repository layout
+## 7. Troubleshooting
 
-| Directory | Purpose |
+| Symptom | Likely cause / next step |
 | --- | --- |
-| `src/` | React monitoring, BIM viewer, Simulator, Events, Assistant, admin interface |
-| `server/sensorServer.js` | **Active** Node API, sensor ingestion, SSE, persistence and rule alerts |
-| `server/alertService.js` | Rule-based incident creation, recovery and acknowledgement |
-| `tools/hybrid_simulator/` | Calibrated synthetic generator and fault controls |
-| `llm_service/` | Local Python Qwen bridge, validated room analysis and predictions |
-| `shared/` | 18-point registry and demonstration sensor definitions |
-| `database/schema_v3.sql` | Unified additive PostgreSQL v3 schema |
-| `scripts/setup-v3.mjs` | v3 metadata seed, TimescaleDB hypertable and database change notifications |
-| `tests/` | JavaScript and Python regression/integration tests |
-| `docs/` | Setup, system design, experiments, and limitations |
+| `npm run admin:setup` says missing script | The local checkout is old. Clone the current default `main` branch or update the checkout after preserving your local changes. |
+| `role "postgres" does not exist` | Your computer uses a different PostgreSQL username. Check `SELECT current_user` and update `PGUSER`; do not assume `postgres`. |
+| PostgreSQL password authentication failed | Verify local `PGUSER`/`PGPASSWORD` or `DATABASE_URL`. These are **not** admin login credentials. |
+| TimescaleDB is available but `timescaledb_version` is null | Enable the extension **in the selected database**, then rerun `npm run db:setup:v3`. |
+| `relation digital_twin.sensor_registry does not exist` | Check the target database and then run `npm run db:setup:v3` after backing up an existing DB. |
+| Admin login succeeds, Database says “Configure PostgreSQL first” | You started with `TWIN_STORAGE=memory`. Stop the app, clear the override, verify `.env` and use Mode B. |
+| Invalid admin credentials | Use the **plaintext password displayed by `npm run admin:setup`**, not the hash. If lost, rerun setup and restart the server. |
+| BIM model does not load | Run `git lfs pull` and `npm run model:verify` and use a WebGL 2-capable browser. |
+| Port 5173, 3001, or 8011 already in use | Stop duplicate TwinLabs processes before launching another copy. |
+| AI uses a fallback | Confirm Ollama is running with `qwen3:1.7b`; some research tools also need `LLM_HISTORY_DB`. |
 
-`server/index.js` and historical Level 5 documentation remain as **legacy references**; the running whole-building application is `server/sensorServer.js`. Do not start both backend servers for one demo.
+## 8. Source layout and limitations
 
-## 8. Scope and limitations
+| Location | Purpose |
+| --- | --- |
+| `src/` | React dashboard, xeokit viewer, simulation controls, Event log, AI and database UI |
+| `server/sensorServer.js` | Active Node API: HTTP ingestion, SSE, database writes and live monitoring |
+| `server/alertService.js` | Prototype threshold alerts, persistence, recovery and acknowledgement |
+| `tools/hybrid_simulator/` | Generated sensor readings, weather and intervention logic |
+| `llm_service/` | Python bridge and Qwen room/prediction research logic |
+| `shared/` | Canonical 18-point registry and demonstration sensor definitions |
+| `database/schema_v3.sql` | Unified PostgreSQL tables |
+| `scripts/setup-v3.mjs` | Database setup and TimescaleDB hypertable |
+| `tests/` | JavaScript/Python integration and unit tests |
+| `docs/` | Architecture, setup guides and evaluation methodology |
 
-- **Synthetic PoC only:** 18 virtual indoor channels and 4 virtual outdoor channels; BIM sensor mapping contains demonstration aliases, not verified physical installations.
-- **Threshold alerts:** Automatically generated from synthetic sensor measurements; they are **not Qwen or Agentic RAG detections**. Bounds are prototype rules, not certified safety limits.
-- **Experimental AI:** Historical forecasting and labelled anomaly results relate to their stated research datasets and protocols, not automatically to the current 18-sensor production-like UI. Do not transfer old accuracy scores to the integrated website.
-- **Performance:** A prior incomplete replay benchmark and code-level tests do **not** certify the five-second synchronisation or 85% anomaly-accuracy requirements. Record new measurements and independent ground truth.
-- **Unfinished integration:** AI-generated result/forecast persistence, Agentic RAG iteration, external notifications, production-grade auth/security and live BMS integration remain future work.
-- **Security:** Keep `.env`, API keys, PostgreSQL credentials, private test labels and local SQLite history out of Git. Do not expose the local prototype or Ollama ports publicly.
+TwinLabs is a research proof of concept. The 18 sensors and four weather channels are simulated, spatial mappings are demonstration aliases, and rule alerts are not AI detections. Unimplemented features include physical BMS ingestion, external incident notifications, complete Qwen result/forecast persistence, and production identity management. Historical accuracy and latency research should not be presented as independently verified performance of this entire integrated application.
 
-**Submission:** The current integrated Alpha code is on the default `main` branch, with a release branch `release/alpha-submission-2026`. The original development branches remain for traceability. Instructors generate their own local administrator credentials; none are embedded in the submitted source.
+**Local secrets:** `.env` and private datasets are ignored by Git. Never publish passwords, local database dumps containing personal information, or the password verifier.
