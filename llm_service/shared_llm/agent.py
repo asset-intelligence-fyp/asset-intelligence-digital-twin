@@ -56,8 +56,26 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
         assistant=response.get('message') or {}
         requested=assistant.get('tool_calls') or []
         if not requested:
+            if require_tool_calls and calls == 0:
+                # Some small Qwen builds answer directly even with tools attached.
+                # Give the model another opportunity to select a real structured
+                # tool call. Do NOT invent or execute a tool call on its behalf.
+                names = ', '.join(spec['function']['name']
+                                  for spec in tools.specifications())
+                messages.append({
+                    'role': 'user',
+                    'content': (
+                        'No retrieval tool was called. Before answering, select '
+                        'ONE appropriate tool from: ' + names + '. '
+                        'Return the tool call using the native tool_calls interface, '
+                        'not as JSON or text. Use only authorised sensor IDs and '
+                        'the current analysis timestamp. You must read the actual '
+                        'tool result before reaching a conclusion.'
+                    )
+                })
+                continue
             if calls==0 and not initial_evidence:
-                # Never return ungrounded 'analysis' when a model ignores the tool contract.
+                # Never return ungrounded analysis when a model ignores tools.
                 raise RuntimeError('Model did not invoke any retrieval tools. Select a tool-calling model or a stronger prompt.')
             break
         messages.append({'role':'assistant','content':assistant.get('content') or '',
@@ -89,7 +107,17 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
     if require_tool_calls and not any(
         t.get('status') != 'error' for t in tools.used
     ):
-        raise RuntimeError('Agentic assessment requires at least one successful model-selected retrieval tool call')
+        if calls == 0:
+            raise RuntimeError(
+                'Ollama returned no structured tool_calls after '
+                + str(max_rounds) + ' attempts. Run '
+                'python3 scripts/diagnose_agentic_tools.py to inspect native '
+                'tool-calling support; check the Ollama version/model template.'
+            )
+        raise RuntimeError(
+            'Agentic assessment did not complete a successful model-selected '
+            'retrieval tool call. Check the authorised sensor ID and tool arguments.'
+        )
     # Separate final, schema-constrained call; no additional tools here.
     messages.append({'role':'user','content':'Now provide the final answer strictly as the requested JSON schema. Use only retrieved evidence. Do not invent readings.'})
     final=client.chat(messages,format=OUTPUT_SCHEMA)
