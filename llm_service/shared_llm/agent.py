@@ -33,7 +33,7 @@ def parse_output(text):
     if any(k not in props for k in data):raise ValueError('Unexpected JSON output field')
     return data
 
-def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max_calls=8,initial_evidence=None):
+def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max_calls=8,initial_evidence=None,require_tool_calls=False):
     if not isinstance(question,str) or not 1<=len(question)<=2000:
         raise ValueError('Question must be 1–2000 characters')
     started=perf_counter()
@@ -81,8 +81,12 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
                                    'chars':len(output)})
             messages.append({'role':'tool','tool_name':name,'content':output})
             calls+=1
-    else:
-        raise RuntimeError('LLM exhausted tool-call rounds without finalising')
+    # After the bounded retrieval rounds, the final answer is a separate
+    # schema-constrained call without tools. No extra retrieval is permitted.
+    if require_tool_calls and not any(
+        t.get('status') != 'error' for t in tools.used
+    ):
+        raise RuntimeError('Agentic assessment requires at least one successful model-selected retrieval tool call')
     # Separate final, schema-constrained call; no additional tools here.
     messages.append({'role':'user','content':'Now provide the final answer strictly as the requested JSON schema. Use only retrieved evidence. Do not invent readings.'})
     final=client.chat(messages,format=OUTPUT_SCHEMA)
