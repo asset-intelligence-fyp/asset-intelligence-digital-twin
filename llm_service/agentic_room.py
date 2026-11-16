@@ -224,6 +224,7 @@ def analyse_agentic(request, config, client_factory):
         question, tools, client, prompt_variant='agentic',
         max_rounds=MAX_ROUNDS, max_calls=MAX_CALLS,
         initial_evidence=initial, require_tool_calls=True,
+        allow_structured_tool_plan=True,
     )
     result = response['result']
     # Numerics are never invented or copied from an unverified LLM claim.
@@ -244,7 +245,10 @@ def analyse_agentic(request, config, client_factory):
         'max_rounds': MAX_ROUNDS, 'max_calls': MAX_CALLS,
         'tool_call_count': response['tool_call_count'],
         'source': 'model_selected_read_only_tools',
-        'notice': 'LLM tool choices do not change the independent rule-based validation.',
+        'tool_selection_modes': response.get('tool_selection_modes', []),
+        'notice': ('The LLM can select tools using native Ollama calls or '
+                   'a constrained JSON tool plan; both are validated and logged. '
+                   'Independent rule-based decisions are unchanged.'),
     }
     published['tool_trace'] = response['tool_trace']
     published['result']['limitations'].append(
