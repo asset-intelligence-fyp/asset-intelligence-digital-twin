@@ -81,6 +81,9 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
                                    'chars':len(output)})
             messages.append({'role':'tool','tool_name':name,'content':output})
             calls+=1
+    else:
+        if not require_tool_calls:
+            raise RuntimeError('LLM exhausted tool-call rounds without finalising')
     # After the bounded retrieval rounds, the final answer is a separate
     # schema-constrained call without tools. No extra retrieval is permitted.
     if require_tool_calls and not any(
