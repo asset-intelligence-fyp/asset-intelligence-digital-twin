@@ -57,6 +57,7 @@ class RoomAgentTools:
     """Only registered room sensors and observations at or before as_of."""
 
     dataset = 'whole_building_synthetic'
+    retrieval = 'agentic_sql_tools'
 
     def __init__(self, request, evidence, history_path=''):
         self.as_of = parse_myt(evidence['as_of'])
