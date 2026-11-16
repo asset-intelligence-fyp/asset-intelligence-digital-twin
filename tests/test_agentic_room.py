@@ -132,6 +132,27 @@ class AgenticRoomTests(unittest.TestCase):
                                               'history_db': str(self.db)},
                             lambda _: model)
 
+    def test_agent_retries_when_model_initially_ignores_tool_request(self):
+        class InitiallyNoTool(FakeOllama):
+            attempts = 0
+
+            def chat(self, messages, tools=None, format=None):
+                if tools is not None:
+                    self.attempts += 1
+                    if self.attempts == 1:
+                        return {'message': {
+                            'content': 'I would normally answer directly.',
+                            'tool_calls': [],
+                        }}
+                return super().chat(messages, tools=tools, format=format)
+
+        model = InitiallyNoTool()
+        result = analyse_agentic(make_request(),
+                                 {'model': 'qwen3:1.7b', 'history_db': str(self.db)},
+                                 lambda _: model)
+        self.assertGreaterEqual(model.attempts, 2)
+        self.assertEqual(result['agentic']['tool_call_count'], 1)
+
     def test_agentic_output_keeps_existing_validator(self):
         model = FakeOllama()
         result = analyse_agentic(make_request(),
