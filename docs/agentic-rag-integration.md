@@ -37,9 +37,14 @@ baseline remains one click away.
      historical **normal**, quality-filtered SQLite rows from before the
      analysis timestamp, using comparable weekdays and ±30-minute clock slots.
    - `get_room_context()` returns only the verified room snapshot.
-4. Qwen may request additional evidence within **3 tool-call rounds,
-   6 total calls**. At least one successful model-selected tool call is required.
-   A separate final call generates a schema-constrained response.
+4. Qwen may request additional evidence within **3 investigation rounds,
+   6 total calls**. If native Ollama `message.tool_calls` is missing, the
+   agent retries and then asks Qwen for a **schema-constrained JSON tool plan**.
+   The backend validates and executes only registered room-scoped tools;
+   this remains model-selected retrieval, but is explicitly labelled
+   `structured_tool_plan` rather than a native function call. At least one
+   successful model-selected retrieval is required. A separate final call
+   generates a schema-constrained anomaly response.
 5. `publish()` reuses the existing **independent** numerical/narrative and
    historical-rule checks. The backend supplies numeric claim values from its
    own verified evidence rather than accepting LLM-generated numeric values.
@@ -91,8 +96,23 @@ select **Agentic RAG** in the Qwen room assistant.
 
 Check `GET /api/assistant/health` for `agentic_supported: true`.
 After analysis, inspect `agentic.tool_call_count` and `tool_trace`.
-If the selected Qwen build ignores function calls, the agent fails closed:
-it does not claim to have completed grounded agentic retrieval.
+For a direct raw Ollama tool-calling probe that does not touch your sensor
+database, run:
+
+```bash
+python3 scripts/diagnose_agentic_tools.py
+```
+
+A reported `structured_tool_calls: 0` confirms that this particular
+native request did not yield a structured function call; it does not measure
+anomaly accuracy. The agent will then try a **schema-constrained Qwen tool
+plan** before failing. If both methods fail, the evaluation writes
+`runtime_error`; never count it as a successful classification.
+
+If all initial Agentic RAG smoke-test cases were saved as `runtime_error`,
+move aside `reports/agentic_rag_eval/agentic_predictions.jsonl` before
+re-running; `--resume` skips those saved failures. The fixed baseline
+output remains intact.
 
 ## Blind paired evaluation
 
@@ -145,7 +165,7 @@ and do not claim successful benchmark performance until real Ollama runs.
 
 ## Remaining work / limits
 
-- Run Ollama tool-calling smoke tests on the actual Mac and record traces.
+- Run Ollama native-tool diagnostic and actual model-directed structured-plan smoke tests on the Mac; record each selection mode and retrieval trace.
 - Verify that all seven historical years are imported and indexed in SQLite;
   the existing fixed validator currently uses a three-year window.
 - Measure actual latency and false-positive trade-offs on blind cases.
