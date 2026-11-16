@@ -3,7 +3,7 @@ import {AssistantMessage} from './AssistantMessage';
 import {ASSETS,POINTS,useTwin} from '../services/twin';
 import '../room-ai-velvet.css';
 
-type Analysis={status:string;numeric_verification_passed?:boolean;human_review_required?:boolean;retrieval_variant?:string;agentic?:{tool_call_count:number;max_rounds:number};tool_trace?:Array<{tool?:string;status?:string}>;result?:{
+type Analysis={status:string;numeric_verification_passed?:boolean;human_review_required?:boolean;retrieval_variant?:string;agentic?:{tool_call_count:number;max_rounds:number};tool_trace?:Array<{tool?:string;status?:string;selection_mode?:string}>;result?:{
  finding?:string;evidence?:string[];possible_explanations?:string[];recommended_checks?:string[];limitations?:string[]}};
 type Prediction={status:string;projected_value?:number|null;lower_scenario?:number|null;upper_scenario?:number|null;direction?:string;
  target_time?:string;unit?:string;explanation?:string;reason?:string;limitations?:string[]};
@@ -96,7 +96,7 @@ export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
     <strong>Status: {analysis.status.replaceAll('_',' ')}</strong>
     <p className="room-ai-subtle">Retrieval: {analysis.retrieval_variant==='agentic_sql_tools'?'Agentic RAG (Qwen-selected SQL tools)':'Fixed historical retrieval'}
      {analysis.agentic?' · '+analysis.agentic.tool_call_count+' read-only tool calls':''}</p>
-    {analysis.tool_trace?.length?<details><summary>Agent retrieval trace</summary><ul>{analysis.tool_trace.map((entry,i)=><li key={i}>{entry.tool||'Tool'} · {entry.status||'completed'}</li>)}</ul></details>:null}
+    {analysis.tool_trace?.length?<details><summary>Agent retrieval trace</summary><ul>{analysis.tool_trace.map((entry,i)=><li key={i}>{entry.tool||'Tool'} · {entry.selection_mode==='structured_tool_plan'?'structured plan':'native call'} · {entry.status||'completed'}</li>)}</ul></details>:null}
     <AssistantMessage text={analysis.result?.finding||'No verified finding returned.'}/>
     <p className="room-ai-subtle">Numerical verification: {analysis.numeric_verification_passed?'passed':'not fully verified'} · Human review: {analysis.human_review_required?'required':'not required'}</p>
     {analysis.result?.evidence?.length?<details><summary>Verified sensor evidence</summary><ul>{analysis.result.evidence.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}
