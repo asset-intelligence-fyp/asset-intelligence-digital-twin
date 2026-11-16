@@ -20,11 +20,11 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Python agentic unit tests (no Ollama)
         run: npm run test:agentic:python
       - name: Node room assistant unit tests (no Ollama)
         run: npm run test:ai
       - name: Frontend build
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
