@@ -127,7 +127,7 @@ class AgenticRoomTests(unittest.TestCase):
 
     def test_actual_model_selected_tool_is_required(self):
         model = FakeOllama(call_tools=False)
-        with self.assertRaisesRegex(RuntimeError, 'at least one successful'):
+        with self.assertRaisesRegex(RuntimeError, 'no structured tool_calls'):
             analyse_agentic(make_request(), {'model': 'qwen3:1.7b',
                                               'history_db': str(self.db)},
                             lambda _: model)
