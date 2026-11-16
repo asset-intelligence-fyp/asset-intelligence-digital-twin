@@ -68,7 +68,8 @@ def infer(case, point, indexed, db, model_factory, method):
             tool_call_count=answer.get('agentic', {}).get('tool_call_count', 0),
             numeric_verification_passed=answer.get('numeric_verification_passed'),
             finding=(answer.get('result', {}).get('finding') or '')[:2000],
-            tool_trace=[{'tool': t.get('tool'), 'status': t.get('status')}
+            tool_trace=[{'tool': t.get('tool'), 'status': t.get('status'),
+                         'selection_mode': t.get('selection_mode')}
                         for t in answer.get('tool_trace', [])],
         )
     except Exception as exc:
