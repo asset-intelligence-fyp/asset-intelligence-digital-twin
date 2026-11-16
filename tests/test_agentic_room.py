@@ -127,7 +127,7 @@ class AgenticRoomTests(unittest.TestCase):
 
     def test_actual_model_selected_tool_is_required(self):
         model = FakeOllama(call_tools=False)
-        with self.assertRaisesRegex(RuntimeError, 'no structured tool_calls'):
+        with self.assertRaisesRegex(RuntimeError, 'structured tool-selection plan'):
             analyse_agentic(make_request(), {'model': 'qwen3:1.7b',
                                               'history_db': str(self.db)},
                             lambda _: model)
@@ -152,6 +152,29 @@ class AgenticRoomTests(unittest.TestCase):
                                  lambda _: model)
         self.assertGreaterEqual(model.attempts, 2)
         self.assertEqual(result['agentic']['tool_call_count'], 1)
+
+    def test_structured_plan_fallback_executes_model_selected_tool(self):
+        class NoNativeToolButValidPlanner(FakeOllama):
+            def chat(self, messages, tools=None, format=None):
+                if tools is not None:
+                    return {'message': {'content': 'Answering without native tools',
+                                        'tool_calls': []}}
+                if isinstance(format, dict) and 'tool_name' in format.get('properties', {}):
+                    return {'message': {'content': json.dumps({
+                        'tool_name': 'get_historical_baseline',
+                        'sensor_id': SENSOR_ID,
+                        'hours': 1,
+                        'years': 7,
+                    })}}
+                return super().chat(messages, tools=tools, format=format)
+
+        model = NoNativeToolButValidPlanner(call_tools=False)
+        result = analyse_agentic(make_request(),
+                                 {'model': 'qwen3:1.7b', 'history_db': str(self.db)},
+                                 lambda _: model)
+        self.assertEqual(result['agentic']['tool_call_count'], 1)
+        self.assertEqual(result['tool_trace'][0]['tool'], 'get_historical_baseline')
+        self.assertEqual(result['tool_trace'][0]['selection_mode'], 'structured_tool_plan')
 
     def test_agentic_output_keeps_existing_validator(self):
         model = FakeOllama()
