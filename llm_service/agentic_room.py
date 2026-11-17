@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 import statistics
+from copy import deepcopy
 from collections import defaultdict
 from contextlib import closing
 from datetime import timedelta
@@ -80,7 +81,14 @@ class RoomAgentTools:
         self.timelines = {key: sorted(values) for key, values in timelines.items()}
 
     def specifications(self):
-        return TOOL_SPECS
+        # Give Qwen the exact allowed sensor IDs in its native tool schemas.
+        # This improves argument selection without granting any new access.
+        specs = deepcopy(TOOL_SPECS)
+        for spec in specs:
+            props = spec['function']['parameters']['properties']
+            if 'sensor_id' in props:
+                props['sensor_id']['enum'] = sorted(self.points)
+        return specs
 
     def _sensor(self, sensor_id):
         if not isinstance(sensor_id, str) or sensor_id not in self.points:
