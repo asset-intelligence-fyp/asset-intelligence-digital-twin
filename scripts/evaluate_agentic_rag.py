@@ -73,7 +73,19 @@ def infer(case, point, indexed, db, model_factory, method):
                         for t in answer.get('tool_trace', [])],
         )
     except Exception as exc:
-        record['error'] = type(exc).__name__ + ': ' + str(exc)[:240]
+        record['error'] = type(exc).__name__ + ': ' + str(exc)[:500]
+        # An unsuccessful model tool call is still a tool ATTEMPT. Preserve
+        # its reason; do not misreport a failed execution as zero attempts.
+        trace = getattr(exc, 'tool_trace', None)
+        if isinstance(trace, list):
+            record['tool_call_count'] = len(trace)
+            record['tool_trace'] = [
+                {'tool': t.get('tool'), 'status': t.get('status'),
+                 'selection_mode': t.get('selection_mode'),
+                 'arguments': t.get('arguments'),
+                 'error': (t.get('result') or {}).get('error')}
+                for t in trace
+            ]
     record['elapsed_seconds'] = round(perf_counter() - started, 3)
     return record
 
