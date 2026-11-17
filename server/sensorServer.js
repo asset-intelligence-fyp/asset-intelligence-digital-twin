@@ -46,7 +46,7 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   const origin=req.headers.origin;
   if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress)||origin&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin))return res.sendStatus(403);
   const {scenario,point_code,start_time}=req.body||{};
-  if(!['rain','busy','holiday','ac_off','ventilation'].includes(scenario)||!registry.some(p=>p.code===point_code)||typeof start_time!=='string'||!/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+08:00$/.test(start_time)||!Number.isFinite(Date.parse(start_time)))return res.status(400).json({error:'Invalid scenario, sensor or local experiment time'});
+  if(!['rain','busy','holiday','ac_off','ventilation'].includes(scenario)||!registry.some(p=>p.code===point_code)||typeof start_time!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/.test(start_time)||!Number.isFinite(Date.parse(start_time)))return res.status(400).json({error:'Invalid scenario, sensor or local experiment time'});
   const python=process.env.PYTHON||(process.platform==='win32'?'py':'python3'),args=[...(process.platform==='win32'&&!process.env.PYTHON?['-3']:[]),'-m','tools.hybrid_simulator.experiment',scenario,point_code,start_time];
   execFile(python,args,{timeout:20000,maxBuffer:500000,cwd:path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..')},(error,stdout,stderr)=>{
    if(error){console.error('Scenario comparison failed:',stderr||error.message);return res.status(503).json({error:'Unable to run scenario comparison'})}
