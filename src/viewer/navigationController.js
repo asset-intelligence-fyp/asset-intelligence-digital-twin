@@ -3,10 +3,10 @@ import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
 import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
 /** One owner for floor visibility, selection and camera movement. No competing React flights. */
-export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
+export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},floorGuides={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
  const scene=viewer.scene;
- const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,metric:'humidity',foundMarkers:0,objectsOnFloor:0};
- let all=[],markerIds=[],architectureIds=[],floorIndex=new Map(),guidIndex=new Map(),flight=0,destroyed=false,pinSignature='',lastPins=0,slabIds=[],heatReadings={};
+ const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,floorGuides:true,metric:'humidity',foundMarkers:0,objectsOnFloor:0};
+ let all=[],markerIds=[],architectureIds=[],floorIndex=new Map(),guidIndex=new Map(),flight=0,destroyed=false,pinSignature='',lastPins=0,slabIds=[],architecturalColours=[],glazingIds=[],heatReadings={};
  const sensors=new Map(navigation.sensors.map(p=>[p.guid,p]));
  const levelFor=id=>navigation.levels.find(p=>p.id===id);
  const emit=()=>{if(!destroyed)onState({...state})};
@@ -32,16 +32,27 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   // A controlled, unlit emphasis material prevents source lighting/materials bleaching the shell.
   Object.assign(scene.xrayMaterial,{fill:true,fillColor:style.fillColor,fillAlpha:style.alpha,edges:true,edgeColor:style.edgeColor,edgeAlpha:style.edgeAlpha,edgeWidth:1,glowThrough:false});
   scene.setObjectsOpacity(architectureIds,1);
-  scene.setObjectsColorized(architectureIds,ghost?null:[.35,.43,.54]);
   scene.setObjectsXRayed(architectureIds,ghost);
   scene.setObjectsXRayed(markerIds,false);
   scene.setObjectsEdges(architectureIds,ghost);
-  if(ghost){
-   // Keep only the supporting floor subdued; upper slabs must not cover the room cutaway.
+  // In Building mode IFC element types are colour-coded as architectural
+  // materials: glazing, wall/façade, roof, floor and structural members.
+  // No unmeasured textures or fabricated walls are introduced.
+  if(!ghost){
+   scene.setObjectsColorized(architectureIds,[.79,.83,.84]);
+   for(const group of architecturalColours)scene.setObjectsColorized(group.ids,group.rgb);
+   scene.setObjectsOpacity(glazingIds,.82);
+   scene.setObjectsEdges(glazingIds,true);
+  }else{
+   scene.setObjectsColorized(architectureIds,null);
+   // Distinct, brighter real IFC slabs read as physical floor plates, while
+   // walls remain finely translucent. Never recolour synthetic heat areas.
    scene.setObjectsXRayed(slabIds,false);
    scene.setObjectsOpacity(slabIds,style.floorAlpha);
    scene.setObjectsColorized(slabIds,GHOST_COLOUR);
+   scene.setObjectsEdges(slabIds,true);
   }
+  floorGuides.update(state.mode,state.floor,state.floorGuides);
   state.roomBoundary=state.selectedGuid?roomFocus.status(state.selectedGuid):'';
   state.hasRoomBoundary=!!(state.selectedGuid&&roomFocus.bounds(state.selectedGuid));
   roomFocus.update(state.selectedGuid,ghost&&state.roomOutline);
@@ -95,7 +106,23 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
     if(floor){if(!floorIndex.has(floor))floorIndex.set(floor,[]);floorIndex.get(floor).push(id)}
    }
    markerIds=navigation.sensors.map(p=>guidIndex.get(p.guid)).filter(Boolean);const markers=new Set(markerIds);architectureIds=all.filter(id=>!markers.has(id));
-   slabIds=architectureIds.filter(id=>viewer.metaScene.metaObjects[id]?.type==='IfcSlab');
+   const byType=new Map();
+   for(const id of architectureIds){
+    const type=viewer.metaScene.metaObjects[id]?.type||'';
+    let group='other';
+    if(/IfcWindow|IfcCurtainWall|IfcPlate/.test(type))group='glazing';
+    else if(/IfcRoof|IfcCovering/.test(type))group='roof';
+    else if(/IfcSlab/.test(type))group='floor';
+    else if(/IfcDoor/.test(type))group='door';
+    else if(/IfcColumn|IfcBeam|IfcMember/.test(type))group='structure';
+    else if(/IfcWall/.test(type))group='wall';
+    if(!byType.has(group))byType.set(group,[]);
+    byType.get(group).push(id);
+   }
+   slabIds=byType.get('floor')||[];
+   glazingIds=byType.get('glazing')||[];
+   const palette={wall:[.79,.84,.87],glazing:[.41,.65,.74],roof:[.42,.51,.58],floor:[.69,.72,.72],door:[.55,.63,.62],structure:[.69,.76,.80]};
+   architecturalColours=Object.entries(palette).map(([type,rgb])=>({ids:byType.get(type)||[],rgb})).filter(group=>group.ids.length);
    scene.setObjectsColorized(markerIds,[.15,.85,.95]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
   },focusSensor,showFloor,home,fit,setView,
   setMode(mode){
@@ -111,6 +138,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   setCutaway(value){state.cutaway=!!value;clipping();emit()},
   setOpacity(value){state.opacity=xrayStyle(value).alpha;appearance();emit()},
   setRoomOutline(value){state.roomOutline=!!value;appearance();emit()},
+  setFloorGuides(value){state.floorGuides=!!value;floorGuides.update(state.mode,state.floor,state.floorGuides);emit()},
   setHeatmap(metric,readings){const changed=metric!==state.metric;state.metric=METRICS[metric]?metric:'temperature';heatReadings=readings||{};if(changed){unselect();pinSignature='';appearance();emit()}else refreshHeatmap()},
   interact(){cancelFlight();emit()},
   zoom(factor){if(!state.ready||!Number.isFinite(factor))return;cancelFlight();const camera=viewer.camera;factor=Math.max(.7,Math.min(1.4,factor));if(state.view==='plan'){camera.ortho.scale=Math.max(2,Math.min(1500,camera.ortho.scale*factor))}else{const delta=Array.from(camera.eye,(v,i)=>v-camera.look[i]),distance=Math.hypot(...delta),target=Math.max(2,Math.min(1500,distance*factor));if(distance>0)camera.eye=Array.from(camera.look,(v,i)=>v+delta[i]*target/distance)}emit()},
