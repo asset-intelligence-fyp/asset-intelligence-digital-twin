@@ -50,6 +50,7 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluation
              history_configured:!!h.normal_history_database_ready,
              historical_reference_available:!!h.normal_history_database_ready,
              history_status:h.history_status||'unavailable',
+             agentic_supported:!!h.agentic_supported, agentic_max_rounds:h.agentic_max_rounds||null,
              prediction_supported:true, prediction_horizons_months:[1],
              error:available?null:'Run ollama pull '+model});
   }catch(e){res.json({connected:false,model,prompt:'concise',retrieval:'validated',validation_mode:'hybrid_semantic',error:'Start the Python bridge and Ollama: '+e.message});}
@@ -66,7 +67,7 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluation
    return replyError(res,503,'Evaluation report unavailable or invalid. Rerun the one-month backtest.');
   }
  });
- app.post('/api/assistant/ask',allowed,async(req,res)=>{
+ const handleRoomAsk = (agentic) => async(req,res)=>{
   try {
    const {room_id,question,source,as_of,snapshot}=req.body||{};
    if(typeof question!=='string'||!question.trim()||question.length>900)
@@ -82,15 +83,17 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluation
    const history=rows.filter(r=>r&&codes.has(r.point_code)&&typeof r.value==='number'&&Number.isFinite(r.value)&&
        typeof r.timestamp==='string'&&Number.isFinite(Date.parse(r.timestamp))&&Date.parse(r.timestamp)<=cutoff);
    if(!history.length)return replyError(res,400,'No readings at this cutoff; wait for simulator data.');
-   const response=await fetchImpl(bridge()+'/ask',{
-    method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(180000),
+   const response=await fetchImpl(bridge()+(agentic?'/ask-agentic':'/ask'),{
+    method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(agentic?240000:180000),
     body:JSON.stringify({config:config(),request:{question:question.trim(),room_id:points[0].simulatorRoomId,
       room_name:points[0].locationLabel,source,as_of,points,history}})
    });
    const data=await response.json();
    res.status(response.status).json(data);
   }catch(e){replyError(res,503,'Room AI unavailable: '+e.message+'. Check your Python bridge/Ollama terminals.');}
- });
+ };
+ app.post('/api/assistant/ask', allowed, handleRoomAsk(false));
+ app.post('/api/assistant/ask-agentic', allowed, handleRoomAsk(true));
  // A separate LLM-only exploratory one-month projection. The backend provides observed
  // trend evidence, never a trained model or deterministic future-value estimator.
  app.post('/api/assistant/predict',allowed,async(req,res)=>{

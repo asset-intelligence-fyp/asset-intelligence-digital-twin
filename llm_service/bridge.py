@@ -19,13 +19,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from llm_service.shared_llm.ollama import OllamaClient
 from llm_service.validated_room import analyse_validated, normal_history_ready, resolve_history_path
 from llm_service.prediction import forecast_room_reading
+from llm_service.agentic_room import analyse_agentic
 
 
-def analyse(request, config):
+def analyse(request, config, agentic=False):
     def factory(model):
         return OllamaClient(base_url=os.environ.get('OLLAMA_URL','http://127.0.0.1:11434'),
                             model=model, temperature=0, timeout=150)
-    return analyse_validated(request, config, factory)
+    return analyse_agentic(request, config, factory) if agentic else analyse_validated(request, config, factory)
 
 
 def main():
@@ -51,6 +52,8 @@ def main():
                 self.reply(200, {'ok': True, 'model': 'qwen3:1.7b', 'prompt': 'concise',
                                  'validation_mode': 'hybrid_semantic',
                                  'retrieval': 'backend_verified_room_evidence',
+                                 'agentic_supported': True, 'agentic_max_rounds': 3,
+                                 'agentic_method': 'bounded_read_only_sql_tools',
                                  'normal_history_database_ready': history_ready,
                                  'history_status': 'synthetic_normal_sqlite_connected' if history_ready else 'normal_history_not_available',
                                  'history_notice': 'Comparison requires five earlier same-weekday dates per sensor; database availability alone does not establish coverage.'})
@@ -58,7 +61,7 @@ def main():
                 self.reply(404, {'error': 'Not found'})
 
         def do_POST(self):
-            if self.path not in ('/ask', '/predict'):
+            if self.path not in ('/ask', '/ask-agentic', '/predict'):
                 self.reply(404, {'error': 'Not found'})
                 return
             if not lock.acquire(blocking=False):
@@ -82,7 +85,8 @@ def main():
                         lambda model: OllamaClient(base_url=os.environ.get('OLLAMA_URL','http://127.0.0.1:11434'),
                                                    model=model, temperature=0, timeout=150)))
                 else:
-                    self.reply(200, analyse(data['request'], data.get('config') or {}))
+                    self.reply(200, analyse(data['request'], data.get('config') or {},
+                                           agentic=self.path == '/ask-agentic'))
             except (ValueError, TypeError, KeyError) as exc:
                 self.reply(400, {'error': str(exc)})
             except Exception as exc:

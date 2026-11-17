@@ -3,7 +3,7 @@ import {AssistantMessage} from './AssistantMessage';
 import {ASSETS,POINTS,useTwin} from '../services/twin';
 import '../room-ai-velvet.css';
 
-type Analysis={status:string;numeric_verification_passed?:boolean;human_review_required?:boolean;result?:{
+type Analysis={status:string;numeric_verification_passed?:boolean;human_review_required?:boolean;retrieval_variant?:string;agentic?:{tool_call_count:number;max_rounds:number};tool_trace?:Array<{tool?:string;status?:string;selection_mode?:string}>;result?:{
  finding?:string;evidence?:string[];possible_explanations?:string[];recommended_checks?:string[];limitations?:string[]}};
 type Prediction={status:string;projected_value?:number|null;lower_scenario?:number|null;upper_scenario?:number|null;direction?:string;
  target_time?:string;unit?:string;explanation?:string;reason?:string;limitations?:string[]};
@@ -16,10 +16,11 @@ const numeric=(value:number|null|undefined,unit='')=>
 export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
  const twin=useTwin();
  const [question,setQuestion]=useState('Are any sensor readings in this room unusual?');
+ const [analysisMode,setAnalysisMode]=useState<'agentic'|'validated'>('agentic');
  const [predictionCode,setPredictionCode]=useState('');
  const [analysis,setAnalysis]=useState<Analysis|null>(null);
  const [prediction,setPrediction]=useState<Prediction|null>(null);
- const [health,setHealth]=useState<{connected:boolean;historical_reference_available?:boolean}>({connected:false});
+ const [health,setHealth]=useState<{connected:boolean;historical_reference_available?:boolean;agentic_supported?:boolean}>({connected:false});
  const [evaluation,setEvaluation]=useState<Evaluation>({status:'not_evaluated'});
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const abort=useRef<AbortController|null>(null),requestId=useRef(0);
@@ -35,7 +36,7 @@ export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
   fetch('/api/assistant/evaluation',{cache:'no-store'}).then(r=>r.json()).then(data=>{if(active)setEvaluation(data)}).catch(()=>{if(active)setEvaluation({status:'not_evaluated'})});
   return()=>{active=false;clearInterval(poll)};
  },[]);
- useEffect(()=>{requestId.current++;abort.current?.abort();setBusy(false);setError('');setAnalysis(null);setPrediction(null)},[twin.selectedRoom,source]);
+ useEffect(()=>{requestId.current++;abort.current?.abort();setBusy(false);setError('');setAnalysis(null);setPrediction(null)},[twin.selectedRoom,source,analysisMode]);
  useEffect(()=>()=>abort.current?.abort(),[]);
  const cutoff=()=>{
   const latest=twin.replayTime??Math.max(...Object.values(twin.readings).filter(r=>points.some(p=>p.code===r.point_code)).map(r=>Date.parse(r.timestamp)));
@@ -57,7 +58,7 @@ export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
     {room_id:twin.selectedRoom,question:question.trim(),source,as_of,...(source==='http'?{}:{snapshot:history})}:
     {room_id:twin.selectedRoom,sensor_id:chosen!.code,horizon_months:1,source,as_of};
    abort.current?.abort();const controller=new AbortController();abort.current=controller;setBusy(true);
-   const reply=await fetch(kind==='analysis'?'/api/assistant/ask':'/api/assistant/predict',{
+   const reply=await fetch(kind==='analysis'?(analysisMode==='agentic'?'/api/assistant/ask-agentic':'/api/assistant/ask'):'/api/assistant/predict',{
     method:'POST',headers:{'Content-Type':'application/json'},signal:controller.signal,body:JSON.stringify(payload)});
    const result=await reply.json();if(!reply.ok)throw Error(result.error||'The local AI service returned an error.');
    if(id===requestId.current){if(kind==='analysis')setAnalysis(result as Analysis);else setPrediction(result as Prediction)}
@@ -77,15 +78,25 @@ export function RoomAIWorkspace({onSensor}:{onSensor:(code:string)=>void}){
    </select>
   </label>
   <section className="room-ai-block"><h3>Anomaly assessment</h3>
-   <p>Qwen analyses the selected room using historical comparisons. The backend verifies its output and may request human review.</p>
+   <p>Choose model-directed historical investigation or the previous fixed retrieval baseline. Both are synthetic-data research modes.</p>
+   <label className="room-ai-field">Anomaly retrieval method
+    <select aria-label="Anomaly retrieval method" value={analysisMode} onChange={e=>setAnalysisMode(e.target.value as 'agentic'|'validated')}>
+     <option value="agentic">Agentic RAG · adaptive SQL tools</option>
+     <option value="validated">Fixed retrieval · previous baseline</option>
+    </select>
+   </label>
+   {analysisMode==='agentic'&&!health.agentic_supported&&<p className="room-ai-subtle">Start the updated Python bridge to enable Agentic RAG.</p>}
    <form onSubmit={e=>{e.preventDefault();void run('analysis')}}>
     <label className="room-ai-field">Question
      <input aria-label="Room anomaly question" value={question} maxLength={900} onChange={e=>setQuestion(e.target.value)} placeholder="Is CO₂ unusually high?"/>
     </label>
-    <button type="submit" className="room-ai-primary" disabled={busy||!question.trim()}>Analyse selected room</button>
+    <button type="submit" className="room-ai-primary" disabled={busy||!question.trim()||(analysisMode==='agentic'&&!health.agentic_supported)}>{analysisMode==='agentic'?'Run agentic investigation':'Run fixed-retrieval baseline'}</button>
    </form>
    {analysis&&<article className="room-ai-result" aria-live="polite">
     <strong>Status: {analysis.status.replaceAll('_',' ')}</strong>
+    <p className="room-ai-subtle">Retrieval: {analysis.retrieval_variant==='agentic_sql_tools'?'Agentic RAG (Qwen-selected SQL tools)':'Fixed historical retrieval'}
+     {analysis.agentic?' · '+analysis.agentic.tool_call_count+' read-only tool calls':''}</p>
+    {analysis.tool_trace?.length?<details><summary>Agent retrieval trace</summary><ul>{analysis.tool_trace.map((entry,i)=><li key={i}>{entry.tool||'Tool'} · {entry.selection_mode==='structured_tool_plan'?'structured plan':'native call'} · {entry.status||'completed'}</li>)}</ul></details>:null}
     <AssistantMessage text={analysis.result?.finding||'No verified finding returned.'}/>
     <p className="room-ai-subtle">Numerical verification: {analysis.numeric_verification_passed?'passed':'not fully verified'} · Human review: {analysis.human_review_required?'required':'not required'}</p>
     {analysis.result?.evidence?.length?<details><summary>Verified sensor evidence</summary><ul>{analysis.result.evidence.map((x,i)=><li key={i}>{x}</li>)}</ul></details>:null}

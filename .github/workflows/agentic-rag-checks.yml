@@ -1,0 +1,30 @@
+name: Agentic RAG Checks
+
+on:
+  push:
+    branches:
+      - feature/agentic-rag
+  pull_request:
+    branches:
+      - feature/velvet-ui
+
+jobs:
+  agentic-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Python agentic unit tests (no Ollama)
+        run: npm run test:agentic:python
+      - name: Node room assistant unit tests (no Ollama)
+        run: npm run test:ai
+      - name: Frontend build
+        run: npm run build
