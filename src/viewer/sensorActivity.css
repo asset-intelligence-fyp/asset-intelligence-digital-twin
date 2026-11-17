@@ -11,3 +11,6 @@
 @keyframes sensor-receive-ring{0%{opacity:.65;scale:.65}78%,100%{opacity:0;scale:2.4}}
 @keyframes sensor-badge-glow{0%,100%{box-shadow:0 0 4px #27d4e51a}45%{box-shadow:0 0 13px #27d4e55c}}
 @media(prefers-reduced-motion:reduce){.bim-pin-layer .bim-sensor-pin,.bim-pin-layer .sensor-anchor-core,.bim-pin-layer .sensor-arrival-ring,.bim-pin-layer .bim-sensor-pin:after{animation:none!important}.bim-pin-layer .sensor-arrival-ring{display:none}}
+
+.bim-occupant-note{position:absolute;left:16px;bottom:82px;padding:6px 9px;border:1px solid rgba(45,153,167,.35);background:rgba(7,19,30,.8);backdrop-filter:blur(6px);color:#b4cbd1;border-radius:7px;font-size:10px;z-index:12;pointer-events:none;max-width:280px}
+@media(max-width:700px){.bim-occupant-note{bottom:110px;left:8px;max-width:190px}}

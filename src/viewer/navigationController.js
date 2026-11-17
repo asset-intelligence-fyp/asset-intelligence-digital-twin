@@ -5,7 +5,7 @@ import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './
 /** One owner for floor visibility, selection and camera movement. No competing React flights. */
 export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
  const scene=viewer.scene;
- const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,metric:'temperature',foundMarkers:0,objectsOnFloor:0};
+ const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,metric:'humidity',foundMarkers:0,objectsOnFloor:0};
  let all=[],markerIds=[],architectureIds=[],floorIndex=new Map(),guidIndex=new Map(),flight=0,destroyed=false,pinSignature='',lastPins=0,slabIds=[],heatReadings={};
  const sensors=new Map(navigation.sensors.map(p=>[p.guid,p]));
  const levelFor=id=>navigation.levels.find(p=>p.id===id);
@@ -28,7 +28,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
  }
  function refreshHeatmap(){heatmap.update({metric:state.metric,readings:heatReadings,floor:state.floor,enabled:state.mode==='heatmap'})}
  function appearance(){
-  const ghost=state.mode!=='solid',style=xrayStyle(state.opacity);
+  const ghost=state.mode!=='solid',style=xrayStyle(state.mode==='heatmap'?.12:state.opacity);
   // A controlled, unlit emphasis material prevents source lighting/materials bleaching the shell.
   Object.assign(scene.xrayMaterial,{fill:true,fillColor:style.fillColor,fillAlpha:style.alpha,edges:true,edgeColor:style.edgeColor,edgeAlpha:style.edgeAlpha,edgeWidth:1,glowThrough:false});
   scene.setObjectsOpacity(architectureIds,1);
@@ -98,7 +98,16 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    slabIds=architectureIds.filter(id=>viewer.metaScene.metaObjects[id]?.type==='IfcSlab');
    scene.setObjectsColorized(markerIds,[.15,.85,.95]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
   },focusSensor,showFloor,home,fit,setView,
-  setMode(mode){state.mode=['xray','heatmap'].includes(mode)?mode:'solid';pinSignature='';appearance();emit()},
+  setMode(mode){
+   const next=['xray','heatmap'].includes(mode)?mode:'solid';
+   if(next==='heatmap'&&state.mode!=='heatmap'&&state.floor==='all'){
+    const countByFloor=new Map();
+    for(const p of points.filter(p=>p.sensorType===state.metric))countByFloor.set(p.floor,(countByFloor.get(p.floor)||0)+1);
+    const best=[...countByFloor].sort((a,b)=>b[1]-a[1])[0]?.[0];
+    if(best){state.floor=best;state.view='plan';state.cutaway=true;}
+   }
+   state.mode=next;pinSignature='';scope();emit();if(next==='heatmap')fit();
+  },
   setCutaway(value){state.cutaway=!!value;clipping();emit()},
   setOpacity(value){state.opacity=xrayStyle(value).alpha;appearance();emit()},
   setRoomOutline(value){state.roomOutline=!!value;appearance();emit()},

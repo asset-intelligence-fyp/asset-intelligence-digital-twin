@@ -3,6 +3,7 @@ export type SimulationSource={name?:string;dataset?:string;dataset_timestamp?:st
  operation?:{attendance_factor:number;ac_mode:string;setpoint_c:number;ventilation:number};
  profile_id:string;seed:number;simulation_step_seconds:number;fit_period:string;
  weather:{source:string;mode:string;scene:string;timestamp:string;outdoor_temp_c:number;outdoor_humidity_pct:number;solar_radiation_w_m2:number;rainfall_mm_per_h:number};
+ simulated_headcounts?:Record<string,number>;
  calendar:{date:string;day_type:string;holiday_name:string|null;is_workday:boolean;override:string;calendar_complete:boolean;attendance_factor:number}
 }|null};
 export function useSimulationSource(){
