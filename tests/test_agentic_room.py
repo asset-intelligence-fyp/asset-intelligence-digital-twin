@@ -153,6 +153,41 @@ class AgenticRoomTests(unittest.TestCase):
         self.assertGreaterEqual(model.attempts, 2)
         self.assertEqual(result['agentic']['tool_call_count'], 1)
 
+    def test_tool_schemas_allow_only_room_sensors(self):
+        tools = self.tools()
+        definitions = tools.specifications()
+        for spec in definitions:
+            args = spec['function']['parameters']['properties']
+            if 'sensor_id' in args:
+                self.assertEqual(args['sensor_id']['enum'], [SENSOR_ID])
+
+    def test_rejected_native_tools_recover_with_model_selected_plan(self):
+        class InvalidNativeThenPlanner(FakeOllama):
+            def chat(self, messages, tools=None, format=None):
+                if tools is not None:
+                    return {'message': {'content': '', 'tool_calls': [{
+                        'function': {
+                            'name': 'get_recent_trend',
+                            'arguments': {'sensor_id': 'NOT_AUTHORISED', 'hours': 6}
+                        }
+                    }]}}
+                if isinstance(format, dict) and 'tool_name' in format.get('properties', {}):
+                    return {'message': {'content': json.dumps({
+                        'tool_name': 'get_recent_trend',
+                        'sensor_id': SENSOR_ID, 'hours': 6, 'years': 3,
+                    })}}
+                return super().chat(messages, tools=tools, format=format)
+
+        result = analyse_agentic(
+            make_request(), {'model': 'qwen3:1.7b', 'history_db': str(self.db)},
+            lambda _: InvalidNativeThenPlanner())
+        self.assertEqual(result['agentic']['tool_call_count'], 3)
+        self.assertEqual([t['status'] for t in result['tool_trace']],
+                         ['error', 'error', 'ok'])
+        self.assertEqual(result['tool_trace'][-1]['selection_mode'],
+                         'structured_tool_plan')
+        self.assertEqual(result['tool_trace'][-1]['tool'], 'get_recent_trend')
+
     def test_structured_plan_fallback_executes_model_selected_tool(self):
         class NoNativeToolButValidPlanner(FakeOllama):
             def chat(self, messages, tools=None, format=None):
