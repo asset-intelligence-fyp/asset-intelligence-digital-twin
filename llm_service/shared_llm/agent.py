@@ -111,35 +111,42 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
             +json.dumps(initial_evidence,ensure_ascii=False)})
     calls=0
     for round_index in range(max_rounds):
-        response=client.chat(messages,tools=tools.specifications())
-        assistant=response.get('message') or {}
-        requested=assistant.get('tool_calls') or []
-        selection_mode = 'native_tool_call'
-        if not requested:
-            if require_tool_calls and calls == 0:
-                if allow_structured_tool_plan and round_index >= 1:
-                    # A schema-constrained Qwen PLAN is still a model-selected
-                    # retrieval request, but NOT a native Ollama tool call.
-                    requested = [select_structured_tool(
-                        messages, tools, client, initial_evidence)]
-                    selection_mode = 'structured_tool_plan'
-                else:
-                    # Retry once with explicit tool-selection guidance.
+        successful_retrieval = any(
+            t.get('status') != 'error' for t in tools.used
+        )
+        if (require_tool_calls and allow_structured_tool_plan
+                and not successful_retrieval and round_index == max_rounds - 1):
+            # After two unsuccessful native rounds, ask the SAME model for a
+            # schema-constrained tool choice. Never fabricate a call.
+            requested = [select_structured_tool(
+                messages, tools, client, initial_evidence)]
+            selection_mode = 'structured_tool_plan'
+            assistant = {}
+        else:
+            response = client.chat(messages, tools=tools.specifications())
+            assistant = response.get('message') or {}
+            requested = assistant.get('tool_calls') or []
+            selection_mode = 'native_tool_call'
+            if not requested:
+                if require_tool_calls and not successful_retrieval:
                     names = ', '.join(spec['function']['name']
                                       for spec in tools.specifications())
                     messages.append({
                         'role': 'user',
                         'content': (
-                            'No retrieval tool was called. Before answering, '
-                            'select ONE read-only tool from: ' + names + '. '
-                            'Return a native tool_calls request, not a final answer. '
-                            'Use the authorised sensor and historical cutoff.'
+                            'No successful retrieval yet. Select ONE read-only '
+                            'tool from: ' + names + '. Use only the exact '
+                            'sensor_id values shown in tool definitions, and '
+                            'include every required argument with the correct '
+                            'type. Request a native tool call, not a final '
+                            'sensor assessment.'
                         )
                     })
                     continue
-            elif calls == 0 and not initial_evidence:
-                raise RuntimeError('Model did not invoke any retrieval tools.')
-            else:
+                if calls == 0 and not initial_evidence:
+                    raise RuntimeError(
+                        'Model did not invoke any retrieval tools.'
+                    )
                 break
         if selection_mode == 'native_tool_call':
             messages.append({'role':'assistant','content':assistant.get('content') or '',
@@ -188,9 +195,13 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
                 'python3 scripts/diagnose_agentic_tools.py to inspect native '
                 'tool-calling support; check the Ollama version/model template.'
             )
+        failures = [
+            t['tool'] + ': ' + str((t.get('result') or {}).get('error', 'invalid arguments'))
+            for t in tools.used if t.get('status') == 'error'
+        ]
         raise RuntimeError(
-            'Agentic assessment did not complete a successful model-selected '
-            'retrieval tool call. Check the authorised sensor ID and tool arguments.'
+            'Agentic retrieval exhausted without a successful tool. '
+            'Rejected calls: ' + '; '.join(failures[-3:])[:360]
         )
     # Separate final, schema-constrained call; no additional tools here.
     messages.append({'role':'user','content':'Now provide the final answer strictly as the requested JSON schema. Use only retrieved evidence. Do not invent readings.'})
