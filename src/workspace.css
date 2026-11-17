@@ -70,3 +70,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .assistant-workspace-page .assistant-note{width:100%;max-width:960px;margin:0 auto;border:0;text-align:center;padding-bottom:16px}
 .assistant-workspace-page .room-ai-velvet{height:auto;max-height:none;overflow:visible;overscroll-behavior:auto;width:100%;max-width:1048px;margin:0 auto;padding:26px clamp(18px,4vw,64px)}
 @media(max-width:760px){.page-container.assistant-main{padding-top:64px;padding-bottom:26px}.assistant-workspace-page .assistant-messages{padding:24px 16px}.assistant-workspace-page .assistant-composer{width:calc(100% - 24px);bottom:34px}.assistant-workspace-page .assistant-note{font-size:9px;padding-left:14px;padding-right:14px}}
+
+/* Readable, unit-preserving sensor table replaces arbitrary 0-100% bars. */
+.analytics-observation-head,.analytics-observation-row{display:grid;grid-template-columns:minmax(230px,2fr) minmax(140px,1fr) minmax(155px,1.2fr) minmax(155px,1.3fr);gap:15px;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(115,151,176,.15)}
+.analytics-observation-head{color:#91abbb;letter-spacing:.04em;font-size:10px;text-transform:uppercase}
+.analytics-observation-row{font-size:12px;color:#b7c9d5;min-height:54px}
+.analytics-observation-row strong{color:#e0edf5;font-weight:600;font-variant-numeric:tabular-nums}
+.analytics-observation-row small{display:block;color:#7694a9;font-size:10px;margin-top:3px}
+@media(max-width:800px){.analytics-observation-head{display:none}.analytics-observation-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.analytics-observation-row>span:last-child{text-align:right}}
