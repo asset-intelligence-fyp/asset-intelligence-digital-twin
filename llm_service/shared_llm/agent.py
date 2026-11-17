@@ -33,6 +33,14 @@ def parse_output(text):
     if any(k not in props for k in data):raise ValueError('Unexpected JSON output field')
     return data
 
+class AgentRetrievalError(RuntimeError):
+    """Failed retrieval with inspectable, synthetic-data-only tool attempts."""
+
+    def __init__(self, message, tool_trace):
+        super().__init__(message)
+        self.tool_trace = list(tool_trace)
+
+
 def select_structured_tool(messages, tools, client, initial_evidence):
     """Ask Qwen to SELECT a tool via schema-constrained JSON if native Ollama
     tool_calls are unavailable. This is model-directed retrieval, not a native
@@ -118,8 +126,13 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
                 and not successful_retrieval and round_index == max_rounds - 1):
             # After two unsuccessful native rounds, ask the SAME model for a
             # schema-constrained tool choice. Never fabricate a call.
-            requested = [select_structured_tool(
-                messages, tools, client, initial_evidence)]
+            try:
+                requested = [select_structured_tool(
+                    messages, tools, client, initial_evidence)]
+            except RuntimeError as exc:
+                if tools.used:
+                    raise AgentRetrievalError(str(exc), tools.used) from exc
+                raise
             selection_mode = 'structured_tool_plan'
             assistant = {}
         else:
@@ -199,9 +212,10 @@ def run_agent(question,tools,client,*,prompt_variant='baseline',max_rounds=4,max
             t['tool'] + ': ' + str((t.get('result') or {}).get('error', 'invalid arguments'))
             for t in tools.used if t.get('status') == 'error'
         ]
-        raise RuntimeError(
+        raise AgentRetrievalError(
             'Agentic retrieval exhausted without a successful tool. '
-            'Rejected calls: ' + '; '.join(failures[-3:])[:360]
+            'Rejected calls: ' + '; '.join(failures[-3:])[:360],
+            tools.used,
         )
     # Separate final, schema-constrained call; no additional tools here.
     messages.append({'role':'user','content':'Now provide the final answer strictly as the requested JSON schema. Use only retrieved evidence. Do not invent readings.'})
