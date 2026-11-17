@@ -1,6 +1,6 @@
 import {ValueMotion} from '../components/ValueMotion';
 import { useState } from 'react';
-import { POINTS, readingLabel, useTwin } from '../services/twin';
+import { POINTS, useTwin } from '../services/twin';
 import { TelemetryChart } from '../components/TelemetryChart';
 import { Eyebrow } from '../components/UI';
 import {sensorDisplay} from '../viewer/sensorPresentation.js';
@@ -11,8 +11,6 @@ export function Analytics(){
  const active=POINTS.filter(p=>readings[p.code]).length;
  const temps=supply.map(code=>readings[code]?.value).filter((v):v is number=>typeof v==='number');
  const mean=temps.length?temps.reduce((a,b)=>a+b,0)/temps.length:null;
- const samples=history.slice(-windowSize*18);
- const latest=(code:string)=>readingLabel(code,readings[code]);
  return <div className="analytics-page"><div className="page-heading"><div><Eyebrow>ANALYTICS</Eyebrow><h1>Building performance</h1><p>Generated sensor readings · FYP whole building</p></div><div className="segmented">{[15,30,60,90].map(n=><button className={windowSize===n?'active':''} key={n} onClick={()=>setWindowSize(n)}>{n} samples</button>)}</div></div>
  <div className="kpi-grid"><KPI title="Active channels" value={String(active)} unit="/ 18" delta="Simulated sensor data"/><KPI title="Mean room temp" value={mean?.toFixed(2)||'—'} unit="°C" delta="Two monitored rooms"/><KPI title="Virtual power" value={readings['PWR-L03-PWR-POINT-01']?.value?.toFixed(1)||'—'} unit="kW" delta="Illustrative aggregate"/><KPI title="Meeting CO₂" value={readings['CO2-L03-MEET-01']?.value?.toFixed(1)||'—'} unit="ppm" delta="Meeting room"/></div>
  <div className="analytics-row-main"><section className="surface chart-panel energy-chart"><div className="chart-heading"><h3>Room temperatures</h3><span>°C · live history</span></div><TelemetryChart limit={windowSize} codes={supply} title="Room temperature"/></section><section className="surface chart-panel"><div className="chart-heading"><h3>Aggregate power</h3><span>kW · illustrative floor meter</span></div><TelemetryChart limit={windowSize} codes={['PWR-L03-PWR-POINT-01']} title="Aggregate power"/></section></div>
