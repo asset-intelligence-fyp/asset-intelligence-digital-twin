@@ -44,7 +44,7 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
   return bindViewerGestures(stage.current,{onWheel:(event:any)=>controller.current?.wheel(event),onPinch:(factor:number)=>controller.current?.zoom(factor),onInteract:()=>controller.current?.interact()});
  },[view.ready]);
  useEffect(()=>{if(view.ready)controller.current?.setWeather(weather,view.floor==='all',weatherMotion)},[weather,weatherMotion,view.ready,view.floor]);
- const summaries=[...new Map(POINTS.filter(p=>p.sensorType==='occupancy').map(p=>[p.simulatorRoomId,p.locationLabel] as const)).entries()].map(([room,label])=>({room,label,count:simulationSource?.simulation?.simulated_headcounts?.[room]??null}));
+ const summaries=[...new globalThis.Map(POINTS.filter(p=>p.sensorType==='occupancy').map(p=>[p.simulatorRoomId,p.locationLabel] as const)).entries()].map(([room,label])=>({room,label,count:simulationSource?.simulation?.simulated_headcounts?.[room]??null}));
  const metric=view.metric;
  const selected=POINTS.find(p=>p.guid===view.selectedGuid),selectedDisplay=selected?sensorDisplay(selected,readings[selected.code]):null;
  const scoped=POINTS.filter(p=>view.floor==='all'||p.floor===view.floor),colourPoints=scoped.filter(p=>p.sensorType===metric);
