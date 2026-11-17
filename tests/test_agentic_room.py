@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from llm_service.agentic_room import RoomAgentTools, analyse_agentic
+from llm_service.shared_llm.agent import AgentRetrievalError
 from llm_service.validated_room import build_evidence
 
 MYT = timezone(timedelta(hours=8))
@@ -187,6 +188,28 @@ class AgenticRoomTests(unittest.TestCase):
         self.assertEqual(result['tool_trace'][-1]['selection_mode'],
                          'structured_tool_plan')
         self.assertEqual(result['tool_trace'][-1]['tool'], 'get_recent_trend')
+
+    def test_failed_tool_attempts_are_retained_for_diagnosis(self):
+        class RejectedNativeAndBadPlan(FakeOllama):
+            def chat(self, messages, tools=None, format=None):
+                if tools is not None:
+                    return {'message': {'content': '', 'tool_calls': [{
+                        'function': {'name': 'get_recent_trend',
+                                     'arguments': {'sensor_id': 'UNAUTHORISED',
+                                                   'hours': 6}}
+                    }]}}
+                if isinstance(format, dict) and 'tool_name' in format.get('properties', {}):
+                    return {'message': {'content': '{"tool_name":"invalid"}'}}
+                return super().chat(messages, tools=tools, format=format)
+
+        with self.assertRaises(AgentRetrievalError) as caught:
+            analyse_agentic(
+                make_request(), {'model': 'qwen3:1.7b', 'history_db': str(self.db)},
+                lambda _: RejectedNativeAndBadPlan())
+        trace = caught.exception.tool_trace
+        self.assertEqual(len(trace), 2)
+        self.assertTrue(all(t['status'] == 'error' for t in trace))
+        self.assertTrue(all('not authorised' in t['result']['error'] for t in trace))
 
     def test_structured_plan_fallback_executes_model_selected_tool(self):
         class NoNativeToolButValidPlanner(FakeOllama):
