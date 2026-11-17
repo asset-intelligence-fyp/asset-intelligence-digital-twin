@@ -124,7 +124,8 @@ test('X-ray wall slider changes emphasis shading across the full range without a
  f.controller.setMode('solid');
  assert.equal(f.objects['building#shell_Level_04'].xrayed,false);
  assert.equal(f.objects['building#slab_Level_04'].opacity,1);
- assert.deepEqual(f.objects['building#slab_Level_04'].colour,[.35,.43,.54]);
+ // Solid mode intentionally restores the new neutral architectural floor palette.
+ assert.deepEqual(f.objects['building#slab_Level_04'].colour,[.69,.72,.72]);
  f.controller.destroy();
 });
 
