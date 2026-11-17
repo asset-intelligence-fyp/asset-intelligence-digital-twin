@@ -253,6 +253,12 @@ See [AI integration details](docs/whole-building-llm.md).
 
 The manual **Create an event record** control is for UI testing, not evidence of automatic anomaly detection. External email/SMS/push notifications are not configured. [Detailed walkthrough](docs/working-website-guide.md).
 
+### Experimental clock, A/B comparison, heatmap and occupants (development branch)
+
+In the updated **Simulation lab**, you can set a synthetic start date/time, select a working-day or holiday schedule, and start a new isolated simulation run. The **Scenario Experiment Workspace** compares matched one-hour runs without publishing experiment readings. In the BIM viewer, **Heatmap** colours available IFC room footprints; **People** and **Walking** display optional illustrative avatars driven by virtual headcounts. The current Building Performance page shows real units and changes instead of arbitrary percentage bars.
+
+These features are prototype visualisations, not measured physical occupancy or validated causal building models. See [UI fixes and experiment guide](docs/simulation-experiments.md).
+
 ## 6. Build and checks
 
 ```bash
