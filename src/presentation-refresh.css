@@ -138,3 +138,58 @@
 :root[data-theme="light"] .sensor-list-row,:root[data-theme="light"] .event-item,
 :root[data-theme="light"] .analytics-observation-row{border-color:#d5e4ed}
 @media(max-width:900px){.appearance-toggle{min-width:30px;padding:0 7px}.appearance-toggle span{display:none}}
+
+/* Secondary-page surfaces: prevent the old hardcoded dark fills from surviving Light. */
+:root[data-theme="light"] .segmented button.active{background:#d8eff4;color:#0b6e81}
+:root[data-theme="light"] .workspace-tabs button{background:#f3f8fb;color:#426075;border-color:#d3e2ec}
+:root[data-theme="light"] .workspace-tabs button[aria-selected="true"],
+:root[data-theme="light"] .workspace-tabs button[aria-pressed="true"]{background:#e0f1f5;color:#0b6a7f}
+:root[data-theme="light"] .weather-toolbar,
+:root[data-theme="light"] .weather-station{background:#f3f9fb;border-color:#d8e6ee;color:#34546a}
+:root[data-theme="light"] .weather-options button{background:#eaf3f7;border-color:#cee1e9;color:#426176}
+:root[data-theme="light"] .weather-options button:hover{background:#dcedf3}
+:root[data-theme="light"] .weather-options button[aria-pressed="true"]{background:#cbeaf0;color:#075e72}
+:root[data-theme="light"] .location-tabs button{background:#fff;border-color:#d3e2eb;color:#4d6b80}
+:root[data-theme="light"] .location-tabs button[aria-pressed="true"]{background:#e1f3f7;color:#0c7082;border-color:#9ccbd7}
+:root[data-theme="light"] .zone-stat,
+:root[data-theme="light"] .detail-metric{background:#f3f8fb;border-color:#d8e5ec;color:#3b586a}
+:root[data-theme="light"] .zone-item-selected{background:#e7f4f5!important;border-color:#add2d8!important}
+:root[data-theme="light"] .twin-zone-sensor[aria-pressed="true"],
+:root[data-theme="light"] .twin-sensor-row.active,
+:root[data-theme="light"] .twin-sensor-row:hover{background:#e8f5f8!important;color:#174f63}
+:root[data-theme="light"] .reporting-note,
+:root[data-theme="light"] .control-feedback{background:#e9f5f8;border-color:#c4e0e8;color:#315c6c}
+:root[data-theme="light"] .searchbox,
+:root[data-theme="light"] .searchbox input,
+:root[data-theme="light"] .twin-select,
+:root[data-theme="light"] .assistant-scope select{background:#f5f9fc;border-color:#d3e2eb;color:#2c4d61}
+:root[data-theme="light"] .register-header,
+:root[data-theme="light"] .register-row,
+:root[data-theme="light"] .twin-monitor-row{background:#fff;color:#365167;border-color:#d6e4ed}
+:root[data-theme="light"] .register-row:hover,
+:root[data-theme="light"] .twin-monitor-row:hover,
+:root[data-theme="light"] .row-selected{background:#eaf6f8!important}
+:root[data-theme="light"] .event-selected{background:#e9f4f8;color:#25536a}
+:root[data-theme="light"] .ack-button{background:#eff6fa;color:#24586d;border-color:#cedfe8}
+:root[data-theme="light"] .status-running{background:#dbf1f0!important;color:#08766f!important}
+:root[data-theme="light"] .status-idle{background:#e9eff4!important;color:#577082!important}
+:root[data-theme="light"] .assistant-workspace .assistant-messages,
+:root[data-theme="light"] .assistant-messages,
+:root[data-theme="light"] .twinlabs-assistant .assistant-messages{background:#f7fafc;color:#27475c}
+:root[data-theme="light"] .assistant-workspace .assistant-composer,
+:root[data-theme="light"] .assistant-composer{background:#fff;border-color:#d3e2ec;color:#29485c}
+:root[data-theme="light"] .message-assistant{background:#edf5fa;color:#28465e}
+:root[data-theme="light"] .chat-turn .message-user,
+:root[data-theme="light"] .message-user{background:#dff0f4;color:#1c5163}
+:root[data-theme="light"] .prompt-chips button{background:#f0f7fa;border-color:#d0e4ec;color:#315a70}
+:root[data-theme="light"] .quick-scenarios button{background:#f1f7fa;border:1px solid #d3e3eb;color:#2c536a}
+:root[data-theme="light"] .quick-scenarios button:hover{background:#dff0f5;border-color:#a9d6de}
+:root[data-theme="light"] .button-stepper{background:#f2f8fb;border-color:#d3e3ec}
+:root[data-theme="light"] .button-stepper button:hover{background:#d9edf5}
+:root[data-theme="light"] .fault-offset{background:#fbf3e7;color:#79582e;border-color:#f0dfc2}
+:root[data-theme="light"] .panel-icon{background:#e2f2f7;color:#0e7891}
+:root[data-theme="light"] .panel-icon.warning{background:#fff1df;color:#a16b2c}
+:root[data-theme="light"] .air-progress{background:#dbe8ef}
+:root[data-theme="light"] .xeokit-feedback{background:#fff;color:#315366;border-color:#c3dbe5}
+:root[data-theme="light"] .bim-inline-error{background:#fff1e4;color:#805a27;border:1px solid #eed6ae}
+:root[data-theme="light"] .bim-room-boundary-note{background:#e9f4f7;color:#315e70!important;border-color:#bfdde5}
