@@ -46,3 +46,23 @@
 :root[data-theme="light"] .bim-level-pills button{background:#eaf3f8;border-color:#c6dbe5;color:#356176}
 :root[data-theme="light"] .bim-level-pills button[aria-pressed="true"]{background:#087d93;border-color:#087d93;color:white}
 @media(max-width:760px){.bim-level-panel,.bim-site-note{top:104px;right:8px;max-width:172px;padding:8px}.bim-level-panel small{display:none}}
+
+/* Larger, scannable viewer controls with mobile wrapping. */
+.clarity-stage .bim-secondary-controls{
+ top:58px;left:12px;right:auto;max-width:calc(100% - 24px);
+ width:max-content;display:flex;align-items:center;gap:5px 12px;
+ padding:6px 9px;border:1px solid #29465d;border-radius:9px;
+ background:#091a28e5;backdrop-filter:blur(10px);color:#c6dfea;
+ box-shadow:0 4px 14px #0002;
+}
+.clarity-stage .bim-secondary-controls label{padding:3px 2px;min-height:23px;white-space:nowrap}
+.clarity-stage .sensor-activity-key{font-size:9px;color:#93b5c6}
+:root[data-theme="light"] .clarity-stage .bim-secondary-controls{
+ background:#fffffff0;border-color:#c6dce9;color:#33576b;
+}
+:root[data-theme="light"] .clarity-stage .sensor-activity-key{color:#5b7889}
+@media(max-width:760px){
+ .clarity-stage .bim-secondary-controls{top:57px;max-width:calc(100% - 16px);left:8px;gap:2px 7px;padding:5px;font-size:9px}
+ .clarity-stage .sensor-activity-key{display:none}
+ .clarity-stage .bim-level-panel,.clarity-stage .bim-site-note{top:144px}
+}

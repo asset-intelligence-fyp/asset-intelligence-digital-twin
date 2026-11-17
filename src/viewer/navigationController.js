@@ -65,7 +65,15 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
  function unselect(){if(state.selectedGuid){const id=guidIndex.get(state.selectedGuid);if(id)scene.setObjectsSelected([id],false)}state.selectedGuid=null;}
  function bounds(){const ids=visibleIds();return ids.length?floorBounds(scene.getAABB(ids),levelFor(state.floor)):null}
  function sensorFrame(sensor){const room=roomFocus.bounds(sensor.guid);return room&&state.view==='plan'?frameBounds(room,aspect(),state.view):frameSensor(sensor,aspect(),state.view)}
- function fit(){if(state.ready)fly(frameBounds(bounds(),aspect(),state.view))}
+ function fit(){
+  if(!state.ready)return;
+  const b=bounds();if(!b)return;
+  // Margin reveals the illustrative site, without changing BIM geometry.
+  if(state.mode==='solid'&&state.floor==='all'){
+   const margin=Math.max(8,Math.max(b[3]-b[0],b[5]-b[2])*.14);
+   fly(frameBounds([b[0]-margin,b[1],b[2]-margin,b[3]+margin,b[4],b[5]+margin],aspect(),state.view));
+  }else fly(frameBounds(b,aspect(),state.view));
+ }
  function focusSensor(guid){
   const sensor=sensors.get(guid),id=guidIndex.get(guid);
   if(!sensor||!id||!state.ready)return false;
