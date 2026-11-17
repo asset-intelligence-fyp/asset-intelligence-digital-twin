@@ -16,3 +16,33 @@
 @media(max-width:700px){.bim-occupant-note{bottom:110px;left:8px;max-width:190px}}
 
 .bim-occupant-note{display:flex;flex-direction:column;gap:2px}.bim-occupant-note strong{font-size:11px;color:#dafbfc;margin-bottom:3px}.bim-occupant-note span{font-variant-numeric:tabular-nums}.bim-occupant-note small{font-size:9px;color:#8ca6b7;margin-top:4px}
+
+/* Quiet, legible model legend — all controls remain usable in the full-screen viewer. */
+.bim-level-panel,.bim-site-note{
+ position:absolute;right:14px;top:126px;z-index:11;max-width:240px;
+ background:#0c1a28e8;border:1px solid #325066;border-radius:10px;
+ padding:10px 12px;color:#c5dfec;box-shadow:0 5px 18px #0002;
+ font-size:10px;display:flex;flex-direction:column;gap:8px;
+}
+.bim-level-panel strong,.bim-site-note strong{font-size:11px;color:#e2f5fb}
+.bim-level-panel small,.bim-site-note span{font-size:9px;color:#9ebcce;line-height:1.55}
+.bim-level-pills{display:flex;gap:5px;flex-wrap:wrap}
+.bim-level-pills button{
+ padding:5px 7px;background:#122939;border:1px solid #36566b;
+ border-radius:7px;color:#b3d3df;font-size:9px;
+}
+.bim-level-pills button:hover,.bim-level-pills button[aria-pressed="true"]{
+ background:#125c71;border-color:#44b6cc;color:#e6fcff
+}
+.bim-site-note{top:128px;max-width:210px;gap:3px;pointer-events:none}
+:root[data-theme="light"] .bim-level-panel,
+:root[data-theme="light"] .bim-site-note{
+ background:#fffffff1;color:#2c546b;border-color:#bed5e2;box-shadow:0 8px 24px #1f425019
+}
+:root[data-theme="light"] .bim-level-panel strong,
+:root[data-theme="light"] .bim-site-note strong{color:#284a60}
+:root[data-theme="light"] .bim-level-panel small,
+:root[data-theme="light"] .bim-site-note span{color:#5d788a}
+:root[data-theme="light"] .bim-level-pills button{background:#eaf3f8;border-color:#c6dbe5;color:#356176}
+:root[data-theme="light"] .bim-level-pills button[aria-pressed="true"]{background:#087d93;border-color:#087d93;color:white}
+@media(max-width:760px){.bim-level-panel,.bim-site-note{top:104px;right:8px;max-width:172px;padding:8px}.bim-level-panel small{display:none}}

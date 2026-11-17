@@ -38,8 +38,8 @@ export function createSiteLandscapeLayer(scene){
    const pathW=Math.min(5,Math.max(2.8,reach*.28));
    const offset=reach*.43;
    for(const z of [z0-offset,z1+offset]){
-    make(box,pavement,[cx,y+.02,z],[w+offset*2,pathW,.095]);
-    make(box,pathAccent,[cx,y+.075,z],[w+offset*2,.24,.024]);
+    make(box,pavement,[cx,y+.02,z],[w+offset*2,.095,pathW]);
+    make(box,pathAccent,[cx,y+.075,z],[w+offset*2,.024,.24]);
    }
    for(const x of [x0-offset,x1+offset]){
     make(box,pavement,[x,y+.02,cz],[pathW,.095,d+offset*2]);
