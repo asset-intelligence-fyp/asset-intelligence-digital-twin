@@ -3,7 +3,7 @@ import {useSimulationSource} from './WeatherStation';
 
 const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Kuching',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 /** Changes the synthetic observation clock by requesting a new isolated simulator run. */
-export function SimulationClock(){
+export function SimulationClock({onApplied}:{onApplied?:(calendar:'auto'|'workday'|'holiday')=>void}){
  const source=useSimulationSource();
  const [date,setDate]=useState(today);
  const [time,setTime]=useState('09:00');
@@ -17,6 +17,7 @@ export function SimulationClock(){
    const r=await fetch('/api/simulation/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({start_clock,calendar_mode:calendar})});
    const body=await r.json();
    if(!r.ok)throw new Error(body.error||'Unable to set the simulation clock');
+   onApplied?.(calendar);
    setMessage('New simulation requested. The next generated batch will start at '+date+' '+time+' MYT.');
   }catch(e){setMessage(e instanceof Error?e.message:String(e))}
   finally{setWorking(false)}

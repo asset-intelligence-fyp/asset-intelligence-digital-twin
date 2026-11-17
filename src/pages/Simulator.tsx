@@ -26,7 +26,7 @@ export function Simulator(){
  <div className="quick-scenarios"><span className="eyebrow">QUICK SCENARIOS</span><button disabled={disabled} onClick={()=>void preset('normal')}><Sun size={15}/> Normal day</button><button disabled={disabled} onClick={()=>void preset('rain')}><CloudRain size={15}/> Rainy day</button><button disabled={disabled} onClick={()=>void preset('holiday')}><CalendarDays size={15}/> Public holiday</button><button disabled={disabled} onClick={()=>void preset('busy')}><Users size={15}/> Busy building</button></div>
  <p className="control-feedback" role="status">{message||'Quick scenarios apply immediately. Individual choices below apply together when you press Apply conditions.'}</p>
  <WeatherStation/>
- <SimulationClock/>
+ <SimulationClock onApplied={calendar=>change('calendar_mode',calendar)}/>
  <div className="lab-grid"><section className="surface lab-panel"><div className="panel-heading"><span className="panel-icon"><Snowflake size={17}/></span><div><h2>Building conditions</h2><p>Weather, attendance and room operation</p></div></div><fieldset disabled={disabled}>
  <Choices label="Weather" value={draft.weather_mode} items={[{label:'Auto',value:'auto'},{label:'Clear',value:'clear'},{label:'Cloudy',value:'cloudy'},{label:'Rain',value:'rain'}]} onChange={v=>change('weather_mode',v)}/>
  <Choices label="Calendar" value={draft.calendar_mode} items={[{label:'Actual date',value:'auto'},{label:'Workday',value:'workday'},{label:'Holiday',value:'holiday'}]} onChange={v=>change('calendar_mode',v)}/>

@@ -14,3 +14,5 @@
 
 .bim-occupant-note{position:absolute;left:16px;bottom:82px;padding:6px 9px;border:1px solid rgba(45,153,167,.35);background:rgba(7,19,30,.8);backdrop-filter:blur(6px);color:#b4cbd1;border-radius:7px;font-size:10px;z-index:12;pointer-events:none;max-width:280px}
 @media(max-width:700px){.bim-occupant-note{bottom:110px;left:8px;max-width:190px}}
+
+.bim-occupant-note{display:flex;flex-direction:column;gap:2px}.bim-occupant-note strong{font-size:11px;color:#dafbfc;margin-bottom:3px}.bim-occupant-note span{font-variant-numeric:tabular-nums}.bim-occupant-note small{font-size:9px;color:#8ca6b7;margin-top:4px}
