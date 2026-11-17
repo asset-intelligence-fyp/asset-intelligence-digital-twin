@@ -1,5 +1,8 @@
 import {useEffect,useState} from 'react';import {Sun,CloudRain,CalendarDays,Users,Snowflake,Wind,FlaskConical,Play,Pause,RotateCcw,ArrowRight,Check} from 'lucide-react';
-import {WeatherStation,useSimulationSource} from '../components/WeatherStation';import {ASSETS,POINTS,useTwin} from '../services/twin';
+import {WeatherStation,useSimulationSource} from '../components/WeatherStation';
+import {SimulationClock} from '../components/SimulationClock';
+import {ScenarioExperiment} from '../components/ScenarioExperiment';
+import '../simulation-experiments.css';import {ASSETS,POINTS,useTwin} from '../services/twin';
 type Controls={weather_mode:string;calendar_mode:string;attendance_factor:number;ac_mode:string;setpoint_c:number;ventilation:number;step_seconds:number;paused:boolean};
 const defaults:Controls={weather_mode:'auto',calendar_mode:'auto',attendance_factor:1,ac_mode:'auto',setpoint_c:24,ventilation:1,step_seconds:5,paused:false};
 const pickControls=(d:Partial<Controls>)=>Object.fromEntries(Object.keys(defaults).map(k=>[k,d[k as keyof Controls]??defaults[k as keyof Controls]])) as Controls;
@@ -23,6 +26,7 @@ export function Simulator(){
  <div className="quick-scenarios"><span className="eyebrow">QUICK SCENARIOS</span><button disabled={disabled} onClick={()=>void preset('normal')}><Sun size={15}/> Normal day</button><button disabled={disabled} onClick={()=>void preset('rain')}><CloudRain size={15}/> Rainy day</button><button disabled={disabled} onClick={()=>void preset('holiday')}><CalendarDays size={15}/> Public holiday</button><button disabled={disabled} onClick={()=>void preset('busy')}><Users size={15}/> Busy building</button></div>
  <p className="control-feedback" role="status">{message||'Quick scenarios apply immediately. Individual choices below apply together when you press Apply conditions.'}</p>
  <WeatherStation/>
+ <SimulationClock/>
  <div className="lab-grid"><section className="surface lab-panel"><div className="panel-heading"><span className="panel-icon"><Snowflake size={17}/></span><div><h2>Building conditions</h2><p>Weather, attendance and room operation</p></div></div><fieldset disabled={disabled}>
  <Choices label="Weather" value={draft.weather_mode} items={[{label:'Auto',value:'auto'},{label:'Clear',value:'clear'},{label:'Cloudy',value:'cloudy'},{label:'Rain',value:'rain'}]} onChange={v=>change('weather_mode',v)}/>
  <Choices label="Calendar" value={draft.calendar_mode} items={[{label:'Actual date',value:'auto'},{label:'Workday',value:'workday'},{label:'Holiday',value:'holiday'}]} onChange={v=>change('calendar_mode',v)}/>
@@ -40,6 +44,7 @@ export function Simulator(){
  {['drift','spike'].includes(faultKind)&&<><Choices label="Intensity" value={severity} items={[{label:'Low',value:0},{label:'Medium',value:1},{label:'High',value:2}]} onChange={setSeverity}/><Choices label="Direction" value={direction} items={[{label:'Raise',value:1},{label:'Lower',value:-1}]} onChange={setDirection}/><div className="fault-offset">Selected offset <strong>{magnitude>0?'+':''}{magnitude} {point.unit}</strong></div></>}
  <div className="heading-actions fault-actions"><button className="dark-button" onClick={()=>void send({fault:{kind:faultKind,sensor_id:faultCode,magnitude,duration_minutes:duration}})}><Play size={13}/> Start test</button><button className="small-outline" onClick={()=>void send({fault:{kind:'none'}})}>Stop fault</button></div></fieldset>
  <p className="lab-explanation">Faults affect reported measurements for the selected simulated duration. Normal room dynamics keep running; private fault labels stay outside the assistant.</p><button className="text-link" onClick={()=>addTestEvent(faultCode)}>Create an event record for this sensor <ArrowRight size={12}/></button><p className="subtle">Automatic rule alerts are created from incoming abnormal measurements. For a reliable demonstration, select a leakage sensor and Leak, or any sensor and Missing. Allow one delivery interval. The manual record above is separate.</p></section></div>
+ <ScenarioExperiment/>
  <details className="surface response-guide"><summary>How these conditions connect to the building</summary><div className="response-grid"><p><strong>Rain / clouds</strong> Outdoor humidity, temperature, rainfall and sunlight drive the indoor response models. Changes take simulated minutes.</p><p><strong>Attendance</strong> Presence, CO₂, lighting and aggregate power follow generated occupancy.</p><p><strong>AC / ventilation</strong> Setpoint changes thermal targets; ventilation affects CO₂ dilution.</p><p><strong>Holidays</strong> Scheduled attendance and AC are off; explicit AC overrides still apply.</p></div><p>This is synthetic telemetry. Rain does not automatically indicate a leak. Delivery: one batch every {source?.release_interval_seconds??'—'} real seconds.</p></details>
  </div>;
 }
