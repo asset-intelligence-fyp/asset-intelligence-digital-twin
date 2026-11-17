@@ -4,7 +4,13 @@ import {Mesh,ReadableGeometry,PhongMaterial,buildBoxGeometry,buildSphereGeometry
 export function createOccupantLayer(scene,navigation,footprints,points){
  const roomPoints=new Map(),groups=new Map();
  const sensorNav=new Map(navigation.sensors.map(s=>[s.guid,s]));
- for(const p of points){if(!p.simulatorRoomId||p.sensorType==='power')continue;if(!roomPoints.has(p.simulatorRoomId))roomPoints.set(p.simulatorRoomId,p)}
+ for(const p of points){
+  if(!p.simulatorRoomId||p.sensorType==='power')continue;
+  const previous=roomPoints.get(p.simulatorRoomId);
+  const mapped=p=>!!footprints.rooms[footprints.sensors[p?.guid]?.roomGuid];
+  // Choose an IFC room-linked point where possible, not whichever marker happens to sort first.
+  if(!previous||(mapped(p)&&!mapped(previous)))roomPoints.set(p.simulatorRoomId,p);
+ }
  const torsoGeo=new ReadableGeometry(scene,buildBoxGeometry({xSize:.35,ySize:.7,zSize:.22}));
  const legGeo=new ReadableGeometry(scene,buildBoxGeometry({xSize:.13,ySize:.55,zSize:.16}));
  const headGeo=new ReadableGeometry(scene,buildSphereGeometry({radius:.16,widthSegments:10,heightSegments:8}));
