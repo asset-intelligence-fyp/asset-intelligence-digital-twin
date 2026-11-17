@@ -1,0 +1,140 @@
+/* TwinLabs presentation refresh
+   Loaded after the legacy dark-first styles. Scoped overrides keep Dark stable and
+   give Light its own coherent contrast scale without touching sensor data. */
+.appearance-toggle{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ height:30px;min-width:69px;padding:0 10px;border:1px solid var(--border);
+ border-radius:9px;background:var(--surface);color:var(--ink);font-size:10px;
+}
+.appearance-toggle:hover{border-color:#20a5b6;box-shadow:0 0 0 2px #16a4b520}
+:root[data-theme="dark"] .appearance-toggle{border-color:#2c3f52;background:#111c2b;color:#d5e9f2}
+:root[data-theme="dark"] .appearance-toggle:hover{border-color:#55c8d1}
+:root[data-theme="light"]{
+ color-scheme:light;--bg:#f2f7fb;--surface:#ffffff;--ink:#1d3041;
+ --muted:#526b7d;--border:#cfdee9;--teal:#087d93;--dark:#086f82;
+ --panel:#fff;--panel-2:#eef5fa;--panel-3:#e0ebf4;
+ --text:#1d3041;--text-soft:#435d70;--sidebar:#fff;
+ --ai-surface:#fff;--ai-surface-alt:#f1f6fa;--ai-text:#23394d;
+ --ai-secondary:#5e7384;--ai-line:#d8e4ee;--ai-canvas:#eef5fa;
+ background:#f2f7fb;color:#1d3041;
+}
+:root[data-theme="light"] body{
+ color:#1d3041;background-color:#f2f7fb;
+ background-image:radial-gradient(ellipse at 10% 0%,#a5e7f52e,transparent 37%),
+ linear-gradient(#2c698307 1px,transparent 1px),linear-gradient(90deg,#2c698307 1px,transparent 1px);
+ background-size:auto,40px 40px,40px 40px;
+ scrollbar-color:#a8bfce transparent;
+}
+:root[data-theme="light"] .app-shell{background:transparent}
+:root[data-theme="light"] .topbar,
+:root[data-theme="light"] .sidebar,
+:root[data-theme="light"] .statusbar{
+ background:#fff;border-color:#dae6ed;color:#526b7d;
+ box-shadow:none;backdrop-filter:none;
+}
+:root[data-theme="light"] .topbar{box-shadow:0 2px 18px #1233480b}
+:root[data-theme="light"] .brand{border-color:#dae6ed}
+:root[data-theme="light"] .brand-name,:root[data-theme="light"] .site-identity strong{color:#1d3041}
+:root[data-theme="light"] .brand-name>span{color:#0b8297}
+:root[data-theme="light"] .brand-name small,:root[data-theme="light"] .site-identity span{color:#70889a}
+:root[data-theme="light"] .top-live{background:#e9f7f6;border:1px solid #b8dddc;color:#087e82}
+:root[data-theme="light"] .simulation-badge{background:#f2f0fb;border:1px solid #d9d7ef;color:#626083}
+:root[data-theme="light"] .header-clock{background:#f0f6fa;color:#566d7f;border:1px solid #d7e4ed}
+:root[data-theme="light"] .top-notifications{background:#f1f6fa;color:#49667a;border-color:#d8e4ec}
+:root[data-theme="light"] .avatar{background:#e9f1f8;color:#254961;border-color:#cbdde9}
+:root[data-theme="light"] .appearance-toggle{background:#edf6fa;color:#225168;border-color:#c9dce8}
+:root[data-theme="light"] .nav-icon{color:#526b7d}
+:root[data-theme="light"] .nav-icon.selected{background:#e4f4f8;color:#0d687b}
+:root[data-theme="light"] .nav-icon:hover{background:#eef5fa;color:#15546a}
+:root[data-theme="light"] .nav-icon.selected:before{background:#129bab;box-shadow:none}
+:root[data-theme="light"] .nav-icon.selected svg{color:#0c8191}
+:root[data-theme="light"] .sidebar-bottom{border-color:#dbe6ed}
+:root[data-theme="light"] .model-sync{background:#f3f8fb;border-color:#d8e5ed}
+:root[data-theme="light"] .model-sync strong{color:#314b5d}
+:root[data-theme="light"] .model-sync small,:root[data-theme="light"] .sidebar-project{color:#6c8798}
+:root[data-theme="light"] .statusbar{color:#61788b}
+:root[data-theme="light"] .surface,
+:root[data-theme="light"] .assistant-panel{
+ background:#fff;color:#1d3041;border:1px solid #d5e2eb;
+ box-shadow:0 8px 30px #20384c0a,0 1px 3px #24415708;
+}
+:root[data-theme="light"] h1,:root[data-theme="light"] h2,:root[data-theme="light"] h3,
+:root[data-theme="light"] h4,:root[data-theme="light"] strong{color:#20384c}
+:root[data-theme="light"] .eyebrow{color:#637f93}
+:root[data-theme="light"] .page-heading p,:root[data-theme="light"] .subtle,
+:root[data-theme="light"] .lab-explanation{color:#5e7487!important}
+:root[data-theme="light"] .dark-button,
+:root[data-theme="light"] .ask-floating{background:#087d93;color:#fff;border-color:#087d93}
+:root[data-theme="light"] .dark-button:hover,
+:root[data-theme="light"] .ask-floating:hover{background:#075d72}
+:root[data-theme="light"] .small-outline{background:#fff;border-color:#cbdce7;color:#28475b}
+:root[data-theme="light"] .small-outline:hover{background:#eef7fa;border-color:#94c5d4}
+:root[data-theme="light"] .pill,:root[data-theme="light"] .segmented{
+ background:#f3f8fb;border-color:#d6e4ec;color:#526e7d;
+}
+:root[data-theme="light"] .pill-teal{background:#e4f7f5;color:#087a82;border-color:#a9d9d7}
+:root[data-theme="light"] input,:root[data-theme="light"] select,
+:root[data-theme="light"] textarea{color-scheme:light;accent-color:#087d93}
+:root[data-theme="light"] .simulation-clock-fields input,
+:root[data-theme="light"] .simulation-clock-fields select,
+:root[data-theme="light"] .experiment-setup input,
+:root[data-theme="light"] .experiment-setup select,
+:root[data-theme="light"] .choice-buttons button,
+:root[data-theme="light"] .button-stepper button{
+ background:#f5f9fc;color:#264459;border-color:#d3e1eb;
+}
+:root[data-theme="light"] .choice-buttons button[aria-pressed="true"]{background:#dceff5;color:#0c6676;border-color:#8fc7d1}
+:root[data-theme="light"] .experiment-result-card{background:#f3f8fb;border-color:#d3e3ec}
+:root[data-theme="light"] .experiment-result-card span,
+:root[data-theme="light"] .experiment-result-card>small{color:#5c7183}
+:root[data-theme="light"] .experiment-result-card strong{color:#1b3447}
+:root[data-theme="light"] .experiment-result-card strong small{color:#5e7483}
+:root[data-theme="light"] .experiment-chart{background:#f7fafc;border-color:#d7e3ec}
+:root[data-theme="light"] .experiment-chart svg{color:#34495c}
+:root[data-theme="light"] .experiment-legend{color:#516b7c}
+:root[data-theme="light"] .experiment-legend strong{color:#20384c}
+:root[data-theme="light"] .analytics-observation-row{color:#415d70;border-color:#d6e3ec}
+:root[data-theme="light"] .analytics-observation-row strong{color:#2a4155}
+:root[data-theme="light"] .analytics-observation-row small{color:#6c8496}
+:root[data-theme="light"] .analytics-observation-head{color:#536f82;border-color:#cddce6}
+:root[data-theme="light"] .model-stage{background:#e9f3f8}
+:root[data-theme="light"] .viewer-stage{
+ background:linear-gradient(170deg,#f0f8fc,#dcebf3 94%);
+ color:#244558;
+}
+:root[data-theme="light"] .bim-floor-select,
+:root[data-theme="light"] .bim-render-modes,
+:root[data-theme="light"] .bim-camera-actions,
+:root[data-theme="light"] .bim-sensor-switcher,
+:root[data-theme="light"] .bim-focus-reading,
+:root[data-theme="light"] .bim-colour-key{
+ background:#fffffff2;border-color:#c3d8e5;color:#31566a;
+ box-shadow:0 8px 26px #1639511c;
+}
+:root[data-theme="light"] .bim-floor-select select,
+:root[data-theme="light"] .bim-colour-key select,
+:root[data-theme="light"] .bim-navigation-dock select{
+ background:#fff;color:#2c5368;
+}
+:root[data-theme="light"] .bim-render-modes button,
+:root[data-theme="light"] .bim-navigation-dock button{color:#486b7c}
+:root[data-theme="light"] .bim-render-modes button[aria-pressed="true"],
+:root[data-theme="light"] .bim-navigation-dock button[aria-pressed="true"],
+:root[data-theme="light"] .bim-navigation-dock button:hover{background:#dceff5;color:#086f86}
+:root[data-theme="light"] .bim-secondary-controls,
+:root[data-theme="light"] .bim-view-status,
+:root[data-theme="light"] .bim-view-status small{color:#355f72}
+:root[data-theme="light"] .bim-gesture-help{color:#466b7e}
+:root[data-theme="light"] .bim-sensor-pin{background:#def5f8;color:#115f75;border-color:#56b4c5}
+:root[data-theme="light"] .bim-focus-reading strong{color:#244657!important}
+:root[data-theme="light"] .bim-focus-reading span{color:#557385!important}
+:root[data-theme="light"] .bim-occupant-note{background:#fffffff0;border-color:#c5dce7;color:#3c6376;box-shadow:0 5px 22px #1e40501a}
+:root[data-theme="light"] .bim-occupant-note strong{color:#1f4e62}
+:root[data-theme="light"] .bim-occupant-note small{color:#557589}
+:root[data-theme="light"] .scene-weather-status{color:#4f7283}
+:root[data-theme="light"] .model-card-header{background:#fff}
+:root[data-theme="light"] .chart-time-axis,:root[data-theme="light"] .chart-time-axis small{color:#587588}
+:root[data-theme="light"] .chart-grid-line{color:#acc0ce}
+:root[data-theme="light"] .sensor-list-row,:root[data-theme="light"] .event-item,
+:root[data-theme="light"] .analytics-observation-row{border-color:#d5e4ed}
+@media(max-width:900px){.appearance-toggle{min-width:30px;padding:0 7px}.appearance-toggle span{display:none}}
