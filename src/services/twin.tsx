@@ -1,3 +1,4 @@
+import {effectiveWeatherScene} from './simulationControlView.js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import {demoHistory,readingsAt,scenarioReadings,DEFAULT_SCENARIO} from './experienceMath.js';
@@ -129,7 +130,9 @@ export function TwinProvider({children}:{children:ReactNode}){
  },[ingest,mode,bootstrapVersion]);
  useEffect(()=>{
   let cancelled=false;
-  const check=async()=>{try{const response=await fetch('/api/live-status',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(!cancelled){setHttpCoverage(Number(data.received_points)||0);const scene=data.producer?.simulation?.weather?.scene;if(['clear','cloudy','rain','night'].includes(scene))setWeather(scene)}}catch{if(!cancelled)setHttpCoverage(0)}};
+  const check=async()=>{try{const response=await fetch('/api/live-status',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();if(!cancelled){setHttpCoverage(Number(data.received_points)||0);const weather=data.producer?.simulation?.weather;
+    const scene=effectiveWeatherScene(weather);
+    if(weather)setWeather(scene)}}catch{if(!cancelled)setHttpCoverage(0)}};
   void check();const timer=setInterval(check,5000);return()=>{cancelled=true;clearInterval(timer)};
  },[]);
  useEffect(()=>{

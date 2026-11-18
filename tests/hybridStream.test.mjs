@@ -32,3 +32,25 @@ test('Manual faults are one-shot requests; operating changes retain their IDs an
  assert.equal((await post(base,'/api/simulation/control',{fault:{kind:'leak',sensor_id:'TEMP-L03-OPEN-01',duration_minutes:10,magnitude:1}})).status,400);
  const reset=await(await post(base,'/api/simulation/control',{reset:true})).json();assert.equal(reset.fault,null);assert.equal(reset.paused,false);assert.equal(reset.weather_mode,'auto');assert.equal(reset.step_seconds,5);
 }));
+
+
+test('Synthetic headcounts are retained in validated current context',async()=>withServer(async base=>{
+ const b=sample();assert.ok(b.simulation.simulated_headcounts);
+ const result=await post(base,'/api/sensor-readings',b);assert.equal(result.status,201);
+ const live=await(await fetch(base+'/api/live-status')).json();
+ assert.deepEqual(live.producer.simulation.simulated_headcounts,b.simulation.simulated_headcounts);
+}));
+test('Clock restarts create a fresh epoch, reject malformed time and reset safely',async()=>withServer(async base=>{
+ assert.equal((await post(base,'/api/simulation/control',{start_clock:'2026-11-18T09:00:00+08:00'})).status,200);
+ const settings=await(await fetch(base+'/api/simulation/control')).json();assert.equal(settings.clock_start,'2026-11-18T09:00:00+08:00');assert.ok(settings.clock_epoch);
+ assert.equal((await post(base,'/api/simulation/control',{start_clock:'2026-11-18T09:00:00Z'})).status,400);
+ const reset=await(await post(base,'/api/simulation/control',{reset:true})).json();
+ assert.equal(reset.clock_start,null);assert.notEqual(reset.clock_epoch,settings.clock_epoch);
+}));
+test('Paired scenario experiment returns separate reproducible time series without ingestion',async()=>withServer(async base=>{
+ const body={scenario:'rain',point_code:'RH-L03-OPEN-01',start_time:'2026-11-18T09:00:00+08:00'};
+ const a=await post(base,'/api/simulation/experiment',body);assert.equal(a.status,200);const data=await a.json();
+ assert.equal(data.baseline.length,13);assert.equal(data.intervention.length,13);assert.equal(data.seed,42);
+ assert.notDeepEqual(data.baseline.map(x=>x.value),data.intervention.map(x=>x.value));
+ const state=await(await fetch(base+'/api/bootstrap')).json();assert.equal(state.data.Sensor_Readings.length,0);
+}));

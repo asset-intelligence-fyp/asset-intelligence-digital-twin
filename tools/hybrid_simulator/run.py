@@ -23,11 +23,16 @@ def main(argv=None):
  publisher=None
  try:
   seed=args.seed if args.seed is not None else secrets.randbits(32);profile=json.loads(Path(args.profile).read_text());sim=HybridSimulator(profile,seed,args.start,args.step_seconds,args.calendar_file,args.fault_mode);run=uuid.uuid4().hex
-  folder=Path(args.private_dir);folder.mkdir(parents=True,exist_ok=True);logger=logging.getLogger('hybrid-truth');logger.setLevel(logging.INFO);logger.propagate=False;handler=RotatingFileHandler(folder/'fault_truth_PRIVATE.jsonl',maxBytes=5_000_000,backupCount=2);logger.handlers=[handler]
+  clock_epoch=None;folder=Path(args.private_dir);folder.mkdir(parents=True,exist_ok=True);logger=logging.getLogger('hybrid-truth');logger.setLevel(logging.INFO);logger.propagate=False;handler=RotatingFileHandler(folder/'fault_truth_PRIVATE.jsonl',maxBytes=5_000_000,backupCount=2);logger.handlers=[handler]
   publisher=ControlledPublisher(args.http_url);controls={};n=0
   print(f'Hybrid generator seed={seed} profile={profile["profile_id"]} step={args.step_seconds}s release={args.interval_seconds}s; fresh synthetic observations, not dataset replay',flush=True)
   while not args.ticks or n<args.ticks:
    began=time.monotonic();controls=publisher.controls()
+   if controls.get('clock_epoch') and controls.get('clock_epoch')!=clock_epoch:
+    clock_epoch=controls['clock_epoch']
+    sim=HybridSimulator(profile,seed,controls.get('clock_start'),controls.get('step_seconds',args.step_seconds),args.calendar_file,args.fault_mode)
+    run=uuid.uuid4().hex
+    print(f'New isolated simulation run clock={sim.time.isoformat()} run={run}',flush=True)
    if controls.get('paused'):time.sleep(min(1,args.interval_seconds));continue
    sim.dt=controls.get('step_seconds',sim.dt)
    released=datetime.now(timezone.utc).isoformat(timespec='milliseconds');batch,truth=sim.step(controls);n+=1

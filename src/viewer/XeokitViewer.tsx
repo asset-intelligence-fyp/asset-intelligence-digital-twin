@@ -1,6 +1,7 @@
 import {useEffect,useId,useRef,useState,type CSSProperties} from 'react';
-import {ArrowLeft,ArrowRight,Box,Eye,Home,Layers,LocateFixed,Scan,Map,Plus,Minus,Palette} from 'lucide-react';
+import {ArrowLeft,ArrowRight,Box,Eye,Home,Layers,LocateFixed,Scan,Map,Plus,Minus,Palette,UsersRound} from 'lucide-react';
 import {POINTS,useTwin} from '../services/twin';
+import {useSimulationSource} from '../components/WeatherStation';
 import navigation from '../../shared/modelNavigation.json';
 import {createBuildingViewer} from './wholeBuildingViewer.js';
 import {ValueMotion} from '../components/ValueMotion';
@@ -8,15 +9,28 @@ import {XRAY_DEFAULT,XRAY_MIN,XRAY_MAX} from './renderSettings.js';
 import {bindViewerGestures} from './viewerGestures.js';
 import {METRICS,sensorDisplay,roomTitle,sensorTitle} from './sensorPresentation.js';
 import {sensorActivity,ACTIVITY_LABELS} from './sensorActivity.js';
+import {TOUR_LEVELS,TOUR_TOTAL} from './occupantTour.js';
 import './sensorActivity.css';
 type Pin={code:string;guid:string;index:number;anchorX:number;anchorY:number;x:number;y:number;width:number;selected:boolean};
-type ViewState={ready:boolean;floor:string;mode:string;view:string;selectedGuid:string|null;moving:boolean;cutaway:boolean;opacity:number;roomOutline:boolean;roomBoundary:string;hasRoomBoundary:boolean;metric:string;foundMarkers:number;objectsOnFloor:number};
-const initial:ViewState={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,metric:'temperature',foundMarkers:0,objectsOnFloor:0};
+type ViewState={ready:boolean;floor:string;mode:string;view:string;selectedGuid:string|null;moving:boolean;cutaway:boolean;opacity:number;roomOutline:boolean;roomBoundary:string;hasRoomBoundary:boolean;floorGuides:boolean;metric:string;foundMarkers:number;objectsOnFloor:number};
+const initial:ViewState={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,floorGuides:true,metric:'humidity',foundMarkers:0,objectsOnFloor:0};
 const floorLabel=(id:string)=>navigation.levels.find(l=>l.id===id)?.label||'Whole building';
 export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloorChange}:{selectedCode?:string;focusRequest?:number;onSensorSelect:(code:string)=>void;onFloorChange?:(floor:string)=>void}){
  const uid=useId().replace(/:/g,'');const canvas=useRef<HTMLCanvasElement>(null),nav=useRef<HTMLCanvasElement>(null),stage=useRef<HTMLDivElement>(null);
  const controller=useRef<ReturnType<typeof createBuildingViewer>|null>(null),callback=useRef(onSensorSelect);callback.current=onSensorSelect;
  const {readings,weather,weatherMotion,replayTime,demo}=useTwin();
+ const simulationSource=useSimulationSource();
+ const [showPeople,setShowPeople]=useState(true),[walkPeople,setWalkPeople]=useState(false);
+ const [peopleMode,setPeopleMode]=useState<'sensor'|'tour'>('sensor');
+ const switchPopulation=(next:'sensor'|'tour')=>{
+  setPeopleMode(next);setShowPeople(true);
+  if(next==='tour'){
+   // A whole-building X-ray is the best default for seeing multiple floors.
+   // This affects only display, never simulator controls or readings.
+   controller.current?.home();controller.current?.setMode('xray');
+   setShowLabels(false);
+  }
+ };
  const [activityTime,setActivityTime]=useState(Date.now),[sensorMotion,setSensorMotion]=useState(()=>!window.matchMedia('(prefers-reduced-motion: reduce)').matches);
  useEffect(()=>{const timer=setInterval(()=>setActivityTime(Date.now()),1000);return()=>clearInterval(timer)},[]);
  const activity=(code:string)=>sensorActivity(readings[code],{now:Math.max(activityTime,Date.now()),historical:replayTime!==null||demo});
@@ -35,11 +49,13 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
   if(p){if(controller.current?.focusSensor(p.guid))setError('');else setError('This sensor marker was not found in the model.');}
  },[selectedCode,focusRequest,view.ready]);
  useEffect(()=>{if(view.ready)controller.current?.setHeatmap(view.metric,readings)},[view.ready,view.metric,readings]);
+ useEffect(()=>{if(view.ready)controller.current?.setOccupants(simulationSource?.simulation?.simulated_headcounts||{},showPeople,walkPeople,view.floor,peopleMode)},[view.ready,view.floor,simulationSource?.simulation?.simulated_headcounts,showPeople,walkPeople,peopleMode]);
  useEffect(()=>{
   if(!view.ready||!stage.current)return;
   return bindViewerGestures(stage.current,{onWheel:(event:any)=>controller.current?.wheel(event),onPinch:(factor:number)=>controller.current?.zoom(factor),onInteract:()=>controller.current?.interact()});
  },[view.ready]);
  useEffect(()=>{if(view.ready)controller.current?.setWeather(weather,view.floor==='all',weatherMotion)},[weather,weatherMotion,view.ready,view.floor]);
+ const summaries=[...new globalThis.Map(POINTS.filter(p=>p.sensorType==='occupancy').map(p=>[p.simulatorRoomId,p.locationLabel] as const)).entries()].map(([room,label])=>({room,label,count:simulationSource?.simulation?.simulated_headcounts?.[room]??null}));
  const metric=view.metric;
  const selected=POINTS.find(p=>p.guid===view.selectedGuid),selectedDisplay=selected?sensorDisplay(selected,readings[selected.code]):null;
  const scoped=POINTS.filter(p=>view.floor==='all'||p.floor===view.floor),colourPoints=scoped.filter(p=>p.sensorType===metric);
@@ -50,13 +66,35 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
  return <div className="xeokit-wrapper viewer-panel" aria-label="FYP whole building IFC model"><div ref={stage} className={`viewer-stage twinlabs-legacy-stage navigation-stage clarity-stage scene-${weather}`} data-weather={weather} tabIndex={0} aria-label="Interactive building viewer" onPointerDown={e=>{if(e.target===canvas.current)stage.current?.focus({preventScroll:true})}}>
   <canvas ref={canvas} id={'bim_'+uid} className="xeokit-canvas"/><canvas ref={nav} id={'nav_'+uid} className="twinlabs-cube"/>
   <div className="bim-view-controls"><label className="bim-floor-select"><Layers size={14}/><select aria-label="Choose floor" disabled={!view.ready} value={view.floor} onChange={e=>chooseFloor(e.target.value)}><option value="all">Whole building</option>{navigation.levels.map(f=>{const empty=view.ready&&controller.current?.floorObjectCount(f.id)===0;return <option key={f.id} value={f.id} disabled={empty}>{f.label}{empty?' · no model objects':''}</option>})}</select></label>
+   <button type="button" className="bim-tour-shortcut" aria-pressed={peopleMode==='tour'} title="Show clearly labelled, visual-only character figures on five floors. Does not modify occupancy sensors." onClick={()=>switchPopulation(peopleMode==='tour'?'sensor':'tour')}><UsersRound size={14}/>{peopleMode==='tour'?'Return to sensor occupancy':'Tour all floors'}</button>
    <div className="bim-render-modes" aria-label="Building display"><button aria-pressed={view.mode==='solid'} disabled={!view.ready} onClick={()=>controller.current?.setMode('solid')}><Box size={13}/>Building</button><button aria-pressed={view.mode==='xray'} disabled={!view.ready} onClick={()=>controller.current?.setMode('xray')}><Eye size={13}/>X-ray</button><button aria-pressed={view.mode==='heatmap'} disabled={!view.ready} onClick={()=>controller.current?.setMode('heatmap')}><Palette size={13}/>Heatmap</button></div>
   </div>
-  {view.ready&&<div className="bim-secondary-controls"><label><input type="checkbox" checked={view.cutaway} onChange={e=>controller.current?.setCutaway(e.target.checked)}/>{view.floor==='all'?'Hide roof':'Open ceilings'}</label><label><input type="checkbox" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/>Sensor markers</label><label className="sensor-motion-toggle"><input type="checkbox" checked={sensorMotion} onChange={e=>setSensorMotion(e.target.checked)}/>Pulse sensors</label><span className="sensor-activity-key">Pulse = recent simulated data</span>{view.mode!=='solid'&&<label className="bim-opacity">Wall shading<input type="range" aria-label="Wall shading" min={XRAY_MIN} max={XRAY_MAX} step="0.01" value={view.opacity} onChange={e=>controller.current?.setOpacity(Number(e.target.value))}/><output>{Math.round(view.opacity*100)}%</output></label>}{view.mode!=='solid'&&selected&&<label title={view.roomBoundary}><input type="checkbox" checked={view.roomOutline} disabled={!view.hasRoomBoundary} onChange={e=>controller.current?.setRoomOutline(e.target.checked)}/>IFC room outline</label>}</div>}
-  {view.mode==='heatmap' &&<div className="bim-colour-key"><label>Colour by<select aria-label="Colour sensors by" value={metric} onChange={e=>controller.current?.setHeatmap(e.target.value,readings)}>{Object.entries(METRICS).map(([id,m])=><option value={id} key={id}>{m.label}</option>)}</select></label><div className={`bim-colour-scale ${metric==='water_leakage'?'bim-colour-leak':metric==='occupancy'?'bim-colour-binary':''}`}/><span>{metricInfo.legend}</span><small>{colourPoints.length?`${colourPoints.length} sensor locations · simulated readings`:'No sensors of this type on this floor'}</small><small>Illustrative colour areas near sensors.</small></div>}
+  {view.ready&&<div className="bim-secondary-controls"><label><input type="checkbox" checked={view.cutaway} onChange={e=>controller.current?.setCutaway(e.target.checked)}/>{view.floor==='all'?'Hide roof':'Open ceilings'}</label><label><input type="checkbox" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/>Sensor markers</label><label className="sensor-motion-toggle"><input type="checkbox" checked={sensorMotion} onChange={e=>setSensorMotion(e.target.checked)}/>Pulse sensors</label><span className="sensor-activity-key">Pulse = recent simulated data</span><label className="bim-population-mode">People display <select aria-label="People display mode" value={peopleMode} onChange={e=>switchPopulation(e.target.value as 'sensor'|'tour')}><option value="sensor">Simulator occupancy</option><option value="tour">Building tour · visual only</option></select></label><label><input type="checkbox" checked={showPeople} onChange={e=>setShowPeople(e.target.checked)}/>People</label>{showPeople&&<label><input type="checkbox" checked={walkPeople} onChange={e=>setWalkPeople(e.target.checked)}/>Walking</label>}{view.mode!=='solid'&&<label className="bim-opacity">Wall shading<input type="range" aria-label="Wall shading" min={XRAY_MIN} max={XRAY_MAX} step="0.01" value={view.opacity} onChange={e=>controller.current?.setOpacity(Number(e.target.value))}/><output>{Math.round(view.opacity*100)}%</output></label>}{view.mode==='xray'&&<label><input type="checkbox" checked={view.floorGuides} onChange={e=>controller.current?.setFloorGuides(e.target.checked)}/>Floor guides</label>}{view.mode!=='solid'&&selected&&<label title={view.roomBoundary}><input type="checkbox" checked={view.roomOutline} disabled={!view.hasRoomBoundary} onChange={e=>controller.current?.setRoomOutline(e.target.checked)}/>IFC room outline</label>}</div>}
+  {view.mode==='heatmap' &&<div className="bim-colour-key"><label>Colour by<select aria-label="Colour sensors by" value={metric} onChange={e=>controller.current?.setHeatmap(e.target.value,readings)}>{Object.entries(METRICS).map(([id,m])=><option value={id} key={id}>{m.label}</option>)}</select></label><div className={`bim-colour-scale ${metric==='water_leakage'?'bim-colour-leak':metric==='occupancy'?'bim-colour-binary':''}`}/><span>{metricInfo.legend}</span><small>{colourPoints.length?`${colourPoints.length} sensor locations · simulated readings`:'No sensors of this type on this floor'}</small><small>Colour uses available sensor readings and IFC room footprints; unmonitored areas stay neutral.</small></div>}
   {showLabels&&<div className={`bim-pin-layer ${sensorMotion?'':'sensor-motion-off'}`}><svg className="bim-pin-leaders" aria-hidden="true">{pins.map(p=>{const state=activity(p.code);return <g key={p.code} className={`${p.selected?'pin-target-selected':''} sensor-${state}`} style={{'--sensor-delay':`${-p.index*.17}s`} as CSSProperties}><line x1={p.anchorX} y1={p.anchorY} x2={p.x} y2={p.y}/><circle className="sensor-anchor-core" cx={p.anchorX} cy={p.anchorY} r={p.selected?12:5}/>{state==='receiving'&&<circle className="sensor-arrival-ring" cx={p.anchorX} cy={p.anchorY} r="10"/>}{p.selected&&<circle className="pin-target-outer" cx={p.anchorX} cy={p.anchorY} r="19"/>}</g>})}</svg>{pins.map(p=>{const point=POINTS.find(x=>x.code===p.code);if(!point)return null;const state=activity(p.code),description=ACTIVITY_LABELS[state];return <button key={p.code} className={`bim-sensor-pin ${p.selected?'bim-sensor-pin-selected':''} sensor-${state}`} style={{left:p.x,top:p.y,'--sensor-delay':`${-p.index*.17}s`} as CSSProperties} aria-label={`Select sensor ${p.index}: ${sensorTitle(point)}. ${description}`} aria-pressed={p.selected} title={`${String(p.index).padStart(2,'0')} · ${sensorTitle(point)} · ${description}`} onClick={()=>onSensorSelect(p.code)}>{String(p.index).padStart(2,'0')}</button>})}</div>}
 
   {!view.ready&&<div className="viewer-loading"><div className="xeokit-feedback"><strong>{error?'3D viewer unavailable':'Loading the building'}</strong><p>{error||'Preparing rooms and sensor readings…'}</p></div></div>}
+  {showPeople&&<div className={`bim-occupant-note ${peopleMode==='tour'?'bim-tour-note':''}`}>
+   {peopleMode==='tour'?<>
+    <strong>Building Tour · visual-only scene</strong>
+    <span>{TOUR_TOTAL} illustrative characters across {TOUR_LEVELS.length} floors</span>
+    {TOUR_LEVELS.map(level=><span key={level.floor}>{level.floor.replace('_',' ')} · {level.count} figures</span>)}
+    <small>No occupancy sensors on extra floors. Figures do not affect CO₂, PIR, alerts or sensor history.</small>
+   </>:<>
+    <strong>Virtual occupancy · hybrid simulator</strong>
+    {summaries.map(row=><span key={row.room}>{row.label}: {row.count===null?'—':row.count} simulated</span>)}
+    <small>Up to 4 representative characters per monitored room · not tracking real people</small>
+   </>}
+  </div>}
+  {view.mode==='xray'&&<div className="bim-level-panel" aria-label="Building floor layers">
+   <strong>Building levels</strong>
+   <div className="bim-level-pills">
+    <button type="button" aria-pressed={view.floor==='all'} onClick={()=>chooseFloor('all')}>All</button>
+    {navigation.levels.filter(l=>/^Level_0[1-5]$/.test(l.id)).map(l=><button type="button" key={l.id} aria-pressed={view.floor===l.id} onClick={()=>chooseFloor(l.id)}>{l.label}</button>)}
+   </div>
+   <small>Floor plates = IFC slabs · lines = height guides</small>
+  </div>}
+  {view.mode==='solid'&&view.floor==='all'&&<div className="bim-site-note"><strong>Architectural display</strong><span>IFC façade palette · conceptual landscaped surroundings</span></div>}
   <div className="scene-weather-status" role="status">{weather==='rain'?'Rain':weather==='cloudy'?'Cloudy':weather==='night'?'Night':'Clear'} · simulated{view.floor!=='all'?' · exterior effects hidden in room view':''}</div>
   <div className="bim-view-status" aria-live="polite"><span className={view.moving?'bim-moving':''}/>{view.moving?'Moving to ':''}{floorLabel(view.floor)}{view.ready&&<small>{new Set(scoped.map(p=>p.assetId)).size} monitored locations</small>}{selected&&view.mode!=='solid'&&<small className="bim-room-boundary-note">{view.hasRoomBoundary?(view.roomBoundary.startsWith('Geometric')?'IFC space outline · geometric match; room name unverified':'IFC room boundary available'):'Room boundary unavailable · showing sensor surroundings'}</small>}</div>
   <div className="bim-gesture-help">Drag to rotate · Ctrl/⌘ + scroll to zoom · scroll to move page</div>

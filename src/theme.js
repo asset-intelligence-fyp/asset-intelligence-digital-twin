@@ -5,8 +5,8 @@ export const THEME_KEY = "assetIntelligenceTheme";
 export function getSavedTheme(storage = window.localStorage) {
   try {
     const value = storage.getItem(THEME_KEY);
-    return ["light", "dark", "system"].includes(value) ? value : "system";
-  } catch { return "system"; }
+    return ["light", "dark", "system"].includes(value) ? value : "dark";
+  } catch { return "dark"; }
 }
 
 export function applyTheme(theme = getSavedTheme(), { persist = false } = {}) {

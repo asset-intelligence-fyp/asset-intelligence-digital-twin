@@ -2,11 +2,11 @@ import {rainGeometry} from './weatherMath.js';
 import {Mesh,ReadableGeometry,PhongMaterial,buildBoxGeometry,buildSphereGeometry} from '@xeokit/xeokit-sdk';
 /** Decorative environment in BIM world coordinates. Rain is excluded from the building footprint. */
 export function createExteriorLayer(scene){
- const owned=[],clouds=[],rain=[];let ready=false,mode='clear',exterior=true,animate=true,last=0,elapsed=0;
+ const owned=[],clouds=[],rain=[];let ready=false,mode='clear',exterior=true,siteActive=false,animate=true,last=0,elapsed=0;
  const own=x=>(owned.push(x),x);
  function material(colour,alpha=1){return own(new PhongMaterial(scene,{diffuse:colour,ambient:colour,emissive:colour.map(v=>v*.3),alpha,alphaMode:alpha<1?'blend':'opaque',backfaces:true,shininess:mode==='rain'?45:12}))}
  function mesh(geometry,mat,position,scale){return own(new Mesh(scene,{geometry,material:mat,position,scale,pickable:false,collidable:false,clippable:false,isObject:false}))}
- function apply(){if(!ready)return;for(const c of clouds)c.visible=exterior&&['cloudy','rain'].includes(mode);for(const r of rain)r.mesh.visible=exterior&&mode==='rain';}
+ function apply(){if(!ready)return;for(const c of clouds)c.visible=exterior&&['cloudy','rain'].includes(mode);for(const r of rain)r.mesh.visible=exterior&&mode==='rain';if(this.base){this.base.visible=exterior&&!siteActive;this.grid.visible=exterior&&!siteActive}}
  return {
   init(bounds){
    if(ready||!bounds||!Array.from(bounds).every(Number.isFinite))return;
@@ -25,10 +25,10 @@ export function createExteriorLayer(scene){
     const geometry=own(new ReadableGeometry(scene,{primitive:'lines',positions,indices}));
     rain.push({mesh:mesh(geometry,rainMat,[0,base,0],[1,1,1]),span,base,offset:group*span/4});
    }
-   ready=true;apply();
-   this.base=base;this.grid=grid;
+   ready=true;this.base=base;this.grid=grid;apply.call(this);
   },
-  set(weather,showExterior=true,motion=true){mode=weather;exterior=showExterior;animate=motion;apply();if(this.base){this.base.visible=exterior;this.grid.visible=exterior}},
+  set(weather,showExterior=true,motion=true){mode=weather;exterior=showExterior;animate=motion;apply.call(this)},
+  setSiteActive(value){siteActive=!!value;apply.call(this)},
   tick(time){const dt=last?Math.min(.05,Math.max(0,(time-last)/1000)):0;last=time;if(!ready||!exterior||!animate)return;elapsed+=dt;for(const r of rain){if(mode==='rain')r.mesh.position=[0,r.base-((elapsed*12+r.offset)%r.span),0]}for(let i=0;i<clouds.length;i++){if(clouds[i].visible)clouds[i].rotation=[0,Math.sin(elapsed*.025+i)*3,0]}},
   destroy(){for(const c of [...owned].reverse())c.destroy();owned.length=0}
  };

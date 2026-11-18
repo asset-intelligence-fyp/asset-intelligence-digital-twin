@@ -1,0 +1,219 @@
+/* TwinLabs presentation refresh
+   Loaded after the legacy dark-first styles. Scoped overrides keep Dark stable and
+   give Light its own coherent contrast scale without touching sensor data. */
+.appearance-toggle{
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ height:30px;min-width:69px;padding:0 10px;border:1px solid var(--border);
+ border-radius:9px;background:var(--surface);color:var(--ink);font-size:10px;
+}
+.appearance-toggle:hover{border-color:#20a5b6;box-shadow:0 0 0 2px #16a4b520}
+:root[data-theme="dark"] .appearance-toggle{border-color:#2c3f52;background:#111c2b;color:#d5e9f2}
+:root[data-theme="dark"] .appearance-toggle:hover{border-color:#55c8d1}
+:root[data-theme="light"]{
+ color-scheme:light;--bg:#f2f7fb;--surface:#ffffff;--ink:#1d3041;
+ --muted:#526b7d;--border:#cfdee9;--teal:#087d93;--dark:#086f82;
+ --panel:#fff;--panel-2:#eef5fa;--panel-3:#e0ebf4;
+ --text:#1d3041;--text-soft:#435d70;--sidebar:#fff;
+ --ai-surface:#fff;--ai-surface-alt:#f1f6fa;--ai-text:#23394d;
+ --ai-secondary:#5e7384;--ai-line:#d8e4ee;--ai-canvas:#eef5fa;
+ background:#f2f7fb;color:#1d3041;
+}
+:root[data-theme="light"] body{
+ color:#1d3041;background-color:#f2f7fb;
+ background-image:radial-gradient(ellipse at 10% 0%,#a5e7f52e,transparent 37%),
+ linear-gradient(#2c698307 1px,transparent 1px),linear-gradient(90deg,#2c698307 1px,transparent 1px);
+ background-size:auto,40px 40px,40px 40px;
+ scrollbar-color:#a8bfce transparent;
+}
+:root[data-theme="light"] .app-shell{background:transparent}
+:root[data-theme="light"] .topbar,
+:root[data-theme="light"] .sidebar,
+:root[data-theme="light"] .statusbar{
+ background:#fff;border-color:#dae6ed;color:#526b7d;
+ box-shadow:none;backdrop-filter:none;
+}
+:root[data-theme="light"] .topbar{box-shadow:0 2px 18px #1233480b}
+:root[data-theme="light"] .brand{border-color:#dae6ed}
+:root[data-theme="light"] .brand-name,:root[data-theme="light"] .site-identity strong{color:#1d3041}
+:root[data-theme="light"] .brand-name>span{color:#0b8297}
+:root[data-theme="light"] .brand-name small,:root[data-theme="light"] .site-identity span{color:#70889a}
+:root[data-theme="light"] .top-live{background:#e9f7f6;border:1px solid #b8dddc;color:#087e82}
+:root[data-theme="light"] .simulation-badge{background:#f2f0fb;border:1px solid #d9d7ef;color:#626083}
+:root[data-theme="light"] .header-clock{background:#f0f6fa;color:#566d7f;border:1px solid #d7e4ed}
+:root[data-theme="light"] .top-notifications{background:#f1f6fa;color:#49667a;border-color:#d8e4ec}
+:root[data-theme="light"] .avatar{background:#e9f1f8;color:#254961;border-color:#cbdde9}
+:root[data-theme="light"] .appearance-toggle{background:#edf6fa;color:#225168;border-color:#c9dce8}
+:root[data-theme="light"] .nav-icon{color:#526b7d}
+:root[data-theme="light"] .nav-icon.selected{background:#e4f4f8;color:#0d687b}
+:root[data-theme="light"] .nav-icon:hover{background:#eef5fa;color:#15546a}
+:root[data-theme="light"] .nav-icon.selected:before{background:#129bab;box-shadow:none}
+:root[data-theme="light"] .nav-icon.selected svg{color:#0c8191}
+:root[data-theme="light"] .sidebar-bottom{border-color:#dbe6ed}
+:root[data-theme="light"] .model-sync{background:#f3f8fb;border-color:#d8e5ed}
+:root[data-theme="light"] .model-sync strong{color:#314b5d}
+:root[data-theme="light"] .model-sync small,:root[data-theme="light"] .sidebar-project{color:#6c8798}
+:root[data-theme="light"] .statusbar{color:#61788b}
+:root[data-theme="light"] .surface,
+:root[data-theme="light"] .assistant-panel{
+ background:#fff;color:#1d3041;border:1px solid #d5e2eb;
+ box-shadow:0 8px 30px #20384c0a,0 1px 3px #24415708;
+}
+:root[data-theme="light"] h1,:root[data-theme="light"] h2,:root[data-theme="light"] h3,
+:root[data-theme="light"] h4,:root[data-theme="light"] strong{color:#20384c}
+:root[data-theme="light"] .eyebrow{color:#637f93}
+:root[data-theme="light"] .page-heading p,:root[data-theme="light"] .subtle,
+:root[data-theme="light"] .lab-explanation{color:#5e7487!important}
+:root[data-theme="light"] .dark-button,
+:root[data-theme="light"] .ask-floating{background:#087d93;color:#fff;border-color:#087d93}
+:root[data-theme="light"] .dark-button:hover,
+:root[data-theme="light"] .ask-floating:hover{background:#075d72}
+:root[data-theme="light"] .small-outline{background:#fff;border-color:#cbdce7;color:#28475b}
+:root[data-theme="light"] .small-outline:hover{background:#eef7fa;border-color:#94c5d4}
+:root[data-theme="light"] .pill,:root[data-theme="light"] .segmented{
+ background:#f3f8fb;border-color:#d6e4ec;color:#526e7d;
+}
+:root[data-theme="light"] .pill-teal{background:#e4f7f5;color:#087a82;border-color:#a9d9d7}
+:root[data-theme="light"] input,:root[data-theme="light"] select,
+:root[data-theme="light"] textarea{color-scheme:light;accent-color:#087d93}
+:root[data-theme="light"] .simulation-clock-fields input,
+:root[data-theme="light"] .simulation-clock-fields select,
+:root[data-theme="light"] .experiment-setup input,
+:root[data-theme="light"] .experiment-setup select,
+:root[data-theme="light"] .choice-buttons button,
+:root[data-theme="light"] .button-stepper button{
+ background:#f5f9fc;color:#264459;border-color:#d3e1eb;
+}
+:root[data-theme="light"] .choice-buttons button[aria-pressed="true"]{background:#dceff5;color:#0c6676;border-color:#8fc7d1}
+:root[data-theme="light"] .experiment-result-card{background:#f3f8fb;border-color:#d3e3ec}
+:root[data-theme="light"] .experiment-result-card span,
+:root[data-theme="light"] .experiment-result-card>small{color:#5c7183}
+:root[data-theme="light"] .experiment-result-card strong{color:#1b3447}
+:root[data-theme="light"] .experiment-result-card strong small{color:#5e7483}
+:root[data-theme="light"] .experiment-chart{background:#f7fafc;border-color:#d7e3ec}
+:root[data-theme="light"] .experiment-chart svg{color:#34495c}
+:root[data-theme="light"] .experiment-legend{color:#516b7c}
+:root[data-theme="light"] .experiment-legend strong{color:#20384c}
+:root[data-theme="light"] .analytics-observation-row{color:#415d70;border-color:#d6e3ec}
+:root[data-theme="light"] .analytics-observation-row strong{color:#2a4155}
+:root[data-theme="light"] .analytics-observation-row small{color:#6c8496}
+:root[data-theme="light"] .analytics-observation-head{color:#536f82;border-color:#cddce6}
+:root[data-theme="light"] .model-stage{background:#e9f3f8}
+:root[data-theme="light"] .viewer-stage{
+ background:linear-gradient(170deg,#f0f8fc,#dcebf3 94%);
+ color:#244558;
+}
+:root[data-theme="light"] .bim-floor-select,
+:root[data-theme="light"] .bim-render-modes,
+:root[data-theme="light"] .bim-camera-actions,
+:root[data-theme="light"] .bim-sensor-switcher,
+:root[data-theme="light"] .bim-focus-reading,
+:root[data-theme="light"] .bim-colour-key{
+ background:#fffffff2;border-color:#c3d8e5;color:#31566a;
+ box-shadow:0 8px 26px #1639511c;
+}
+:root[data-theme="light"] .bim-floor-select select,
+:root[data-theme="light"] .bim-colour-key select,
+:root[data-theme="light"] .bim-navigation-dock select{
+ background:#fff;color:#2c5368;
+}
+:root[data-theme="light"] .bim-render-modes button,
+:root[data-theme="light"] .bim-navigation-dock button{color:#486b7c}
+:root[data-theme="light"] .bim-render-modes button[aria-pressed="true"],
+:root[data-theme="light"] .bim-navigation-dock button[aria-pressed="true"],
+:root[data-theme="light"] .bim-navigation-dock button:hover{background:#dceff5;color:#086f86}
+:root[data-theme="light"] .bim-secondary-controls,
+:root[data-theme="light"] .bim-view-status,
+:root[data-theme="light"] .bim-view-status small{color:#355f72}
+:root[data-theme="light"] .bim-gesture-help{color:#466b7e}
+:root[data-theme="light"] .bim-sensor-pin{background:#def5f8;color:#115f75;border-color:#56b4c5}
+:root[data-theme="light"] .bim-focus-reading strong{color:#244657!important}
+:root[data-theme="light"] .bim-focus-reading span{color:#557385!important}
+:root[data-theme="light"] .bim-occupant-note{background:#fffffff0;border-color:#c5dce7;color:#3c6376;box-shadow:0 5px 22px #1e40501a}
+:root[data-theme="light"] .bim-occupant-note strong{color:#1f4e62}
+:root[data-theme="light"] .bim-occupant-note small{color:#557589}
+:root[data-theme="light"] .scene-weather-status{color:#4f7283}
+:root[data-theme="light"] .model-card-header{background:#fff}
+:root[data-theme="light"] .chart-time-axis,:root[data-theme="light"] .chart-time-axis small{color:#587588}
+:root[data-theme="light"] .chart-grid-line{color:#acc0ce}
+:root[data-theme="light"] .sensor-list-row,:root[data-theme="light"] .event-item,
+:root[data-theme="light"] .analytics-observation-row{border-color:#d5e4ed}
+@media(max-width:900px){.appearance-toggle{min-width:30px;padding:0 7px}.appearance-toggle span{display:none}}
+
+/* Secondary-page surfaces: prevent the old hardcoded dark fills from surviving Light. */
+:root[data-theme="light"] .segmented button.active{background:#d8eff4;color:#0b6e81}
+:root[data-theme="light"] .workspace-tabs button{background:#f3f8fb;color:#426075;border-color:#d3e2ec}
+:root[data-theme="light"] .workspace-tabs button[aria-selected="true"],
+:root[data-theme="light"] .workspace-tabs button[aria-pressed="true"]{background:#e0f1f5;color:#0b6a7f}
+:root[data-theme="light"] .weather-toolbar,
+:root[data-theme="light"] .weather-station{background:#f3f9fb;border-color:#d8e6ee;color:#34546a}
+:root[data-theme="light"] .weather-options button{background:#eaf3f7;border-color:#cee1e9;color:#426176}
+:root[data-theme="light"] .weather-options button:hover{background:#dcedf3}
+:root[data-theme="light"] .weather-options button[aria-pressed="true"]{background:#cbeaf0;color:#075e72}
+:root[data-theme="light"] .location-tabs button{background:#fff;border-color:#d3e2eb;color:#4d6b80}
+:root[data-theme="light"] .location-tabs button[aria-pressed="true"]{background:#e1f3f7;color:#0c7082;border-color:#9ccbd7}
+:root[data-theme="light"] .zone-stat,
+:root[data-theme="light"] .detail-metric{background:#f3f8fb;border-color:#d8e5ec;color:#3b586a}
+:root[data-theme="light"] .zone-item-selected{background:#e7f4f5!important;border-color:#add2d8!important}
+:root[data-theme="light"] .twin-zone-sensor[aria-pressed="true"],
+:root[data-theme="light"] .twin-sensor-row.active,
+:root[data-theme="light"] .twin-sensor-row:hover{background:#e8f5f8!important;color:#174f63}
+:root[data-theme="light"] .reporting-note,
+:root[data-theme="light"] .control-feedback{background:#e9f5f8;border-color:#c4e0e8;color:#315c6c}
+:root[data-theme="light"] .searchbox,
+:root[data-theme="light"] .searchbox input,
+:root[data-theme="light"] .twin-select,
+:root[data-theme="light"] .assistant-scope select{background:#f5f9fc;border-color:#d3e2eb;color:#2c4d61}
+:root[data-theme="light"] .register-header,
+:root[data-theme="light"] .register-row,
+:root[data-theme="light"] .twin-monitor-row{background:#fff;color:#365167;border-color:#d6e4ed}
+:root[data-theme="light"] .register-row:hover,
+:root[data-theme="light"] .twin-monitor-row:hover,
+:root[data-theme="light"] .row-selected{background:#eaf6f8!important}
+:root[data-theme="light"] .event-selected{background:#e9f4f8;color:#25536a}
+:root[data-theme="light"] .ack-button{background:#eff6fa;color:#24586d;border-color:#cedfe8}
+:root[data-theme="light"] .status-running{background:#dbf1f0!important;color:#08766f!important}
+:root[data-theme="light"] .status-idle{background:#e9eff4!important;color:#577082!important}
+:root[data-theme="light"] .assistant-workspace .assistant-messages,
+:root[data-theme="light"] .assistant-messages,
+:root[data-theme="light"] .twinlabs-assistant .assistant-messages{background:#f7fafc;color:#27475c}
+:root[data-theme="light"] .assistant-workspace .assistant-composer,
+:root[data-theme="light"] .assistant-composer{background:#fff;border-color:#d3e2ec;color:#29485c}
+:root[data-theme="light"] .message-assistant{background:#edf5fa;color:#28465e}
+:root[data-theme="light"] .chat-turn .message-user,
+:root[data-theme="light"] .message-user{background:#dff0f4;color:#1c5163}
+:root[data-theme="light"] .prompt-chips button{background:#f0f7fa;border-color:#d0e4ec;color:#315a70}
+:root[data-theme="light"] .quick-scenarios button{background:#f1f7fa;border:1px solid #d3e3eb;color:#2c536a}
+:root[data-theme="light"] .quick-scenarios button:hover{background:#dff0f5;border-color:#a9d6de}
+:root[data-theme="light"] .button-stepper{background:#f2f8fb;border-color:#d3e3ec}
+:root[data-theme="light"] .button-stepper button:hover{background:#d9edf5}
+:root[data-theme="light"] .fault-offset{background:#fbf3e7;color:#79582e;border-color:#f0dfc2}
+:root[data-theme="light"] .panel-icon{background:#e2f2f7;color:#0e7891}
+:root[data-theme="light"] .panel-icon.warning{background:#fff1df;color:#a16b2c}
+:root[data-theme="light"] .air-progress{background:#dbe8ef}
+:root[data-theme="light"] .xeokit-feedback{background:#fff;color:#315366;border-color:#c3dbe5}
+:root[data-theme="light"] .bim-inline-error{background:#fff1e4;color:#805a27;border:1px solid #eed6ae}
+:root[data-theme="light"] .bim-room-boundary-note{background:#e9f4f7;color:#315e70!important;border-color:#bfdde5}
+
+/* Weather scenario feedback: distinguish command receipt from observed telemetry. */
+.quick-scenarios button[aria-pressed="true"]{
+ background:#14394a;border-color:#45b6c8;color:#e1fbff;
+ box-shadow:inset 0 0 0 1px #3bc0d533,0 0 0 1px #34a9bc33;
+}
+.quick-scenarios button[aria-pressed="true"] svg{color:#82e7f0}
+.quick-scenarios button:disabled{opacity:.48;cursor:not-allowed}
+.simulator-feedback{display:flex;align-items:flex-start;gap:10px;line-height:1.5}
+.simulator-feedback>svg{flex-shrink:0;margin-top:1px}
+.simulator-feedback[data-feedback="queued"]{border-color:#a17a36;color:#f3cf81;background:#302516}
+.simulator-feedback[data-feedback="confirmed"]{border-color:#237c80;color:#b2f3df;background:#102f30}
+.simulator-feedback[data-feedback="error"]{border-color:#9a5050;color:#ffd4d4;background:#351b23}
+.weather-override{grid-column:1/-1;display:flex;gap:7px;align-items:center;color:#b7eaf2;
+ background:#163949;border:1px solid #357c8a;border-radius:8px;font-size:10px;padding:7px 10px}
+.feedback-spin{animation:scenario-spinner 1.3s linear infinite}
+@keyframes scenario-spinner{to{transform:rotate(360deg)}}
+:root[data-theme="light"] .quick-scenarios button[aria-pressed="true"]{background:#cbedf2;border-color:#188da2;color:#0b6273;box-shadow:inset 0 0 0 1px #9fd8e1}
+:root[data-theme="light"] .quick-scenarios button[aria-pressed="true"] svg{color:#0c7d92}
+:root[data-theme="light"] .simulator-feedback[data-feedback="queued"]{background:#fff5e3;color:#79550e;border-color:#efcf87}
+:root[data-theme="light"] .simulator-feedback[data-feedback="confirmed"]{background:#e6f7f2;color:#106651;border-color:#8fcec2}
+:root[data-theme="light"] .simulator-feedback[data-feedback="error"]{background:#fff0f0;color:#8c2424;border-color:#e7afaf}
+:root[data-theme="light"] .weather-override{background:#e6f5f8;color:#0c6577;border-color:#a1d4dc}
+@media(prefers-reduced-motion:reduce){.feedback-spin{animation:none}}
