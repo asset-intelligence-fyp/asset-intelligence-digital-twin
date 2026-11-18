@@ -154,7 +154,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   }
  }
  return {
-  setBounds(bounds){tourPlan=makeTourPlan(bounds,navigation.levels);refresh(performance.now())},
+  setBounds(bounds){tourPlan=makeTourPlan(bounds,navigation.levels,footprints);refresh(performance.now())},
   update({headcounts:next,enabled:show,animate,floor:current,mode:source='sensor'}){
    headcounts=next||{};enabled=!!show;moving=!!animate;floor=current||'all';
    mode=source==='tour'?'tour':'sensor';refresh(performance.now());
