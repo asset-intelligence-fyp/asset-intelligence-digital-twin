@@ -44,7 +44,7 @@ CI cannot inspect WebGL output on the demonstration Mac; validate 3D rendering a
 The viewer has a **People display** selector:
 
 - **Simulator occupancy** (default) renders proxies only for the four monitored rooms with positive simulated headcounts. It is normal for one floor to have visible figures while others are vacant. No people are generated for unmonitored floors in this mode.
-- **Building tour · visual only** generates ${TOUR_TOTAL} deliberately staged low-poly figures across Levels 01–05. This is a design demonstration of the viewer, **not** extra sensor coverage or actual building occupancy. The side label always says “visual-only” and lists the demonstration count by floor.
+- **Building tour · visual only** generates 16 deliberately staged low-poly figures across Levels 01–05. This is a design demonstration of the viewer, **not** extra sensor coverage or actual building occupancy. The side label always says “visual-only” and lists the demonstration count by floor.
 
 Switching into Building Tour automatically opens the whole-building X-ray and hides sensor markers to reveal the figures. The existing People and Walking toggles remain available. Returning to Simulator occupancy restores headcount-driven visibility.
 
