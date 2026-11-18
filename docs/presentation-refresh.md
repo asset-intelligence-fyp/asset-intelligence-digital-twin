@@ -49,3 +49,7 @@ The viewer has a **People display** selector:
 Switching into Building Tour automatically opens the whole-building X-ray and hides sensor markers to reveal the figures. The existing People and Walking toggles remain available. Returning to Simulator occupancy restores headcount-driven visibility.
 
 The revised figures use rounded faceted silhouette meshes authored in `src/viewer/characterGeometry.js` (tapered torso, limbs, hair and clothing, facial features), not imported third-party or remotely loaded character files. No external asset license or network connection is needed.
+
+### Quickly show all levels
+
+Click **Tour all floors** at the top of the BIM viewer. It activates the visual-only population and switches the view to whole-building X-ray, so the staged occupants on Levels 01–05 can be explored using the level buttons. The occupants inside supported monitored rooms are anchored to actual IFC room-floor triangles; the rest are explicitly staged from storey reference elevations, without asserting sensor coverage. To return to actual synthetic room headcounts, click **Return to sensor occupancy**. This display-mode toggle never affects PIR, CO₂, event logs or stored telemetry.

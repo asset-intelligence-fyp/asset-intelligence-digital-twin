@@ -85,3 +85,14 @@
 :root[data-theme="light"] .clarity-stage .bim-tour-note strong{color:#79501d}
 :root[data-theme="light"] .clarity-stage .bim-tour-note small{color:#755e3e}
 @media(max-width:760px){.clarity-stage .bim-population-mode select{max-width:125px}}
+
+/* Make the presentation-only population mode visible without hunting through
+   the advanced checkboxes, but retain the explicit, separate source selector. */
+.bim-tour-shortcut{display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;
+ border:1px solid #38718b;border-radius:9px;background:#122b3fdd;
+ color:#b5e8f3;padding:8px 11px;font-size:11px;font-weight:600;cursor:pointer}
+.bim-tour-shortcut:hover{border-color:#53c7da;background:#144256;color:#e7ffff}
+.bim-tour-shortcut[aria-pressed="true"]{border-color:#e4bd72;background:#453b2c;color:#ffedcf}
+:root[data-theme="light"] .bim-tour-shortcut{border-color:#95c9d7;background:#e8f6fa;color:#195e71}
+:root[data-theme="light"] .bim-tour-shortcut[aria-pressed="true"]{background:#fff0d6;color:#77551d;border-color:#dfb970}
+@media(max-width:950px){.bim-tour-shortcut{padding:6px 8px;font-size:10px}}
