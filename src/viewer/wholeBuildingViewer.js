@@ -30,6 +30,7 @@ export function createBuildingViewer({canvas,navCanvas,navigation,onSelect,onLoa
   // The three optional presentation layers are not part of scene.objects,
   // preserving the XKT model, object-count contract and IFC picking.
   const bounds=viewer.scene.getAABB(Object.keys(viewer.scene.objects));
+  occupants.setBounds(bounds);
   control.load();
   exterior.init(bounds);
   landscape.init(bounds);
@@ -41,5 +42,5 @@ export function createBuildingViewer({canvas,navCanvas,navigation,onSelect,onLoa
   onLoad();
  });model.on('error',e=>onError(String(e)));
  viewer.cameraControl.on('picked',e=>{if(e.entity){const guid=e.entity.id.split(/[.#]/).pop();if(navigation.sensors.some(p=>p.guid===guid))onSelect(guid)}});
- return {...control,setOccupants:(headcounts,enabled,animate,floor)=>occupants.update({headcounts,enabled,animate,floor}),setWeather:(weather,showExterior,motion)=>exterior.set(weather,showExterior,motion),destroy(){viewer.scene.off(weatherTick);viewer.scene.off(occupantTick);occupants.destroy();landscape.destroy();guides.destroy();exterior.destroy();control.destroy();viewer.destroy()}};
+ return {...control,setOccupants:(headcounts,enabled,animate,floor,mode='sensor')=>occupants.update({headcounts,enabled,animate,floor,mode}),setWeather:(weather,showExterior,motion)=>exterior.set(weather,showExterior,motion),destroy(){viewer.scene.off(weatherTick);viewer.scene.off(occupantTick);occupants.destroy();landscape.destroy();guides.destroy();exterior.destroy();control.destroy();viewer.destroy()}};
 }

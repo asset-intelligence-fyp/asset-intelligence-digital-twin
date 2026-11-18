@@ -38,3 +38,14 @@ TWIN_STORAGE=memory npm run dev
 Verify the light toggle survives a refresh, the new materials and illustrative landscaping are visible in Building mode, X-ray clearly separates slabs and has functional level guides, and low-poly people are visible for a weekday 09:00 busy simulation. Confirm simulated occupancy counts remain distinct from the number of figures.
 
 CI cannot inspect WebGL output on the demonstration Mac; validate 3D rendering and camera interactions locally before merging.
+
+## Building Tour: two deliberately different people modes
+
+The viewer has a **People display** selector:
+
+- **Simulator occupancy** (default) renders proxies only for the four monitored rooms with positive simulated headcounts. It is normal for one floor to have visible figures while others are vacant. No people are generated for unmonitored floors in this mode.
+- **Building tour · visual only** generates ${TOUR_TOTAL} deliberately staged low-poly figures across Levels 01–05. This is a design demonstration of the viewer, **not** extra sensor coverage or actual building occupancy. The side label always says “visual-only” and lists the demonstration count by floor.
+
+Switching into Building Tour automatically opens the whole-building X-ray and hides sensor markers to reveal the figures. The existing People and Walking toggles remain available. Returning to Simulator occupancy restores headcount-driven visibility.
+
+The revised figures use rounded faceted silhouette meshes authored in `src/viewer/characterGeometry.js` (tapered torso, limbs, hair and clothing, facial features), not imported third-party or remotely loaded character files. No external asset license or network connection is needed.
