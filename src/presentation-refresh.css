@@ -193,3 +193,27 @@
 :root[data-theme="light"] .xeokit-feedback{background:#fff;color:#315366;border-color:#c3dbe5}
 :root[data-theme="light"] .bim-inline-error{background:#fff1e4;color:#805a27;border:1px solid #eed6ae}
 :root[data-theme="light"] .bim-room-boundary-note{background:#e9f4f7;color:#315e70!important;border-color:#bfdde5}
+
+/* Weather scenario feedback: distinguish command receipt from observed telemetry. */
+.quick-scenarios button[aria-pressed="true"]{
+ background:#14394a;border-color:#45b6c8;color:#e1fbff;
+ box-shadow:inset 0 0 0 1px #3bc0d533,0 0 0 1px #34a9bc33;
+}
+.quick-scenarios button[aria-pressed="true"] svg{color:#82e7f0}
+.quick-scenarios button:disabled{opacity:.48;cursor:not-allowed}
+.simulator-feedback{display:flex;align-items:flex-start;gap:10px;line-height:1.5}
+.simulator-feedback>svg{flex-shrink:0;margin-top:1px}
+.simulator-feedback[data-feedback="queued"]{border-color:#a17a36;color:#f3cf81;background:#302516}
+.simulator-feedback[data-feedback="confirmed"]{border-color:#237c80;color:#b2f3df;background:#102f30}
+.simulator-feedback[data-feedback="error"]{border-color:#9a5050;color:#ffd4d4;background:#351b23}
+.weather-override{grid-column:1/-1;display:flex;gap:7px;align-items:center;color:#b7eaf2;
+ background:#163949;border:1px solid #357c8a;border-radius:8px;font-size:10px;padding:7px 10px}
+.feedback-spin{animation:scenario-spinner 1.3s linear infinite}
+@keyframes scenario-spinner{to{transform:rotate(360deg)}}
+:root[data-theme="light"] .quick-scenarios button[aria-pressed="true"]{background:#cbedf2;border-color:#188da2;color:#0b6273;box-shadow:inset 0 0 0 1px #9fd8e1}
+:root[data-theme="light"] .quick-scenarios button[aria-pressed="true"] svg{color:#0c7d92}
+:root[data-theme="light"] .simulator-feedback[data-feedback="queued"]{background:#fff5e3;color:#79550e;border-color:#efcf87}
+:root[data-theme="light"] .simulator-feedback[data-feedback="confirmed"]{background:#e6f7f2;color:#106651;border-color:#8fcec2}
+:root[data-theme="light"] .simulator-feedback[data-feedback="error"]{background:#fff0f0;color:#8c2424;border-color:#e7afaf}
+:root[data-theme="light"] .weather-override{background:#e6f5f8;color:#0c6577;border-color:#a1d4dc}
+@media(prefers-reduced-motion:reduce){.feedback-spin{animation:none}}
