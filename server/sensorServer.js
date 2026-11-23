@@ -22,6 +22,7 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
  adminAuth(app);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
  registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
+ const recentStream=[]; // Current-run accepted, label-free readings for AI.
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
  const latency=createLatencyMetrics({storage:pool?'postgresql':'temporary_memory'});latency.routes(app);
  const send=(res,text)=>{if(res.destroyed)return;try{if(!res.write(text)){res.end();clients.delete(res)}}catch{clients.delete(res)}};
@@ -100,10 +101,14 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
     memory.push(...batch.map(r=>({...r,replay_id:replay})));memory=memory.slice(-18000);
    }
    const changed=replay!==activeReplay;
-   if(changed){activeReplay=replay;received.clear();ring.length=0;control('source-reset',{replay_id:replay})}
+   if(changed){activeReplay=replay;received.clear();ring.length=0;recentStream.length=0;control('source-reset',{replay_id:replay})}
    lastSource={simulation,name:req.body.producer||'external_simulator_unverified',replay_id:replay,dataset:req.body.dataset||null,sequence:req.body.sequence??null,source_sequence:req.body.source_sequence??null,dataset_timestamp:req.body.dataset_timestamp??batch[0]?.timestamp,dataset_sampling_minutes:req.body.dataset_sampling_minutes??null,release_interval_seconds:req.body.release_interval_seconds??null,generated_at_utc:req.body.generated_at_utc??null,received_at_utc:new Date(receivedAt).toISOString()};
    latency.commit(trace,batch);
    for(const row of batch){row.replay_id=replay;if(trace)row.trace={trace_id:trace.trace_id,batch_size:batch.length};received.set(row.point_code,new Date(receivedAt).toISOString())}
+   // A bounded mirror of committed telemetry protects investigation from a missing/stale DB query.
+   // It contains no injected-fault controls or private ground-truth labels.
+   recentStream.push(...batch.map(({point_code,value,timestamp,quality})=>({point_code,value,timestamp,quality})));
+   if(recentStream.length>18000)recentStream.splice(0,recentStream.length-18000);
    const eventId=`${streamEpoch}:${++eventSequence}`;
    const payload={event_id:eventId,replay_id:replay,producer:lastSource,readings:batch};
    const text=`id: ${eventId}\nevent: sensor-batch\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -136,7 +141,7 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   try{const event=await alerts.acknowledge(pool,id,status);if(!event)return res.status(404).json({error:'Alert not found'});control('alert',event);res.json(event)}catch{res.status(503).json({error:'Unable to save acknowledgement'})}
  });
  registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource||{replay_id:activeReplay},getAlerts:()=>alerts.list(pool)});
- registerRoomAssistant(app,{getHistory:codes=>historyFor(codes),getSource:()=>lastSource||null,getAlerts:()=>alerts.list(pool)});
+ registerRoomAssistant(app,{getHistory:codes=>historyFor(codes),getStreamHistory:codes=>recentStream.filter(r=>codes.includes(r.point_code)),getSource:()=>lastSource||null,getAlerts:()=>alerts.list(pool)});
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
  if(fs.existsSync(path.join(root,'dist')))app.use(express.static(path.join(root,'dist')));
  return app;
