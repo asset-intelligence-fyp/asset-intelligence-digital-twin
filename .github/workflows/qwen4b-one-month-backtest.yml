@@ -1,0 +1,36 @@
+name: Qwen one-month forecasting backtest (offline checks)
+on:
+  push:
+    branches:
+      - experiment/qwen4b-january-forecast-20261123
+  workflow_dispatch:
+jobs:
+  verify-backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            experiments/
+            malaysian_digital_twin_llm_dataset_v4/generated/llm_reference_visible/forecast_cases_history_VISIBLE.csv
+            malaysian_digital_twin_llm_dataset_v4/generated/llm_reference_visible/forecast_cases_future_known_VISIBLE.csv
+            malaysian_digital_twin_llm_dataset_v4/generated/llm_reference_hidden/forecast_cases_future_HIDDEN.csv
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check script syntax
+        run: python3 -m py_compile experiments/qwen4b_one_month_backtest.py experiments/test_qwen4b_one_month_backtest.py
+      - name: Test holdout isolation, baseline accuracy and scorer
+        run: python3 -m unittest discover -s experiments -p 'test_qwen4b_one_month_backtest.py' -v
+      - name: Prepare fixed January dataset and score naive forecasts
+        run: |
+          python3 experiments/qwen4b_one_month_backtest.py prepare --out /tmp/qwen-jan2026
+          python3 experiments/qwen4b_one_month_backtest.py baselines --out /tmp/qwen-jan2026
+          python3 experiments/qwen4b_one_month_backtest.py run --out /tmp/qwen-jan2026 --model qwen3:4b --limit-cases 1 --dry-run > /tmp/forecast_prompt.json
+      - name: Save genuine baseline report (no Qwen results)
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-jan2026-baseline-60cases
+          path: /tmp/qwen-jan2026/summary_baseline.json
+          retention-days: 14
