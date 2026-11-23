@@ -242,3 +242,35 @@ export function floorHeatmapPixels(bounds,samples,width=128,height=128){
  }
  return bytes;
 }
+
+/**
+ * Conservative guard against IFC slab AABBs that include surrounding site,
+ * foundation or roof geometry. The union of exported IFC room coordinates
+ * anchors a display envelope with a generous margin. This is not a claim
+ * that all of the building has been measured or mapped to sensors.
+ */
+export function limitFloorHeatmapToBuilding(slabs,rooms,padding=5){
+ const locations=Object.values(rooms||{}).flatMap(room=>{
+  const p=room?.positions||[];
+  const out=[];
+  for(let i=0;i+2<p.length;i+=3){
+   if(Number.isFinite(p[i])&&Number.isFinite(p[i+2]))out.push([p[i],p[i+2]]);
+  }
+  return out;
+ });
+ if(!locations.length)return (slabs||[]).map(a=>[...a]);
+ const minX=Math.min(...locations.map(p=>p[0]))-padding;
+ const maxX=Math.max(...locations.map(p=>p[0]))+padding;
+ const minZ=Math.min(...locations.map(p=>p[1]))-padding;
+ const maxZ=Math.max(...locations.map(p=>p[1]))+padding;
+ // Clip only oversized exports, not correctly bounded floors: room geometry
+ // is incomplete, so it must not arbitrarily trim a plausible slab.
+ return (slabs||[]).map(box=>{
+  const excessX=(box[3]-box[0])>(maxX-minX)*1.2;
+  const excessZ=(box[5]-box[2])>(maxZ-minZ)*1.2;
+  return [excessX?Math.max(box[0],minX):box[0],box[1],
+   excessZ?Math.max(box[2],minZ):box[2],
+   excessX?Math.min(box[3],maxX):box[3],box[4],
+   excessZ?Math.min(box[5],maxZ):box[5]];
+ }).filter(b=>b.length===6&&b.every(Number.isFinite)&&b[3]-b[0]>.35&&b[5]-b[2]>.35);
+}
