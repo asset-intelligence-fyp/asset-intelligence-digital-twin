@@ -110,8 +110,8 @@ test('rounded limbs rotate from fixed shoulder and hip pivots',()=>{
    assert.ok(Math.abs(pose.center[2]+half*Math.sin(radians)-pivot[2])<1e-10);
   }
  }
- const resting=mannequinLimbPose([-.118,.887,0],.386,0);
- assert.ok(resting.center[1]-.386>.10,'rounded leg bottom must stay above floor');
+ const resting=mannequinLimbPose([-.118,.800,0],.386,0);
+ assert.ok(resting.center[1]-.386>.01&&resting.center[1]-.386<.05,'feet should nearly touch the BIM floor');
 });
 
 test('room-safe walking endpoints cap distance without leaving IFC triangle',()=>{
