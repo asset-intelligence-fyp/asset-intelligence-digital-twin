@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS digital_twin.notifications (
  user_id BIGINT NOT NULL REFERENCES digital_twin.users(user_id),
  message TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE digital_twin.notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS digital_twin.maintenance_events (
  maintenance_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  location_code TEXT NOT NULL REFERENCES digital_twin.monitoring_locations(location_code),
