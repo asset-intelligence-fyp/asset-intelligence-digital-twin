@@ -1,5 +1,6 @@
 import {METRICS} from './sensorPresentation.js';
-import {trimSlabsToEnvelope} from './heatmapField.js';
+import {trimSlabsToEnvelope,limitFloorHeatmapToBuilding} from './heatmapField.js';
+import roomFootprints from '../../shared/roomFootprints.json';
 import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
 import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
@@ -154,7 +155,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
     const buildingEnvelope=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
      .map(id=>Array.from(scene.objects[id]?.aabb||[]))
      .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
-    const clipped=trimSlabsToEnvelope(slabs,buildingEnvelope,1.1);
+    const clipped=limitFloorHeatmapToBuilding(trimSlabsToEnvelope(slabs,buildingEnvelope,1.1),roomFootprints.rooms);
     if(clipped.length)return {floor:level.id,elevation:level.elevation,aabbs:clipped,source:'clipped-ifc-slab'};
     if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],source:'no-model-geometry'};
     const fallback=buildingEnvelope.length?Array.from(scene.getAABB(ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||'')))):Array.from(scene.getAABB(ids));
