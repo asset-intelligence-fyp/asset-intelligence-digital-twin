@@ -43,3 +43,13 @@ LAN traffic uses ordinary HTTP. Use a trusted private network only, avoid weak p
 10. Confirm the original BIM viewer, dashboard, and simulator still run as before.
 
 This code has not yet been tested against your live laptop/database. Validate in an isolated test database before applying live changes.
+
+## Confirmation for sensitive changes
+
+Read-only administration views do not require extra prompts. Changes through Admin management APIs (sensor create/edit/delete; location rename; maintenance create/status; invitation create/revoke; user role/activation) require the logged-in administrator to re-enter their **existing Admin login password**. A successful verification authorizes management writes for **five minutes in that server-side session**. The backend returns HTTP 428 when confirmation has expired; the UI shows a password modal and retries the pending operation after successful verification.
+
+The password is verified against the stored scrypt hash and is never stored in the frontend or logged. Five incorrect attempts lock password confirmation temporarily for fifteen minutes. This is a step-up check, not a substitute for network encryption: the LAN site currently runs on HTTP, so **do not use it for sensitive production credentials until HTTPS is configured**.
+
+For validation, run `npm run test:admin:step-up` then `npm run build`. Test renaming a disposable location to verify that the password prompt appears, wrong passwords are rejected, and a correct password permits saving. Check the audit log afterwards.
+
+Grant Access cards have been adjusted so the Send Invitation button stays a normal, fixed-height control regardless of Recent Activity content and email delivery status.
