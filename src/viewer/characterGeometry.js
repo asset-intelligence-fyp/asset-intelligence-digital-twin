@@ -1,116 +1,81 @@
 /**
- * Shared procedural architectural-occupant geometry.
- *
- * Human-scale, deliberately low-poly silhouettes for the BIM viewer. The meshes
- * are authored as tapered, triangulated rings rather than box-shaped toys.
- * Flat normals, muted matte materials and small heads are intentional.
- *
- * No external GLB assets, texture downloads or skinned animation required.
+ * Small procedural rounded mannequin geometry for the xeokit BIM viewer.
+ * Silhouette-only: no hair, face, clothes, lapels or external model assets.
+ * Materials and animation are managed by occupantLayer.js.
  */
-export function loftedPart(rings,segments=10){
+export function loftedPart(rings,segments=14){
  if(!Array.isArray(rings)||rings.length<2||!Number.isInteger(segments)||segments<5)throw Error('Bad low-poly profile');
- const v=[],tri=[];
- const point=(ring,step)=>{
-  const angle=step/segments*Math.PI*2;
+ const triangles=[];
+ const position=(ring,i)=>{
+  const angle=i/segments*Math.PI*2;
   return [(ring.x||0)+Math.cos(angle)*ring.rx,ring.y,(ring.z||0)+Math.sin(angle)*ring.rz];
  };
  for(let layer=0;layer<rings.length-1;layer++){
   for(let side=0;side<segments;side++){
-   const a=point(rings[layer],side),b=point(rings[layer],side+1),
-    c=point(rings[layer+1],side),d=point(rings[layer+1],side+1);
-   tri.push([a,c,b],[b,c,d]);
+   const a=position(rings[layer],side),b=position(rings[layer],side+1);
+   const c=position(rings[layer+1],side),d=position(rings[layer+1],side+1);
+   triangles.push([a,c,b],[b,c,d]);
   }
  }
  const cap=(ring,upper)=>{
   const center=[ring.x||0,ring.y,ring.z||0];
   for(let side=0;side<segments;side++){
-   const a=point(ring,side),b=point(ring,side+1);
-   tri.push(upper?[center,b,a]:[center,a,b]);
+   const a=position(ring,side),b=position(ring,side+1);
+   triangles.push(upper?[center,b,a]:[center,a,b]);
   }
  };
  cap(rings[0],false);cap(rings.at(-1),true);
  const positions=[],normals=[],indices=[];
- for(const [a,b,c] of tri){
-  const u=b.map((x,i)=>x-a[i]),w=c.map((x,i)=>x-a[i]);
-  const n=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
-  const len=Math.hypot(...n)||1,normal=n.map(x=>x/len);
+ for(const [a,b,c] of triangles){
+  const u=b.map((x,i)=>x-a[i]),v=c.map((x,i)=>x-a[i]);
+  const normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+  const len=Math.hypot(...normal)||1;
   const index=positions.length/3;
-  for(const pt of [a,b,c]){positions.push(...pt);normals.push(...normal)}
+  for(const vertex of [a,b,c]){
+   positions.push(...vertex);
+   normals.push(...normal.map(x=>x/len));
+  }
   indices.push(index,index+1,index+2);
  }
  return {primitive:'triangles',positions,normals,indices};
 }
 
-/** Dimensions are in metres relative to each part's local origin. */
+/**
+ * Part geometry is centred on each mesh origin.
+ * Rounded ends eliminate the previous stick/segment look.
+ * Units are metres; proportions intentionally resemble the user's
+ * simple, soft-edged mannequin references rather than office workers.
+ */
 export const CHARACTER_PROFILES={
- // Narrower shoulders, subtle waist shaping and a tailored hem.
- jacket:[
-  {y:-.37,rx:.205,rz:.127},{y:-.21,rx:.205,rz:.135},
-  {y:-.02,rx:.210,rz:.141},{y:.21,rx:.249,rz:.156},
-  {y:.33,rx:.253,rz:.151},{y:.365,rx:.130,rz:.099}
+ torso:[
+  {y:-.34,rx:.080,rz:.065},
+  {y:-.318,rx:.153,rz:.117},
+  {y:-.266,rx:.191,rz:.139},
+  {y:-.13,rx:.201,rz:.151},
+  {y:.12,rx:.228,rz:.162},
+  {y:.26,rx:.236,rz:.158},
+  {y:.324,rx:.164,rz:.117},
+  {y:.344,rx:.074,rz:.054}
  ],
- // A relaxed collared top; not a triangular cartoon dress.
- blouse:[
-  {y:-.36,rx:.195,rz:.132},{y:-.23,rx:.203,rz:.140},
-  {y:.02,rx:.210,rz:.144},{y:.25,rx:.237,rz:.148},
-  {y:.345,rx:.137,rz:.094}
- ],
- // A straight cardigan with a slightly longer, draped hem.
- cardigan:[
-  {y:-.39,rx:.208,rz:.137},{y:-.26,rx:.215,rz:.145},
-  {y:-.03,rx:.215,rz:.148},{y:.225,rx:.244,rz:.155},
-  {y:.35,rx:.137,rz:.100}
- ],
- // A lengthened contemporary jacket for a fourth silhouette.
- longline:[
-  {y:-.46,rx:.215,rz:.140},{y:-.35,rx:.222,rz:.146},
-  {y:-.10,rx:.210,rz:.148},{y:.24,rx:.244,rz:.155},
-  {y:.37,rx:.134,rz:.098}
- ],
- // Tapered sleeves; wrists remain visually distinct from the hands.
  arm:[
-  {y:-.31,rx:.061,rz:.070},{y:-.15,rx:.066,rz:.075},
-  {y:.12,rx:.079,rz:.082},{y:.285,rx:.092,rz:.089}
+  {y:-.305,rx:.018,rz:.018},
+  {y:-.290,rx:.057,rz:.061},
+  {y:-.255,rx:.084,rz:.083},
+  {y:.00,rx:.096,rz:.091},
+  {y:.247,rx:.089,rz:.085},
+  {y:.292,rx:.059,rz:.061},
+  {y:.309,rx:.018,rz:.018}
  ],
- // Independently articulated thigh/shin, built around a centred unit
- // Y axis so the viewer can position each part between hip/knee/ankle.
- thigh:[
-  {y:-.5,rx:.076,rz:.081},{y:-.25,rx:.087,rz:.094},
-  {y:.16,rx:.093,rz:.100},{y:.5,rx:.105,rz:.106}
- ],
- shin:[
-  {y:-.5,rx:.061,rz:.071},{y:-.27,rx:.065,rz:.074},
-  {y:.16,rx:.073,rz:.079},{y:.5,rx:.083,rz:.086}
- ],
- // Low-profile cap and three hair silhouettes, not helmet-like spheres.
- hairCrop:[
-  {y:-.065,rx:.144,rz:.141},{y:-.003,rx:.173,rz:.159},
-  {y:.078,rx:.164,rz:.153},{y:.125,rx:.092,rz:.092},
-  {y:.142,rx:.020,rz:.020}
- ],
- hairSide:[
-  {y:-.130,rx:.154,rz:.149},{y:-.075,rx:.165,rz:.161},
-  {y:.03,rx:.169,rz:.158},{y:.115,rx:.107,rz:.098},
-  {y:.14,rx:.014,rz:.016}
- ],
- hairTaper:[
-  {y:-.095,rx:.137,rz:.141},{y:-.01,rx:.165,rz:.155},
-  {y:.077,rx:.154,rz:.144},{y:.132,rx:.076,rz:.083},
-  {y:.149,rx:.014,rz:.015}
- ],
- neck:[
-  {y:-.066,rx:.063,rz:.066},{y:.064,rx:.068,rz:.070}
- ],
- // Two understated, contrasting jacket lapels; no cartoon badges/buttons.
- lapel:[
-  {y:-.190,rx:.024,rz:.024},{y:-.045,rx:.029,rz:.025},
-  {y:.115,rx:.037,rz:.027},{y:.180,rx:.018,rz:.020}
- ],
- collar:[
-  {y:-.053,rx:.099,rz:.082},{y:.018,rx:.113,rz:.088},
-  {y:.072,rx:.073,rz:.068}
+ leg:[
+  {y:-.379,rx:.017,rz:.017},
+  {y:-.361,rx:.061,rz:.074},
+  {y:-.325,rx:.094,rz:.104},
+  {y:.03,rx:.105,rz:.112},
+  {y:.310,rx:.106,rz:.111},
+  {y:.364,rx:.073,rz:.080},
+  {y:.386,rx:.018,rz:.020}
  ]
 };
 export function characterProfileGeometry(){
- return Object.fromEntries(Object.entries(CHARACTER_PROFILES).map(([name,profile])=>[name,loftedPart(profile,name==='lapel'?7:10)]));
+ return Object.fromEntries(Object.entries(CHARACTER_PROFILES).map(([name,profile])=>[name,loftedPart(profile,14)]));
 }
