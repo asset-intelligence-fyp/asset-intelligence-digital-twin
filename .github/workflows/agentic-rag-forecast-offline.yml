@@ -1,0 +1,38 @@
+name: Agentic RAG forecasting (offline integrity checks)
+on:
+  push:
+    branches:
+      - experiment/agentic-rag-forecast-20261124
+  workflow_dispatch:
+
+jobs:
+  verify-agentic-forecast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            experiments/
+            malaysian_digital_twin_llm_dataset_v4/generated/llm_reference_visible/forecast_cases_history_VISIBLE.csv
+            malaysian_digital_twin_llm_dataset_v4/generated/llm_reference_visible/forecast_cases_future_known_VISIBLE.csv
+            malaysian_digital_twin_llm_dataset_v4/generated/llm_reference_hidden/forecast_cases_future_HIDDEN.csv
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile original and new experiment
+        run: python3 -m py_compile experiments/qwen4b_one_month_backtest.py experiments/agentic_rag_forecast.py experiments/test_agentic_rag_forecast.py
+      - name: Original time-cutoff benchmark tests
+        run: python3 -m unittest discover -s experiments -p 'test_qwen4b_one_month_backtest.py' -v
+      - name: Historical retrieval, tools and scoring tests (no real model calls)
+        run: python3 -m unittest discover -s experiments -p 'test_agentic_rag_forecast.py' -v
+      - name: Real data retrieval preview without reading hidden labels
+        run: |
+          python3 experiments/qwen4b_one_month_backtest.py prepare --out /tmp/agentic-jan2026
+          python3 experiments/agentic_rag_forecast.py preview --mode analogue --out /tmp/agentic-jan2026 --limit-cases 1 > /tmp/agentic-preview.json
+      - name: Save pre-cutoff preview only
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentic-rag-precutoff-evidence
+          path: /tmp/agentic-preview.json
+          retention-days: 14
