@@ -1,4 +1,5 @@
 import {METRICS} from './sensorPresentation.js';
+import {trimSlabsToEnvelope} from './heatmapField.js';
 import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
 import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
@@ -47,10 +48,20 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    scene.setObjectsColorized(architectureIds,null);
    // Distinct, brighter real IFC slabs read as physical floor plates, while
    // walls remain finely translucent. Never recolour synthetic heat areas.
-   scene.setObjectsXRayed(slabIds,false);
-   scene.setObjectsOpacity(slabIds,style.floorAlpha);
-   scene.setObjectsColorized(slabIds,GHOST_COLOUR);
-   scene.setObjectsEdges(slabIds,true);
+   if(state.mode==='heatmap'){
+    // The heat layer supplies the floor colour. IFC slabs must not remain
+    // opaque grey/black rectangles over (or under) that colour texture.
+    // Keep original geometry pickable; only its presentation is subdued.
+    scene.setObjectsXRayed(slabIds,true);
+    scene.setObjectsOpacity(slabIds,.06);
+    scene.setObjectsColorized(slabIds,null);
+    scene.setObjectsEdges(slabIds,false);
+   }else{
+    scene.setObjectsXRayed(slabIds,false);
+    scene.setObjectsOpacity(slabIds,style.floorAlpha);
+    scene.setObjectsColorized(slabIds,GHOST_COLOUR);
+    scene.setObjectsEdges(slabIds,true);
+   }
   }
   floorGuides.update(state.mode,state.floor,state.floorGuides);
   state.roomBoundary=state.selectedGuid?roomFocus.status(state.selectedGuid):'';
@@ -137,9 +148,14 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
     const slabs=ids.filter(id=>/IfcSlab/.test(viewer.metaScene.metaObjects[id]?.type||''))
      .map(id=>Array.from(scene.objects[id]?.aabb||[]))
      .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]-box[0]>.35&&box[5]-box[2]>.35);
-    if(slabs.length)return {floor:level.id,elevation:level.elevation,aabbs:slabs,source:'ifc-slab'};
+    const buildingEnvelope=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
+     .map(id=>Array.from(scene.objects[id]?.aabb||[]))
+     .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
+    const clipped=trimSlabsToEnvelope(slabs,buildingEnvelope,1.1);
+    if(clipped.length)return {floor:level.id,elevation:level.elevation,aabbs:clipped,source:'clipped-ifc-slab'};
     if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],source:'no-model-geometry'};
-    return {floor:level.id,elevation:level.elevation,aabbs:[Array.from(scene.getAABB(ids))],source:'storey-bounds'};
+    const fallback=buildingEnvelope.length?Array.from(scene.getAABB(ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||'')))):Array.from(scene.getAABB(ids));
+    return {floor:level.id,elevation:level.elevation,aabbs:[fallback],source:'storey-architecture-bounds'};
    });
    heatmap.setFloorSurfaces?.(floorSurfaces);
    const palette={wall:[.79,.84,.87],glazing:[.41,.65,.74],roof:[.42,.51,.58],floor:[.69,.72,.72],door:[.55,.63,.62],structure:[.69,.76,.80]};
