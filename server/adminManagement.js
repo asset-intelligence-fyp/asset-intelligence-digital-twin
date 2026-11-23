@@ -155,6 +155,57 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(!changed)return res.status(404).json({error:'Alert not found.'});
   res.json({ok:true});
  }));
+ // Announcements are authored by administrators but read publicly on the LAN.
+ app.get('/api/announcements',safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const rows=await pool.query(`SELECT announcement_id,title,body,created_by,updated_by,published_at
+   FROM digital_twin.announcements WHERE status='published'
+   ORDER BY published_at DESC,announcement_id DESC LIMIT 50`);
+  res.setHeader('Cache-Control','no-store');
+  res.json({rows:rows.rows});
+ }));
+ app.get('/api/admin/manage/announcements',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const result=await pool.query(`SELECT announcement_id,title,body,status,created_by,updated_by,
+   created_at,updated_at,published_at FROM digital_twin.announcements
+   ORDER BY updated_at DESC,announcement_id DESC LIMIT 200`);
+  res.setHeader('Cache-Control','no-store');
+  res.json({rows:result.rows});
+ }));
+ app.post('/api/admin/manage/announcements',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const title=clean(req.body?.title,140),body=clean(req.body?.body,2000);
+  if(!title||title.length>140||!body||body.length>2000)return res.status(400).json({error:'Title (up to 140 characters) and message (up to 2000 characters) are required.'});
+  const record=await transaction(pool,async c=>{
+   const result=await c.query(`INSERT INTO digital_twin.announcements
+    (title,body,status,created_by,updated_by) VALUES($1,$2,'draft',$3,$3)
+    RETURNING announcement_id`,[title,body,req.admin.username]);
+   await audit(c,req.admin.username,'announcement.create',String(result.rows[0].announcement_id),{title,status:'draft'});
+   return result.rows[0];
+  });
+  res.status(201).json({ok:true,announcement_id:record.announcement_id});
+ }));
+ app.patch('/api/admin/manage/announcements/:id',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const id=Number(req.params.id),b=req.body||{};
+  if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Invalid announcement ID.'});
+  const title=clean(b.title,140),body=clean(b.body,2000),status=clean(b.status,20);
+  if(!title||title.length>140||!body||body.length>2000||!['draft','published','archived'].includes(status))
+   return res.status(400).json({error:'Invalid title, message or publication status.'});
+  const done=await transaction(pool,async c=>{
+   const prior=await c.query('SELECT title,body,status FROM digital_twin.announcements WHERE announcement_id=$1 FOR UPDATE',[id]);
+   if(!prior.rowCount)return false;
+   await c.query(`UPDATE digital_twin.announcements SET title=$1,body=$2,status=$3,updated_by=$4,updated_at=now(),
+    published_at=CASE WHEN $3='published' THEN CASE WHEN status='published' THEN published_at ELSE now() END ELSE NULL END
+    WHERE announcement_id=$5`,[title,body,status,req.admin.username,id]);
+   const before=prior.rows[0];
+   await audit(c,req.admin.username,'announcement.update',String(id),
+    {previous:{title:before.title,status:before.status},new:{title,status},body_changed:body!==before.body});
+   return true;
+  });
+  if(!done)return res.status(404).json({error:'Announcement not found.'});
+  res.json({ok:true});
+ }));
  app.get('/api/admin/manage/notifications',requireAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const r=await pool.query(`SELECT n.notification_id,n.alert_id,n.user_id,u.username,
