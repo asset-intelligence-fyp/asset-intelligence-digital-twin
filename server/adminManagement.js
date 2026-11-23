@@ -80,7 +80,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    set.push('floor_level=$'+(values.length+1));
    const query=`UPDATE digital_twin.sensor_registry SET ${set.join(',')} WHERE point_code=$${values.length+2} RETURNING point_code`;
    const updated=await c.query(query,[...values,floor,code]);
-   await audit(c,req.admin.username,'sensor.update',code,{fields:changes});
+   await audit(c,req.admin.username,'sensor.update',code,{previous:Object.fromEntries(changes.map(k=>[k,current.rows[0][k]])),new:Object.fromEntries(changes.map((k,i)=>[k,values[i]]))});
    return updated.rows[0];
   });
   if(!changed)return res.status(404).json({error:'Sensor or target location not found.'});
@@ -113,8 +113,10 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   const display_name=clean(req.body?.display_name,120),code=req.params.code;
   if(!display_name)return res.status(400).json({error:'Location name is required.'});
   const changed=await transaction(pool,async c=>{
+   const previous=await c.query('SELECT display_name FROM digital_twin.monitoring_locations WHERE location_code=$1 FOR UPDATE',[code]);
+   if(!previous.rowCount)return 0;
    const r=await c.query('UPDATE digital_twin.monitoring_locations SET display_name=$1 WHERE location_code=$2 RETURNING location_code',[display_name,code]);
-   if(r.rowCount)await audit(c,req.admin.username,'location.rename',code,{display_name});
+   if(r.rowCount)await audit(c,req.admin.username,'location.rename',code,{previous:previous.rows[0].display_name,new:display_name});
    return r.rowCount;
   });
   if(!changed)return res.status(404).json({error:'Location not found.'});
@@ -227,7 +229,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   const id=Number(req.params.id),role=clean(req.body?.role,30);
   if(!Number.isSafeInteger(id)||!['viewer','admin'].includes(role))return res.status(400).json({error:'Invalid account or role.'});
   const result=await transaction(pool,async c=>{
-   const rows=await c.query('SELECT user_id,username FROM digital_twin.users WHERE user_id=$1 FOR UPDATE',[id]);
+   const rows=await c.query('SELECT u.user_id,u.username,r.role_name FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1 FOR UPDATE OF u',[id]);
    if(!rows.rowCount)return 'missing';
    if(rows.rows[0].user_id===req.admin.userId)return 'self';
    if(role==='viewer'){
@@ -235,7 +237,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
     if(admins.rows[0].total<=1)return 'last';
    }
    await c.query(`UPDATE digital_twin.users SET role_id=(SELECT role_id FROM digital_twin.roles WHERE role_name=$1) WHERE user_id=$2`,[role,id]);
-   await audit(c,req.admin.username,'user.role',rows.rows[0].username,{role});
+   await audit(c,req.admin.username,'user.role',rows.rows[0].username,{previous:rows.rows[0].role_name,new:role});
    return 'ok';
   });
   if(result!=='ok')return res.status(result==='missing'?404:409).json({error:result==='self'?'You cannot change your own role.':result==='last'?'Cannot remove the last administrator.':'User not found.'});
@@ -257,7 +259,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
     if(isAdmin.rowCount&&admins.rows[0].total<=1)return 'last';
    }
    await c.query('UPDATE digital_twin.users SET is_active=$1 WHERE user_id=$2',[active,id]);
-   await audit(c,req.admin.username,active?'user.activate':'user.disable',user.rows[0].username);
+   await audit(c,req.admin.username,active?'user.activate':'user.disable',user.rows[0].username,{previous:user.rows[0].is_active,new:active});
    return 'updated';
   });
   if(status!=='updated')return res.status(status==='missing'?404:409).json({error:status==='self'?'You cannot disable your own account.':status==='last'?'Cannot disable the last active administrator.':'User not found.'});
@@ -294,8 +296,10 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   const id=Number(req.params.id),status=clean(req.body?.maintenance_status,30);
   if(!Number.isSafeInteger(id)||!['Scheduled','In Progress','Completed','Cancelled'].includes(status))return res.status(400).json({error:'Invalid maintenance ID or status.'});
   const rows=await transaction(pool,async c=>{
+   const previous=await c.query('SELECT maintenance_status FROM digital_twin.maintenance_events WHERE maintenance_id=$1 FOR UPDATE',[id]);
+   if(!previous.rowCount)return 0;
    const updated=await c.query('UPDATE digital_twin.maintenance_events SET maintenance_status=$1 WHERE maintenance_id=$2 RETURNING maintenance_id',[status,id]);
-   if(updated.rowCount)await audit(c,req.admin.username,'maintenance.status',String(id),{status});
+   if(updated.rowCount)await audit(c,req.admin.username,'maintenance.status',String(id),{previous:previous.rows[0].maintenance_status,new:status});
    return updated.rowCount;
   });
   if(!rows)return res.status(404).json({error:'Maintenance record not found.'});
