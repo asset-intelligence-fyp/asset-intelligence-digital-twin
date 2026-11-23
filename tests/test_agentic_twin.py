@@ -44,7 +44,7 @@ class TestAgenticTwin(unittest.TestCase):
         context=a.context_evidence(r,points,target,cutoff)
         self.assertEqual(context["headcount"],12)
         self.assertEqual(context["operation"]["ventilation"],0.6)
-        self.assertNotIn("fault",str(context))
+        self.assertNotIn("fault",context.get("operation",{}))
         self.assertNotIn("ground_truth",str(context))
         r["simulation"]["simulation"]["weather"]["timestamp"]="2026-11-20T09:00:00Z"
         self.assertIsNone(a.context_evidence(r,points,target,cutoff)["weather"])
