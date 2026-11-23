@@ -17,13 +17,15 @@ const datasets=[
  ['ai_results','AI results'],['forecasts','Forecasts'],['alerts','Alerts'],
  ['maintenance','Maintenance'],['notifications','Notifications']
 ];
-let askForAdminPassword:(()=>Promise<boolean>)|null=null;
+type PendingChange={method:string;path:string;body:Record<string,unknown>};
+let askForAdminPassword:((change:PendingChange)=>Promise<string|null>)|null=null;
 async function request(url:string,options?:RequestInit,canConfirm=true){
  const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...options});
  if(r.status===428&&canConfirm&&askForAdminPassword&&options?.method&&options.method!=='GET'){
-  const verified=await askForAdminPassword();
-  if(!verified)throw Error('Change cancelled.');
-  return request(url,options,false);
+  const change:PendingChange={method:options.method,path:url.split('?')[0],body:options.body?JSON.parse(String(options.body)) as Record<string,unknown>:{}};
+  const authorization=await askForAdminPassword(change);
+  if(!authorization)throw Error('Change cancelled.');
+  return request(url,{...options,headers:{...options.headers,'X-Admin-Confirmation':authorization}},false);
  }
  const data=await r.json().catch(()=>({error:'Invalid server response'}));
  if(!r.ok)throw Error(data.error||'Request failed ('+r.status+')');
@@ -39,23 +41,25 @@ export function AdminWorkspace(){
  const [confirmPassword,setConfirmPassword]=useState('');
  const [confirmError,setConfirmError]=useState('');
  const [confirmBusy,setConfirmBusy]=useState(false);
- const confirmResolver=useRef<((value:boolean)=>void)|null>(null);
+ const confirmResolver=useRef<((value:string|null)=>void)|null>(null);
+ const pendingChange=useRef<PendingChange|null>(null);
  useEffect(()=>{
-  askForAdminPassword=()=>new Promise<boolean>(resolve=>{
+  askForAdminPassword=(change)=>new Promise<string|null>(resolve=>{
+   pendingChange.current=change;
    confirmResolver.current=resolve;
    setConfirmPassword('');setConfirmError('');setConfirmOpen(true);
   });
-  return ()=>{askForAdminPassword=null;confirmResolver.current?.(false);confirmResolver.current=null;};
+  return ()=>{askForAdminPassword=null;confirmResolver.current?.(null);confirmResolver.current=null;};
  },[]);
- const closeConfirm=(accepted:boolean)=>{
+ const closeConfirm=(authorization:string|null)=>{
   setConfirmOpen(false);setConfirmPassword('');setConfirmError('');
-  confirmResolver.current?.(accepted);confirmResolver.current=null;
+  confirmResolver.current?.(authorization);confirmResolver.current=null;pendingChange.current=null;
  };
  async function submitConfirm(e:FormEvent){
   e.preventDefault();setConfirmBusy(true);setConfirmError('');
   try{
-   await request('/api/admin/confirm-password',send('POST',{password:confirmPassword}),false);
-   closeConfirm(true);
+   const verified=await request('/api/admin/confirm-password',send('POST',{password:confirmPassword,action:pendingChange.current}),false) as {authorization:string};
+   closeConfirm(verified.authorization);
   }catch(err){setConfirmError(err instanceof Error?err.message:String(err))}
   finally{setConfirmBusy(false)}
  }
@@ -145,7 +149,7 @@ export function AdminWorkspace(){
    </div><label>Work description<input required value={work.description} onChange={e=>setWork({...work,description:e.target.value})}/></label><div className="aw-actions"><button type="submit" className="aw-primary" disabled={busy}><Save size={14}/> Create work</button><button type="button" onClick={()=>setShowWork(false)}>Cancel</button></div></form>}
    <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Maintenance</h2><span>Newest first</span></div><div className="aw-table-scroll"><table><thead><tr><th>ID</th><th>Location</th><th>Type</th><th>Due</th><th>Description</th><th>Status</th></tr></thead><tbody>{maintenance.map(m=><tr key={String(m.maintenance_id)}><td>{String(m.maintenance_id)}</td><td>{String(m.display_name)}</td><td>{String(m.event_type)}</td><td>{new Date(String(m.event_date)).toLocaleString()}</td><td title={String(m.description)}>{brief(m.description)}</td><td><select aria-label={'Maintenance status '+m.maintenance_id} disabled={busy} value={String(m.maintenance_status)} onChange={e=>void mutate('/api/admin/manage/maintenance/'+m.maintenance_id,'PATCH',{maintenance_status:e.target.value})}>{['Scheduled','In Progress','Completed','Cancelled'].map(st=><option key={st}>{st}</option>)}</select></td></tr>)}</tbody></table>{!maintenance.length&&<p className="aw-empty">No maintenance records yet.</p>}</div></div>
   </div>}
-  {tab==='users'&&<div className="aw-content"><div className="aw-grid"><form className="aw-panel aw-form" onSubmit={async(e:FormEvent)=>{e.preventDefault();setBusy(true);setNewInvite('');setEmailDelivery('');try{const r=await request('/api/admin/manage/invites',send('POST',{email:inviteEmail})) as {code:string;emailSent:boolean;deliveryMessage:string};setNewInvite(r.code);setEmailDelivery(r.emailSent?'Email accepted by provider.':r.deliveryMessage);setInviteEmail('');await loadUsers();setMessage(r.emailSent?'Invitation email accepted by provider.':'Invitation created; email not sent. Copy and share the code privately.')}catch(e){notify(e)}finally{setBusy(false)}}}><h2>Grant access</h2><label>Email<input type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} required placeholder="person@example.com"/></label><button className="aw-primary" disabled={busy} type="submit"><Plus size={15}/> {overview?.emailConfigured?'Send invitation':'Generate invitation code'}</button>{emailDelivery&&<p className="aw-footnote" role="status">{emailDelivery}</p>}{newInvite&&<div className="aw-invite-code"><code>{newInvite}</code><button type="button" onClick={()=>{if(navigator.clipboard?.writeText)void navigator.clipboard.writeText(newInvite);else window.prompt('Copy invitation code:',newInvite)}}><Copy size={14}/> Copy</button></div>}<p className="aw-footnote">One-use viewer invitation, valid for seven days. {overview?.emailConfigured?'Email delivery enabled.':'Email delivery not configured; copy the code to share.'}</p></form><section className="aw-panel"><h2>Recent activity</h2><div className="aw-activity">{audit.map((a,i)=><div key={i}><span>{String(a.action)}</span><strong>{String(a.target)}</strong><small>{new Date(String(a.created_at)).toLocaleString()}</small></div>)}{!audit.length&&<p>No changes yet.</p>}</div></section></div>
+  {tab==='users'&&<div className="aw-content"><div className="aw-grid"><form className="aw-panel aw-form" onSubmit={async(e:FormEvent)=>{e.preventDefault();setBusy(true);setNewInvite('');setEmailDelivery('');try{const r=await request('/api/admin/manage/invites',send('POST',{email:inviteEmail})) as {code:string;emailSent:boolean;deliveryMessage:string};setNewInvite(r.code);setEmailDelivery(r.emailSent?'Email accepted by provider.':r.deliveryMessage);setInviteEmail('');await loadUsers();setMessage(r.emailSent?'Invitation email accepted by provider.':'Invitation created; email not sent. Copy and share the code privately.')}catch(e){notify(e)}finally{setBusy(false)}}}><h2>Grant access</h2><label>Email<input type="email" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} required placeholder="person@example.com"/></label><button className="aw-primary" disabled={busy} type="submit"><Plus size={15}/> {overview?.emailConfigured?'Send invitation':'Generate invitation code'}</button>{emailDelivery&&<p className="aw-footnote" role="status">{emailDelivery}</p>}{newInvite&&<div className="aw-invite-code"><code>{newInvite}</code><button type="button" onClick={()=>{if(navigator.clipboard?.writeText)void navigator.clipboard.writeText(newInvite);else window.prompt('Copy invitation code:',newInvite)}}><Copy size={14}/> Copy</button></div>}<p className="aw-footnote">One-use viewer invitation, valid for seven days. {overview?.emailConfigured?'Email delivery enabled.':'Email delivery not configured; copy the code to share.'}</p></form><section className="aw-panel"><h2>Recent activity</h2><div className="aw-activity">{audit.map((a,i)=><div key={i}><span>{String(a.actor)} · {String(a.action)}</span><strong>{String(a.target)}</strong><small>{new Date(String(a.created_at)).toLocaleString()}</small></div>)}{!audit.length&&<p>No changes yet.</p>}</div></section></div>
   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Accounts</h2><span>{users.length} users</span></div><div className="aw-table-scroll"><table><thead><tr><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Created</th><th>Access controls</th></tr></thead><tbody>{users.map(u=><tr key={String(u.user_id)}><td>{String(u.username)}</td><td>{String(u.email)}</td><td><span className="aw-tag">{String(u.role_name)}</span></td><td><span className={u.is_active===false?"aw-tag pending":"aw-tag good"}>{u.is_active===false?"Disabled":"Active"}</span></td><td>{new Date(String(u.created_at)).toLocaleDateString()}</td><td><div className="aw-row-actions"><select aria-label={'Role for '+u.username} value={String(u.role_name)} disabled={busy} onChange={async e=>{if(window.confirm('Change role for '+u.username+'?'))await mutate('/api/admin/manage/users/'+u.user_id+'/role','POST',{role:e.target.value})}}><option value="viewer">Viewer</option><option value="admin">Admin</option></select><button disabled={busy||String(u.username)==="admin"&&users.filter(x=>x.role_name==="admin"&&x.is_active!==false).length<=1} onClick={async()=>{const enabling=u.is_active===false;if(window.confirm((enabling?"Enable ":"Disable ")+String(u.username)+"?"))await mutate("/api/admin/manage/users/"+u.user_id+"/active","POST",{is_active:enabling})}}>{u.is_active===false?"Enable":"Disable"}</button></div></td></tr>)}</tbody></table></div></div>
   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Invitations</h2><span>{invites.length} recent</span></div><div className="aw-table-scroll"><table><thead><tr><th>Email</th><th>Status</th><th>Email</th><th>Expires</th><th>Action</th></tr></thead><tbody>{invites.map(i=><tr key={String(i.invite_id)}><td>{String(i.email)}</td><td>{i.used_at?'Used':new Date(String(i.expires_at)).getTime()<Date.now()?'Expired':'Open'}</td><td>{String(i.email_status||'not_configured').replaceAll('_',' ')}</td><td>{new Date(String(i.expires_at)).toLocaleString()}</td><td>{!i.used_at&&<button onClick={()=>void mutate('/api/admin/manage/invites/'+i.invite_id+'/revoke','POST')}>Revoke</button>}</td></tr>)}</tbody></table></div></div>
   <p className="aw-footnote">Accounts and roles are managed in PostgreSQL. The existing public dashboard is not restricted by these roles; admin APIs remain admin-only.</p></div>}
@@ -156,10 +160,10 @@ export function AdminWorkspace(){
   {confirmOpen&&<div className="aw-confirm-backdrop" role="presentation">
    <form className="aw-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="aw-confirm-title" onSubmit={e=>void submitConfirm(e)}>
     <h2 id="aw-confirm-title">Confirm administrator password</h2>
-    <p>To protect TwinLabs data, confirm your admin password before saving changes. Confirmation remains valid for five minutes.</p>
+    <p>To protect TwinLabs data, confirm your admin password before saving changes. Each change requires its own password confirmation.</p>
     <label>Admin password<input autoFocus required type="password" autoComplete="current-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
     {confirmError&&<p role="alert" className="aw-confirm-error">{confirmError}</p>}
-    <div className="aw-actions"><button type="button" disabled={confirmBusy} onClick={()=>closeConfirm(false)}>Cancel</button><button className="aw-primary" disabled={confirmBusy} type="submit">{confirmBusy?'Verifying…':'Confirm & continue'}</button></div>
+    <div className="aw-actions"><button type="button" disabled={confirmBusy} onClick={()=>closeConfirm(null)}>Cancel</button><button className="aw-primary" disabled={confirmBusy} type="submit">{confirmBusy?'Verifying…':'Confirm & continue'}</button></div>
    </form>
   </div>}
  </section>;
