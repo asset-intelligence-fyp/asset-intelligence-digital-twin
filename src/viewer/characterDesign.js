@@ -13,7 +13,7 @@ export const CHARACTER_STYLES=[
 export const CHARACTER_PLACEMENTS={
  head:[0,1.626,0],torso:[0,1.169,0],
  armL:[-.298,1.144,0],armR:[.298,1.144,0],
- legL:[-.118,.500,0],legR:[.118,.500,0]
+ legL:[-.118,.414,0],legR:[.118,.414,0]
 };
 
 export const CHARACTER_SCALES={
