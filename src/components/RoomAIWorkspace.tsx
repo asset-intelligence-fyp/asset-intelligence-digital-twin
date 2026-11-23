@@ -93,6 +93,8 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
    <span className={health.connected?'room-ai-connected':'room-ai-offline'}>
     {health.connected&&health.agentic_supported?'Agentic service connected':health.connected?'Qwen connected; verify agentic bridge':'Local model unavailable'}
    </span>
+   {!health.connected&&<p className="room-ai-subtle" role="status">{health.error||'Cannot confirm Qwen connection. Check the Python bridge on port 8011 and Ollama on port 11434.'}</p>}
+   {!health.connected&&<button type="button" className="room-ai-secondary" onClick={()=>void fetch('/api/assistant/health',{cache:'no-store'}).then(r=>r.json()).then(setHealth).catch(()=>setHealth({connected:false,error:'The AI API could not be reached.'}))}>Recheck AI connection</button>}
    <small>Normal-history reference: {health.historical_reference_available?'connected':'not configured or not confirmed'} · Advisory synthetic-data research</small>
   </header>
 
