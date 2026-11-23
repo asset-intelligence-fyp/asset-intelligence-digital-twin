@@ -94,3 +94,11 @@ The Administration sidebar now shows **Announcements** instead of **Notification
 The original `digital_twin.notifications` table and the real-time **alert bell** are retained. Those relate to automatic sensor alerts and are not edited by the new Announcements editor. The new records live in `digital_twin.announcements`, which `npm run host:lan` creates additively when missing.
 
 To test: run `npm run build` and `npm run host:lan`; open Admin → Announcements; create a draft; publish with your Admin password; open the normal site → Announcements and check it appears. Archive the notice and confirm it disappears from the public listing but remains in Admin history and Audit Log. This update has not been verified on your Windows environment until those tests pass.
+
+## Dedicated login screen
+
+TwinLabs now renders the existing PostgreSQL-backed **Sign in / Redeem invitation** form on its own landing screen instead of opening it in a popup over the dashboard. After an administrator signs in, the Admin Workspace opens. After a Viewer signs in, the building overview opens. Existing sessions are checked against `/api/admin/session` when loading the app; logout returns to the login screen. Invite links still open the registration form.
+
+**Important limitation:** this UI change is *not* website-wide API protection. The existing telemetry, BIM and other public backend routes remain accessible on the LAN without a login; backend authentication must be enforced on those routes for a production access-controlled deployment. Admin management endpoints retain the existing PostgreSQL authorization and per-write password confirmation.
+
+If Admin still shows **Notifications** instead of **Announcements**, stop the host, pull `feature/amanda-lan-hosting`, run `npm run build`, restart `npm run host:lan` and reload the page. Check the output of `git branch --show-current` and `git log -1 --oneline` if the old UI persists. Verify the announcements storage migration appears in host startup logs, and sign in as Admin to create and publish a test announcement.
