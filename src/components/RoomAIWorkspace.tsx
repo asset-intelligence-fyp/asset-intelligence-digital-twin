@@ -11,13 +11,13 @@ type Analysis = {
  llm_used:boolean; cited_evidence_ids?:string[];
 };
 type Projection = {
- status:string; sensor_id:string; unit:string; target_time:string;
+ status:string; sensor_id:string; unit:string; target_time:string;model?:string;
  projected_value?:number; lower_scenario?:number; upper_scenario?:number;
  explanation?:string; reason?:string; direction?:string;
  limitations:string[]; assumptions?:string[];
  coverage?:{observed_samples:number;span_minutes:number;historical_months:number};
 };
-type Health = {connected:boolean;agentic_supported?:boolean;historical_reference_available?:boolean;error?:string};
+type Health = {connected:boolean;agentic_supported?:boolean;historical_reference_available?:boolean;error?:string;available_forecast_models?:string[]};
 const print = (n:number|undefined, unit='') => typeof n==='number' && Number.isFinite(n)
  ? n.toFixed(2)+(unit?' '+unit:'') : 'Unavailable';
 
@@ -27,6 +27,7 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
  const [question,setQuestion]=useState('Compare the current readings with historical patterns and explain the likely operating causes.');
  const [analysis,setAnalysis]=useState<Analysis|null>(null);
  const [forecast,setForecast]=useState<Projection|null>(null);
+ const [forecastModel,setForecastModel]=useState<'qwen3:1.7b'|'qwen3:4b'>('qwen3:1.7b');
  const [health,setHealth]=useState<Health>({connected:false});
  const [busy,setBusy]=useState<'investigate'|'forecast'|null>(null);
  const [error,setError]=useState('');
@@ -71,7 +72,7 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
     method:'POST',headers:{'Content-Type':'application/json'},
     signal:controller.signal,
     body:JSON.stringify({room_id:twin.selectedRoom,sensor_id:selected.code,question,
-     as_of,source,...(source==='http'?{}:{snapshot})}),
+     as_of,source,...(task==='forecast'?{forecast_model:forecastModel}:{}),...(source==='http'?{}:{snapshot})}),
    });
    const data=await reply.json();
    if(!reply.ok)throw Error(data.error||'The AI service returned an error.');
@@ -147,7 +148,15 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
 
   <section className="room-ai-block">
    <h3>Separate one-month forecasting pipeline</h3>
-   <p>Qwen estimates one sensor value one calendar month ahead. With limited history, it returns a clearly labelled exploratory scenario rather than a validated prediction.</p>
+   <p>Compare 1.7B and 4B on the same sensor and observation cutoff. The anomaly investigation model remains Qwen3 1.7B.</p>
+   <label className="room-ai-field">Forecast model
+    <select value={forecastModel} onChange={e=>{setForecastModel(e.target.value as 'qwen3:1.7b'|'qwen3:4b');setForecast(null)}} disabled={!!busy}>
+     <option value="qwen3:1.7b">Qwen3 1.7B · Q4</option>
+     <option value="qwen3:4b">Qwen3 4B · Q4</option>
+    </select>
+   </label>
+   <p className="room-ai-subtle">{health.available_forecast_models?.includes(forecastModel)?'Selected model installed in Ollama':'If not installed, run: ollama pull '+forecastModel} · One month-ahead point estimate, not a validated monthly time-series forecast.</p>
+   <p>With limited history, the result is labelled as an exploratory scenario rather than a validated prediction.</p>
    <div className="room-ai-actions">
     <button type="button" className="room-ai-primary" disabled={!!busy||!eligible} onClick={()=>void run('forecast')}>
      {busy==='forecast'?'Forecasting…':'Forecast +1 month'}
@@ -155,7 +164,7 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
    </div>
    {!eligible&&<p className="room-ai-subtle">Choose temperature, humidity, CO₂, light or power to generate a numeric projection.</p>}
    {forecast&&<article className="room-ai-result" aria-live="polite">
-    <strong>{forecast.status==='llm_projection'?'Historical-context projection':forecast.status==='exploratory_scenario'?'Low-evidence exploratory scenario':'Projection unavailable'}</strong>
+    <strong>{forecast.status==='llm_projection'?'Historical-context projection':forecast.status==='exploratory_scenario'?'Low-evidence exploratory scenario':'Projection unavailable'} · {forecast.model||forecastModel}</strong>
     {typeof forecast.projected_value==='number'?<>
      <p className="room-ai-value">{print(forecast.projected_value,forecast.unit)}</p>
      <p>For {new Date(forecast.target_time).toLocaleString('en-MY',{timeZone:'Asia/Kuching',dateStyle:'medium',timeStyle:'short'})}</p>
