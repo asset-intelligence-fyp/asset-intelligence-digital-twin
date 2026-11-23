@@ -25,7 +25,7 @@ applyTheme(getSavedTheme());
 function App(){
  const {selectedRoom:selectedAsset,setSelectedRoom:setSelectedAsset}=useTwin();
  const [commandRequest,setCommandRequest]=useState(0);
- const [adminOpen,setAdminOpen]=useState(false);
+ const [adminOpen,setAdminOpen]=useState(()=>new URLSearchParams(window.location.search).has('invite'));
  const {session,setSession,logout}=useAdminSession();
  const [page,updatePage]=useState<Page>('overview');
  const setPage=(next:Page)=>{if(next==='database'&&session.role!=='admin'){setAdminOpen(true);return;}setAdminOpen(false);updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
