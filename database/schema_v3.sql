@@ -153,6 +153,8 @@ CREATE TABLE IF NOT EXISTS digital_twin.access_invites (
  created_by TEXT NOT NULL,
  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_status TEXT NOT NULL DEFAULT 'not_configured';
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS digital_twin.admin_audit (
  audit_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  actor TEXT NOT NULL,
