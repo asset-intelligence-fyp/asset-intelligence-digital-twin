@@ -136,7 +136,11 @@ def cases(out):
     result = {}
     for cid, request in requests.items():
         history = sorted(histories[cid], key=lambda x: x["date"])
-        known = sorted(calendars[cid], key=lambda x: x["future_date"])
+        cutoff_date = date.fromisoformat(request["prompt"]["as_of_date"])
+        target_end = base.month_after(cutoff_date)
+        known = sorted((r for r in calendars[cid]
+                        if cutoff_date <= date.fromisoformat(r["future_date"]) < target_end),
+                       key=lambda x: x["future_date"])
         cutoff = guard_case(history, known, request)
         result[cid] = {"request":request,"history":history,"known":known,
                        "cutoff":str(cutoff)}
