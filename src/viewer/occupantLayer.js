@@ -106,7 +106,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
    const isLeft=name.endsWith('L'),isArm=name.startsWith('arm');
    const pivot=isArm?
     [isLeft?-.298:.298,1.390,0]:
-    [isLeft?-.118:.118,.887,0];
+    [isLeft?-.118:.118,.800,0];
    const pitch=(isLeft?1:-1)*(isArm?armSwing:legSwing);
    const limb=mannequinLimbPose(pivot,isArm ? .309 : .386,pitch);
    item.mesh.position=world(limb.center);
