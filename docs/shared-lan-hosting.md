@@ -13,6 +13,16 @@ The host Windows laptop runs the whole TwinLabs website against its own existing
 - The PostgreSQL database itself and its TimescaleDB extension must already exist. The launcher **automatically creates missing `digital_twin` schema tables and registers missing sensor metadata** using the existing `db:setup:v3` initializer, and skips this step when the schema and 18 sensor registrations are already present. It does not automatically create a PostgreSQL database or install TimescaleDB. Back up the database before its first initialization.
 - Ensure nothing else is listening on port 3001 (including any older `npm run dev` process).
 
+## Which database schema is the official one?
+
+**Use only `database/schema_v3.sql` as the canonical SQL definition for the active `digital_twin` schema.** It contains 17 tables and additive legacy-alert column upgrades. The older `twin18` schema and any previous prototype schemas are retained for legacy compatibility, not for setting up this LAN-hosted website.
+
+**Recommended:** run `npm run host:lan`. It checks the existing PostgreSQL database, skips initialization when all v3 tables and at least 18 sensor registrations exist, and otherwise runs `npm run db:setup:v3` automatically. Existing rows are not replaced during metadata seeding.
+
+**Manual initialization (host only, if needed):** `npm run db:setup:v3` runs the canonical SQL, adds missing default Building/Floor/Location/Sensor metadata without overwriting matching records, converts the sensor readings table to a TimescaleDB hypertable when needed, and installs the change notification trigger. Running the SQL alone in pgAdmin does **not** seed the 18 sensor registrations or run the hypertable conversion/trigger setup.
+
+**Prerequisites:** the PostgreSQL *database* named by `.env` must already exist; TimescaleDB must be enabled in that database. The launcher will not create a PostgreSQL database, install TimescaleDB, or reset existing data. Backup your database before initial setup.
+
 ## Start the entire website
 
 From the repository root on the host laptop:
