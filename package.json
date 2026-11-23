@@ -22,7 +22,8 @@
     "eval:llm:anomaly:score": "python3 scripts/evaluate_llm_anomalies.py score",
     "eval:llm:report": "python3 scripts/build_llm_evaluation_report.py",
     "test:ai": "node --test tests/roomAssistantValidated.test.mjs tests/roomPrediction.test.mjs tests/oneMonthEvaluationEndpoint.test.mjs tests/velvetRoomAI.test.mjs",
-    "db:setup:v3": "node scripts/setup-v3.mjs"
+    "db:setup:v3": "node scripts/setup-v3.mjs",
+    "admin:db:setup": "node scripts/setup-db-admin.mjs"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
