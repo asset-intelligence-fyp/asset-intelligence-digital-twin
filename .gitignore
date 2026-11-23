@@ -47,3 +47,6 @@ storage/llm_one_month_checkpoints/
 # Local blind anomaly research outputs and answer keys
 reports/llm_anomaly_eval/
 reports/llm_research_evaluation.json
+
+# Local Qwen forecasting experiments (may include hidden truth in scored outputs)
+experiments/outputs/
