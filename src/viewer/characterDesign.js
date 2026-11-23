@@ -42,6 +42,17 @@ export const CHARACTER_SCALES={
  shoeL:[.106,.057,.151],shoeR:[.106,.057,.151]
 };
 
+/**
+ * Keep the original room-valid segment but limit the walking speed and
+ * foot-sliding risk on unusually large IFC floor triangles. The new end
+ * is an interpolation of two original in-triangle positions.
+ */
+export function boundWalkSegment(start,end,maxDistance=1.1){
+ const dx=end[0]-start[0],dz=end[2]-start[2],distance=Math.hypot(dx,dz);
+ const fraction=distance>maxDistance?maxDistance/distance:1;
+ return {start:[...start],end:end.map((v,i)=>start[i]+(v-start[i])*fraction)};
+}
+
 const smooth=x=>x*x*(3-2*x);
 const TURN_MS=500,TRAVEL_MS=2650,CYCLE_MS=2*(TURN_MS+TRAVEL_MS);
 const stationary=(base,heading)=>({
