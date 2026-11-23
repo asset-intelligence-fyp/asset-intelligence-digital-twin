@@ -79,3 +79,18 @@ The Admin sidebar now has dedicated sections for **User Accounts**, **Grant Acce
 7. Verify Grant Access still sends via configured Gmail SMTP and that its button remains a consistent size.
 
 Known limitations: The public operational Dashboard still does not enforce website-wide login; this update does not change the BIM model or static simulator. The site uses HTTP over LAN, so password confirmations require a trusted private network until HTTPS is configured. The alert detector may independently create or update alerts during subsequent simulation activity.
+
+## Announcements replacing the Admin Notifications tab
+
+The Administration sidebar now shows **Announcements** instead of **Notifications**. This is a separate editorial feature, not a renaming of sensor alert notifications.
+
+- Create a draft with a title and message.
+- Publish the draft to make it visible under the main TwinLabs sidebar → **Announcements** for all LAN website visitors.
+- Edit an existing announcement, return it to draft, or archive it to remove it from the public listing without deleting its history.
+- Record who created or last modified each announcement and capture each change in the Admin Audit Log.
+- Every create, edit, publish or archive operation uses a one-time Admin password confirmation.
+- The public page shows **published announcements only**, sorted newest first, with a refresh button.
+
+The original `digital_twin.notifications` table and the real-time **alert bell** are retained. Those relate to automatic sensor alerts and are not edited by the new Announcements editor. The new records live in `digital_twin.announcements`, which `npm run host:lan` creates additively when missing.
+
+To test: run `npm run build` and `npm run host:lan`; open Admin → Announcements; create a draft; publish with your Admin password; open the normal site → Announcements and check it appears. Archive the notice and confirm it disappears from the public listing but remains in Admin history and Audit Log. This update has not been verified on your Windows environment until those tests pass.
