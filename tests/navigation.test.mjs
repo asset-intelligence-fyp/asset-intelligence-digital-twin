@@ -15,7 +15,7 @@ const frames=new Map();let nextFrame=1;
 globalThis.requestAnimationFrame=fn=>{const id=nextFrame++;frames.set(id,fn);return id};
 globalThis.cancelAnimationFrame=id=>frames.delete(id);
 function fixture(reducedMotion=false,roomFocus){
- const objects={},metaObjects={},flightCalls=[],callbacks=[],updates=[],heatUpdates=[];
+ const objects={},metaObjects={},flightCalls=[],callbacks=[],updates=[],heatUpdates=[],floorSurfaces=[];
  const camera={eye:[100,90,100],look:[50,65,20],projection:'perspective',ortho:{scale:100},panDelta:null,pan(delta){this.panDelta=delta}};
  const levels=navigation.levels;
  for(const level of levels){
@@ -31,8 +31,8 @@ function fixture(reducedMotion=false,roomFocus){
   on:()=>1,off:()=>{},input:{on:()=>2,off:()=>{}}};
  const viewer={scene,camera,metaScene:{metaObjects},cameraControl:{pivotPos:[]},cameraFlight:{cancel(){},jumpTo(frame){flightCalls.push(frame)},flyTo(frame,cb){flightCalls.push(frame);callbacks.push(cb)}}};
  const planes={lower:{active:false,pos:[],dir:FLOOR_CLIP_DIRECTIONS.lower},upper:{active:false,pos:[],dir:FLOOR_CLIP_DIRECTIONS.upper}};
- const controller=createNavigationController(viewer,{navigation,planes,points:registry,roomFocus,heatmap:{update:s=>heatUpdates.push(s),destroy(){}},onState:s=>updates.push(s),reducedMotion});controller.load();if(callbacks.length)callbacks.shift()();flightCalls.length=0;
- return {controller,objects,scene,planes,flightCalls,callbacks,updates,camera,heatUpdates};
+ const controller=createNavigationController(viewer,{navigation,planes,points:registry,roomFocus,heatmap:{setFloorSurfaces:s=>floorSurfaces.push(s),update:s=>heatUpdates.push(s),destroy(){}},onState:s=>updates.push(s),reducedMotion});controller.load();if(callbacks.length)callbacks.shift()();flightCalls.length=0;
+ return {controller,objects,scene,planes,flightCalls,callbacks,updates,camera,heatUpdates,floorSurfaces};
 }
 test('All 18 navigation anchors use actual IFC floors, with elevations enclosing the markers',()=>{
  assert.equal(navigation.levels.length,9);assert.equal(navigation.sensors.length,18);
@@ -210,5 +210,18 @@ test('Heatmap preserves whole-building and floor selection instead of forcing a 
  assert.equal(f.controller.snapshot().floor,'Level_04','switching back does not reset floor');
  f.controller.showFloor('all');
  assert.equal(f.heatUpdates.at(-1).floor,'all');
+ f.controller.destroy();
+});
+
+test('full-floor heatmap receives actual slab bounds for every building storey',()=>{
+ const f=fixture(true);
+ assert.equal(f.floorSurfaces.length,1);
+ assert.deepEqual(f.floorSurfaces[0].map(p=>p.floor),['Level_01','Level_02','Level_03','Level_04','Level_05']);
+ for(const surface of f.floorSurfaces[0]){
+  assert.equal(surface.source,'ifc-slab');
+  assert.ok(surface.aabbs.length>=1);
+  assert.ok(surface.aabbs.some(b=>b[3]>b[0]&&b[5]>b[2]));
+  assert.equal(surface.elevation,navigation.levels.find(l=>l.id===surface.floor).elevation);
+ }
  f.controller.destroy();
 });
