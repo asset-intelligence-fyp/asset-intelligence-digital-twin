@@ -30,7 +30,7 @@ function App(){
  const [page,updatePage]=useState<Page>('overview');
  const setPage=(next:Page)=>{if(next==='database'&&session.role!=='admin'){setAdminOpen(true);return;}setAdminOpen(false);updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
  const handleLogout=async()=>{try{await logout();}finally{setPage('overview');}};
- useEffect(()=>{if(page==='database'&&session.role!=='admin')updatePage('overview')},[page,session.authenticated]);
+ useEffect(()=>{if(page==='database'&&session.role!=='admin')updatePage('overview')},[page,session.role]);
  useEffect(()=>{if(!adminOpen)return;const handler=(event:KeyboardEvent)=>{if(event.key==='Escape')setAdminOpen(false)};document.addEventListener('keydown',handler);return()=>document.removeEventListener('keydown',handler)},[adminOpen]);
  const [assistantDraft,setAssistantDraft]=useState<{question:string;scope:string;nonce:number}|null>(null);
  const [investigationId,setInvestigationId]=useState<number|null>(null);
@@ -40,7 +40,7 @@ function App(){
  const [selectedCode,setSelectedCode]=useState('TEMP-L03-OPEN-01');
  const focus=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;setSelectedCode(code);setSelectedAsset(p.assetId);setPage('overview');setCommandRequest(n=>n+1)};
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
- return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.authenticated} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
+ return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.role==='admin'} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
   {page==='database'&&session.role==='admin'&&<AdminWorkspace/>}
   {page==='overview'&&<Overview investigationId={investigationId} onDismissInvestigation={()=>setInvestigationId(null)} onEvent={openEvent} externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
@@ -53,7 +53,7 @@ function App(){
  <div className={page==='assistant'?'assistant-page-inner':''} ><AssistantWorkspace fullPage={page==='assistant'} onExpand={()=>setPage('assistant')} onSensor={(code,id)=>{setInvestigationId(id??null);focus(code)}} onEvent={openEvent} draft={assistantDraft}/></div>
  <CommandPalette onSelect={code=>{const point=POINTS.find(p=>p.code===code);if(point){setSelectedCode(code);setSelectedAsset(point.assetId);setPage('overview');setCommandRequest(n=>n+1)}}}/>
  </Shell>
- {adminOpen&&!session.authenticated&&<div className="admin-overlay" onMouseDown={event=>{if(event.target===event.currentTarget)setAdminOpen(false)}}><div className="admin-modal" role="dialog" aria-modal="true" aria-label="Admin Login"><AdminLogin onSuccess={result=>{setSession(result);setAdminOpen(false);updatePage('database');window.scrollTo({top:0,behavior:'instant'});}} onClose={()=>setAdminOpen(false)}/></div></div>}
+ {adminOpen&&<div className="admin-overlay" onMouseDown={event=>{if(event.target===event.currentTarget)setAdminOpen(false)}}><div className="admin-modal" role="dialog" aria-modal="true" aria-label="Admin Login"><AdminLogin onSuccess={result=>{setSession(result);setAdminOpen(false);updatePage(result.role==='admin'?'database':'overview');window.scrollTo({top:0,behavior:'instant'});}} onClose={()=>setAdminOpen(false)}/></div></div>}
  </>;
 }
 createRoot(document.getElementById('root')!).render(<React.StrictMode>{window.location.hash==='#presentation'?<Presentation/>:<TwinProvider><App/></TwinProvider>}</React.StrictMode>);
