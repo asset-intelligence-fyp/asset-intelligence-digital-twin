@@ -40,7 +40,7 @@ function App(){
  const [selectedCode,setSelectedCode]=useState('TEMP-L03-OPEN-01');
  const focus=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;setSelectedCode(code);setSelectedAsset(p.assetId);setPage('overview');setCommandRequest(n=>n+1)};
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
- return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.role==='admin'} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
+ return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.role==='admin'} accountAuthenticated={session.authenticated} accountRole={session.role} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
   {page==='database'&&session.role==='admin'&&<AdminWorkspace/>}
   {page==='overview'&&<Overview investigationId={investigationId} onDismissInvestigation={()=>setInvestigationId(null)} onEvent={openEvent} externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
