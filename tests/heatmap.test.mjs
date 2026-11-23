@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  HEATMAP_STOPS,heatmapColour,heatmapScore,heatmapSamples,
- interpolateHeatmap,subdivideFootprint,sensorVicinity,heatmapVertexColours
+ interpolateHeatmap,subdivideFootprint,sensorVicinity,heatmapVertexColours,
+ buildFloorHeatmapGrid,interpolateWholeFloor,wholeFloorVertexColours
 } from '../src/viewer/heatmapField.js';
 const points=JSON.parse(readFileSync('shared/sensorRegistry.json','utf8'));
 const navigation=JSON.parse(readFileSync('shared/modelNavigation.json','utf8'));
@@ -98,4 +99,51 @@ test('per-vertex colours have RGBA gradient with alpha fading, not unsupported g
  const remote=heatmapVertexColours([200,60,300],readings,'status');
  assert.deepEqual(remote,[0,0,0,0]);
  assert.ok(heatmapVertexColours([0,60,0],[{x:0,z:0,score:1}],'water_leakage')[3]>.5);
+});
+
+test('full-floor grid spans actual slab bounds instead of sensor-centred circles',()=>{
+ const slab=[10,59.7,-50,90,59.92,-10],grid=buildFloorHeatmapGrid([slab],59.7);
+ assert.ok(grid.cellCount>800,'the heatmap must cover the entire large floor');
+ assert.deepEqual([grid.bounds[0],grid.bounds[2],grid.bounds[3],grid.bounds[5]],[10,-50,90,-10]);
+ assert.ok(grid.positions.every(Number.isFinite));
+ assert.ok(grid.positions.filter((_,i)=>i%3===1).every(y=>Math.abs(y-60.16)<1e-8));
+ assert.equal(grid.indices.length,grid.cellCount*6);
+ // The union of two separated IFC slabs must not paint the gap as measured.
+ const separate=buildFloorHeatmapGrid([[0,60,0,10,60.2,10],[20,60,0,30,60.2,10]],60);
+ assert.ok(separate.cellCount>0);
+ for(let i=0;i<separate.indices.length;i+=3){
+  const ids=separate.indices.slice(i,i+3),center=ids.map(id=>separate.positions[id*3]).reduce((a,b)=>a+b,0)/3;
+  assert.ok(center<=10.5||center>=19.5,'no synthetic floor material in slab gap');
+ }
+ assert.equal(buildFloorHeatmapGrid([],60).cellCount,0);
+});
+
+test('floor-wide gradient reaches boundaries without circular alpha fading',()=>{
+ const floor=buildFloorHeatmapGrid([[0,60,0,50,60.2,30]],60);
+ const sensors=[{x:7,z:14,score:0},{x:43,z:14,score:1}];
+ const colors=wholeFloorVertexColours(floor.positions,sensors);
+ assert.equal(colors.length,floor.positions.length/3*4);
+ const at=(x,z)=>{
+  let best=-1,distance=Infinity;
+  for(let i=0;i<floor.positions.length;i+=3){
+   const d=Math.hypot(floor.positions[i]-x,floor.positions[i+2]-z);
+   if(d<distance){best=i/3;distance=d;}
+  }
+  return colors.slice(best*4,best*4+4);
+ };
+ const left=at(0,15),center=at(25,15),right=at(50,15);
+ assert.ok(left[1]>left[0],'left portion green');
+ assert.ok(center[0]>0&&center[1]>0,'middle blends both channels');
+ assert.ok(right[0]>right[1],'right portion red');
+ assert.ok([left,center,right].every(c=>c[3]>=.9),'colours remain visible at floor edges');
+ const onlyOne=wholeFloorVertexColours(floor.positions,[sensors[0]]);
+ assert.ok(onlyOne.every((n,i)=>i%4===3?n>=.9:n>=0));
+ assert.equal(interpolateWholeFloor(0,0,[]),null);
+ assert.equal(interpolateWholeFloor(1000,1000,sensors)>0,true,'estimate extends across the complete floor');
+});
+
+test('unmonitored floor is neutral grey, not an invented healthy zone',()=>{
+ const grid=buildFloorHeatmapGrid([[0,60,0,10,60.2,10]],60);
+ const colors=wholeFloorVertexColours(grid.positions,[]);
+ assert.ok(colors.every((v,i)=>i%4===3?v===.45:v>=.45&&v<=.56));
 });
