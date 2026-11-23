@@ -298,6 +298,28 @@ def analogue_baseline(history):
     return result
 
 
+
+def calendar_workday_baseline(case):
+    """Deterministic conditional means using only observed work/off days and planned future workdays.
+
+    Historical occupancy is an observed context variable. Future planned_workday
+    is an allowed calendar input, NOT future realized attendance.
+    """
+    history,known=case["history"],case["known"]
+    planned_work=sum(r["planned_workday"]=="1" for r in known)
+    planned_off=len(known)-planned_work
+    result={}
+    for metric in METRICS:
+        col=base.SENSORS[metric][0]
+        on=[float(r[col]) for r in history if r["ac_operating"]=="1" and float(r["open_office_headcount_avg"])>0]
+        off=[float(r[col]) for r in history if r["ac_operating"]!="1" or float(r["open_office_headcount_avg"])==0]
+        if not on or not off:
+            result[metric]=round(avg([float(r[col]) for r in history]),5)
+        else:
+            result[metric]=round((planned_work*avg(on)+planned_off*avg(off))/len(known),5)
+    return result
+
+
 def evidence_structured(case, mode):
     history,known=case["history"],case["known"]
     summary=base.context_summary(history,known)
@@ -314,7 +336,8 @@ def evidence_structured(case, mode):
          "source":"known_calendar_and_climate_normals_only",
          "result":known_future(known)},
         {"id":"BASELINES","tool":"historical_reference_methods",
-         "source":"computed_from_observed_history","result":case["request"]["baselines"]},
+         "source":"computed_from_observed_history","result":{**case["request"]["baselines"],
+                     "calendar_workday":calendar_workday_baseline(case)}},
     ]
     if mode=="analogue":
         e.append({"id":"ANALOGUES","tool":"find_similar_periods",
@@ -439,7 +462,8 @@ def execute_case(case,mode,args):
     else:
         evidence=[
             {"id":"BASELINES","tool":"historical_reference_methods",
-             "result":case["request"]["baselines"]},
+             "result":{**case["request"]["baselines"],
+                       "calendar_workday":calendar_workday_baseline(case)}},
             {"id":"FUTURE_KNOWN","tool":"known_future",
              "result":known_future(case["known"])},
             {"id":"RECENT_OBSERVATIONS","tool":"get_sensor_history",
@@ -539,7 +563,7 @@ def run(args):
                     if record["status"]=="valid" else str(record.get("error",""))),flush=True)
 
 
-def score_arm(args, mode, requests, truth, histories):
+def score_arm(args, mode, requests, truth, histories, calendars):
     path=result_path(args.out,mode,args.model)
     if not path.exists():
         print(f"Not yet run: {path}")
@@ -548,7 +572,7 @@ def score_arm(args, mode, requests, truth, histories):
     if not results: raise ValueError("No model results: "+str(path))
     if set(results)-set(requests):raise ValueError("Prediction file contains unknown case")
     pools={k:{name:[] for name in ("llm","last_31d","last_90d",
-                                  "weekday_matched","retrieval_only")} for k in METRICS}
+                                  "weekday_matched","calendar_workday","retrieval_only")} for k in METRICS}
     details=[]
     valid_records=[]
     for cid in sorted(results):
@@ -558,6 +582,8 @@ def score_arm(args, mode, requests, truth, histories):
             raise ValueError("Mismatched forecast cutoff")
         valid_records.append(r)
         analog=analogue_baseline(histories[cid])
+        workday=calendar_workday_baseline({"history":histories[cid],
+              "known":calendars[cid]})
         for metric in METRICS:
             actual=truth[cid][metric]
             pred=r["predictions"][metric]
@@ -565,12 +591,14 @@ def score_arm(args, mode, requests, truth, histories):
             details.append({"case_id":cid,"metric":metric,"actual":actual,"prediction":pred,
                             "last31":baselines["last_31d"][metric],
                             "weekday":baselines["weekday_matched"][metric],
-                            "analogue_only":analog[metric]})
+                            "analogue_only":analog[metric],
+                            "calendar_workday":workday[metric]})
             pools[metric]["llm"].append((pred,actual))
             for name in ("last_31d","last_90d","weekday_matched"):
                 pools[metric][name].append((baselines[name][metric],actual))
             if analog[metric] is not None:
                 pools[metric]["retrieval_only"].append((analog[metric],actual))
+            pools[metric]["calendar_workday"].append((workday[metric],actual))
     summary={
         "mode":mode,"model":args.model,
         "scheduled_cases":len(requests),"attempted_cases":len(results),
@@ -611,10 +639,11 @@ def score(args):
     all_cases=cases(args.out)
     requests={k:v["request"] for k,v in all_cases.items()}
     histories={k:v["history"] for k,v in all_cases.items()}
+    calendars={k:v["known"] for k,v in all_cases.items()}
     truth=base.truth_monthly()
     summaries={}
     for mode in (MODES if args.mode=="all" else (args.mode,)):
-        item=score_arm(args,mode,requests,truth,histories)
+        item=score_arm(args,mode,requests,truth,histories,calendars)
         if item:summaries[mode]=item
     if args.mode=="all":
         old=base.prediction_path(args.out,args.model)
@@ -642,14 +671,16 @@ def score_retrieval_only(args):
     all_cases=cases(args.out)
     truth=base.truth_monthly()
     pools={metric:{k:[] for k in ("retrieval_only","last_31d","last_90d",
-                                 "weekday_matched")} for metric in METRICS}
+                                 "weekday_matched","calendar_workday")} for metric in METRICS}
     for cid,case in sorted(all_cases.items()):
         estimates=analogue_baseline(case["history"])
+        workday=calendar_workday_baseline(case)
         for metric in METRICS:
             actual=truth[cid][metric]
             estimate=estimates[metric]
             if estimate is not None:
                 pools[metric]["retrieval_only"].append((estimate,actual))
+            pools[metric]["calendar_workday"].append((workday[metric],actual))
             for name in ("last_31d","last_90d","weekday_matched"):
                 pools[metric][name].append(
                     (case["request"]["baselines"][name][metric],actual))
@@ -659,7 +690,7 @@ def score_retrieval_only(args):
              "no_embeddings":True,"no_training":True,"by_metric":{}}
     for metric in METRICS:
         scores={k:base.metrics(v) for k,v in pools[metric].items()}
-        best=min(scores[k]["mae"] for k in ("last_31d","last_90d","weekday_matched"))
+        best=min(scores[k]["mae"] for k in ("last_31d","last_90d","weekday_matched","calendar_workday"))
         scores["skill_vs_best_nonretrieval_pct"]=round(100*(1-scores["retrieval_only"]["mae"]/best),2)
         summary["by_metric"][metric]={"unit":base.SENSORS[metric][1],**scores}
     path=args.out/"agentic_rag"/"summary_retrieval_only.json"
