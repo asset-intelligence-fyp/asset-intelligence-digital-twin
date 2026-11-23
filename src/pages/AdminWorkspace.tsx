@@ -71,7 +71,7 @@ export function AdminWorkspace(){
  const [sensorSearch,setSensorSearch]=useState(''),[showNew,setShowNew]=useState(false);
  const [sensorForm,setSensorForm]=useState<SensorForm>(baseSensor),[editing,setEditing]=useState<string|null>(null);
  const [editForm,setEditForm]=useState({location_code:'',measurement_type:'',unit:''});
- const [locationEdit,setLocationEdit]=useState<string|null>(null),[locationName,setLocationName]=useState('');
+
  const [inviteEmail,setInviteEmail]=useState(''),[newInvite,setNewInvite]=useState('');
  const [emailDelivery,setEmailDelivery]=useState('');
  const [readingSensor,setReadingSensor]=useState(''),[readingRows,setReadingRows]=useState<Rec[]>([]),[readingsLoading,setReadingsLoading]=useState(false);
@@ -139,7 +139,7 @@ export function AdminWorkspace(){
   ].map(s=><div className="aw-stat" key={s.name}>{s.icon}<div><strong>{s.number}</strong><span>{s.name}</span></div></div>)}</div>
   <div className="aw-grid"><section className="aw-panel"><h2>Quick actions</h2><div className="aw-action-grid">
    <button onClick={()=>{setTab('sensors');setShowNew(true)}}><Plus size={17}/> Add sensor</button>
-   <button onClick={()=>setTab('locations')}><MapPin size={17}/> Manage locations</button>
+   <button onClick={()=>setTab('locations')}><MapPin size={17}/> View locations</button>
    <button onClick={()=>setTab('grant')}><ShieldCheck size={17}/> Invite a user</button>
    <button onClick={()=>setTab('data')}><Database size={17}/> View database</button>
   </div></section><section className="aw-panel"><h2>System</h2><div className="aw-system-row"><span>Schema</span><strong>digital_twin</strong></div><div className="aw-system-row"><span>Built-in BIM sensors</span><strong>{overview?.fixedSensors.length??'—'}</strong></div><div className="aw-system-row"><span>Open invitations</span><strong>{overview?.counts.invites??'—'}</strong></div><p className="aw-footnote">Database-only sensors require a separate BIM/XKT mapping and simulator configuration before they appear in the building viewer.</p></section></div></div>}
@@ -188,7 +188,15 @@ export function AdminWorkspace(){
    </section>
    <div className="aw-pagination"><button disabled={readingOffset===0||readingsLoading} onClick={()=>void showSensorReadings(readingSensor,Math.max(0,readingOffset-100))}>Previous</button><span>{readingRows.length?readingOffset+1:0}–{readingOffset+readingRows.length}</span><button disabled={readingRows.length<100||readingsLoading} onClick={()=>void showSensorReadings(readingSensor,readingOffset+100)}>Next</button></div>
   </div>}
-  {tab==='locations'&&<div className="aw-content"><div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Monitoring locations</h2><span>{locations.length} locations</span></div><div className="aw-table-scroll"><table><thead><tr><th>Code</th><th>Name</th><th>Floor</th><th>Building</th><th>Action</th></tr></thead><tbody>{locations.map(r=><tr key={String(r.location_code)}><td>{String(r.location_code)}</td><td>{locationEdit===r.location_code?<input autoFocus value={locationName} onChange={e=>setLocationName(e.target.value)}/>:String(r.display_name)}</td><td>{String(r.floor_level)}</td><td>{String(r.building_code)}</td><td className="aw-row-actions">{locationEdit===r.location_code?<><button disabled={busy} onClick={async()=>{if(await mutate('/api/admin/manage/locations/'+encodeURIComponent(String(r.location_code)),'PATCH',{display_name:locationName}))setLocationEdit(null)}}>Save</button><button onClick={()=>setLocationEdit(null)}>Cancel</button></>:<button onClick={()=>{setLocationEdit(String(r.location_code));setLocationName(String(r.display_name))}}>Rename</button>}</td></tr>)}</tbody></table></div></div></div>}
+  {tab==='locations'&&<div className="aw-content">
+   <div className="aw-panel aw-table-shell">
+    <div className="aw-panel-head"><h2>Monitoring locations</h2><span>{locations.length} locations</span></div>
+    <div className="aw-table-scroll"><table><thead><tr><th>Code</th><th>Name</th><th>Floor</th><th>Building</th></tr></thead><tbody>
+     {locations.map(r=><tr key={String(r.location_code)}><td>{String(r.location_code)}</td><td>{String(r.display_name)}</td><td>{String(r.floor_level)}</td><td>{String(r.building_code)}</td></tr>)}
+    </tbody></table></div>
+   </div>
+   <p className="aw-footnote">These monitoring locations are fixed to the current building configuration. Sensor assignments and BIM geometry are managed separately.</p>
+  </div>}
   {tab==='maintenance'&&<div className="aw-content">
    <div className="aw-toolbar"><span className="aw-status">{maintenance.length} maintenance records</span><button className="aw-primary" onClick={()=>setShowWork(x=>!x)}><Plus size={14}/> New work</button></div>
    {showWork&&<form className="aw-panel aw-form" onSubmit={async(e:FormEvent)=>{e.preventDefault();const payload={...work,event_date:new Date(work.event_date).toISOString()};const ok=await mutate('/api/admin/manage/maintenance','POST',payload);if(ok){setShowWork(false);setWork({...work,description:''})}}}><h2>Schedule maintenance</h2><div className="aw-fields">
