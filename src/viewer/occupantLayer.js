@@ -1,6 +1,6 @@
 import {Mesh,ReadableGeometry,PhongMaterial,buildSphereGeometry} from '@xeokit/xeokit-sdk';
 import {characterProfileGeometry} from './characterGeometry.js';
-import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion} from './characterDesign.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,characterLegPose} from './characterDesign.js';
 import {makeTourPlan,TOUR_LEVELS} from './occupantTour.js';
 
 /**
@@ -28,8 +28,8 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  // This retains the original lightweight, texture-free rendering pipeline.
  const mats=CHARACTER_STYLES.map(style=>{
   const mat=rgb=>own(new PhongMaterial(scene,{
-   diffuse:rgb,ambient:rgb.map(v=>v*.50),emissive:rgb.map(v=>v*.025),
-   specular:[.07,.075,.08],backfaces:true,shininess:5
+   diffuse:rgb,ambient:rgb.map(v=>v*.63),emissive:rgb.map(v=>v*.055),
+   specular:[.095,.10,.11],backfaces:true,shininess:8
   }));
   const palette=style.palette;
   return {outer:mat(palette.outer),pants:mat(palette.trousers),skin:mat(palette.skin),
@@ -51,7 +51,8 @@ export function createOccupantLayer(scene,navigation,footprints,points){
    part(style.torso,materials.outer,'torso'),
    part('arm',materials.outer,'armL'),part('arm',materials.outer,'armR'),
    part('sphere',materials.skin,'handL'),part('sphere',materials.skin,'handR'),
-   part('leg',materials.pants,'legL'),part('leg',materials.pants,'legR'),
+   part('thigh',materials.pants,'thighL'),part('thigh',materials.pants,'thighR'),
+   part('shin',materials.pants,'shinL'),part('shin',materials.pants,'shinR'),
    part('sphere',materials.shoes,'shoeL'),part('sphere',materials.shoes,'shoeR')
   ];
   if(style.collar)items.push(part('collar',materials.trim,'collar'));
@@ -93,28 +94,50 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
  let enabled=false,moving=false,floor='all',mode='sensor',headcounts={},last=0,tourPlan={};
  function place(character,now){
-  const animated=moving&&!reducedMotion;
-  const pose=characterMotion(character.anchor,character.index,now,animated);
-  const {base,heading,gait,sway,bob}=pose;
+  const pose=characterMotion(character.anchor,character.index,now,moving&&!reducedMotion);
+  const {base,heading,gait,bob,sway}=pose;
   const radians=heading*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians);
+  const world=(x,y,z)=>[
+   base[0]+x*cos-z*sin,
+   base[1]+y,
+   base[2]+x*sin+z*cos
+  ];
+  // Compute the right/left hip-knee-ankle poses once per figure per frame.
+  // The shoe is lifted by the same phase driving its shin and thigh.
+  const legs={
+   L:characterLegPose(pose.footL,character.height),
+   R:characterLegPose(pose.footR,character.height)
+  };
   for(const item of character.items){
-   const local=CHARACTER_PLACEMENTS[item.name],dx=local[0],dz=local[2];
-   const side=item.name.endsWith('L')?1:-1;
-   const isArm=item.name.startsWith('arm'),isLeg=item.name.startsWith('leg');
-   const isHand=item.name.startsWith('hand');
-   const isShoe=item.name.startsWith('shoe');
-   // Hands follow the understated arm swing; shoes stay planted rather than
-   // bouncing with the torso. No rigging or per-frame geometry allocation.
-   const forward=isHand?side*.028*(gait/8):isShoe?side*.018*(gait/8):0;
-   const heightOffset=(isShoe||isLeg)?0:bob;
-   item.mesh.position=[
-    base[0]+dx*cos-(dz+forward)*sin,
-    base[1]+local[1]*character.height+heightOffset,
-    base[2]+dx*sin+(dz+forward)*cos
-   ];
-   const pitch=isArm?side*gait*.72:isLeg?-side*gait:isShoe?-side*gait*.35:0;
-   item.mesh.rotation=[pitch,heading+(item.name==='torso'?sway:0),0];
-   const scale=CHARACTER_SCALES[item.name]||[1,1,1];
+   const name=item.name,side=name.endsWith('L')?'L':'R';
+   const isLeg=name.startsWith('thigh')||name.startsWith('shin');
+   const isShoe=name.startsWith('shoe');
+   const isArm=name.startsWith('arm'),isHand=name.startsWith('hand');
+   if(isLeg){
+    const segment=name.startsWith('thigh')?legs[side].thigh:legs[side].shin;
+    item.mesh.position=world(side==='L' ? -.114 : .114,segment.center[1],segment.center[2]);
+    item.mesh.rotation=[segment.pitch,heading,0];
+    item.mesh.scale=[1,segment.length,1];
+    continue;
+   }
+   if(isShoe){
+    const foot=legs[side].shoe;
+    item.mesh.position=world(side==='L' ? -.114 : .114,foot[1],foot[2]);
+    item.mesh.rotation=[(side==='L'?1:-1)*gait*.26,heading,0];
+    const scale=CHARACTER_SCALES[name];
+    item.mesh.scale=[scale[0],scale[1]*character.height,scale[2]];
+    continue;
+   }
+   const local=CHARACTER_PLACEMENTS[name];
+   // Arms counter-swing opposite the stepping feet, hands follow their
+   // sleeves; upper body stays almost level instead of bobbing like a toy.
+   const direction=side==='L'?-1:1;
+   const forward=isArm?direction*.034*gait/8:isHand?direction*.075*gait/8:0;
+   const y=local[1]*character.height+bob;
+   item.mesh.position=world(local[0],y,local[2]-forward);
+   const pitch=isArm?direction*9*gait/8:0;
+   item.mesh.rotation=[pitch,heading+(name==='torso'?sway:0),0];
+   const scale=CHARACTER_SCALES[name]||[1,1,1];
    item.mesh.scale=[scale[0],scale[1]*character.height,scale[2]];
   }
  }
@@ -154,7 +177,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
    mode=source==='tour'?'tour':'sensor';refresh(performance.now());
   },
   tick(now){
-   if(!enabled||!moving||reducedMotion||now-last<70)return;
+   if(!enabled||!moving||reducedMotion||now-last<40)return;
    last=now;refresh(now);
   },
   destroy(){
