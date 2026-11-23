@@ -107,7 +107,10 @@ test('Sensor colours follow actual values, preserve no-data states, and distingu
  const temp=registry.find(p=>p.sensorType==='temperature'),occupancy=registry.find(p=>p.sensorType==='occupancy'),leak=registry.find(p=>p.sensorType==='water_leakage');
  assert.notEqual(sensorDisplay(temp,{value:20}).colour,sensorDisplay(temp,{value:30}).colour);assert.equal(sensorDisplay(temp).available,false);assert.equal(sensorDisplay(temp,{value:NaN}).value,'No reading');
  assert.equal(sensorDisplay(occupancy,{value:0}).value,'Vacant');assert.equal(sensorDisplay(occupancy,{value:1}).status,'Occupied');assert.equal(sensorDisplay(leak,{value:0}).value,'Dry');assert.equal(sensorDisplay(leak,{value:1}).value,'Leak detected');
- const f=fixture(true),readings={[temp.code]:{value:28}};f.controller.setHeatmap('temperature',readings);f.controller.setMode('heatmap');assert.equal(f.heatUpdates.at(-1).enabled,true);assert.equal(f.heatUpdates.at(-1).readings[temp.code].value,28);f.controller.showFloor('Level_04');assert.equal(f.heatUpdates.at(-1).floor,'Level_04');f.controller.setMode('solid');assert.equal(f.heatUpdates.at(-1).enabled,false);f.controller.destroy();
+ const f=fixture(true),readings={[temp.code]:{value:28}};f.controller.setHeatmap('temperature',readings);f.controller.setMode('heatmap');assert.equal(f.heatUpdates.at(-1).enabled,true);
+ assert.ok(f.objects['building#slab_Level_02'].opacity<=.06,'heatmap must not show opaque original IFC floor plates');
+ assert.equal(f.objects['building#slab_Level_02'].edges,false,'floor plate edges should not divide the heatmap');
+ assert.equal(f.objects['building#slab_Level_02'].xrayed,true,'slabs remain transparent in heatmap mode');assert.equal(f.heatUpdates.at(-1).readings[temp.code].value,28);f.controller.showFloor('Level_04');assert.equal(f.heatUpdates.at(-1).floor,'Level_04');f.controller.setMode('solid');assert.equal(f.heatUpdates.at(-1).enabled,false);f.controller.destroy();
 });
 
 test('X-ray wall slider changes emphasis shading across the full range without an opaque slab blanket',()=>{
@@ -218,7 +221,7 @@ test('full-floor heatmap receives actual slab bounds for every building storey',
  assert.equal(f.floorSurfaces.length,1);
  assert.deepEqual(f.floorSurfaces[0].map(p=>p.floor),['Level_01','Level_02','Level_03','Level_04','Level_05']);
  for(const surface of f.floorSurfaces[0]){
-  assert.equal(surface.source,'ifc-slab');
+  assert.equal(surface.source,'clipped-ifc-slab');
   assert.ok(surface.aabbs.length>=1);
   assert.ok(surface.aabbs.some(b=>b[3]>b[0]&&b[5]>b[2]));
   assert.equal(surface.elevation,navigation.levels.find(l=>l.id===surface.floor).elevation);
