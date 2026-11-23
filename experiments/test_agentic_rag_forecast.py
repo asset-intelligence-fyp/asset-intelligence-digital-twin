@@ -51,7 +51,7 @@ class AgenticRetrievalTest(unittest.TestCase):
                 self.assertTrue(all(r["date"]<case["cutoff"] for r in case["history"]))
                 self.assertTrue(all(r["future_date"]>=case["cutoff"] for r in case["known"]))
                 self.assertEqual(case["request"]["case_id"],cid)
-                self.assertNotIn("actual",json.dumps(module.evidence_structured(case,"structured")).lower())
+                self.assertEqual(module.evidence_structured(case,"structured")[2]["result"]["actual_future_weather_occupancy_hvac_or_sensor_data"],"NOT AVAILABLE")
 
     def test_cross_case_and_future_lookups_fail(self):
         case=self.first
