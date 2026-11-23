@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CHARACTER_PROFILES,characterProfileGeometry,loftedPart} from '../src/viewer/characterGeometry.js';
-import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion} from '../src/viewer/characterDesign.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,characterLegPose,boundWalkSegment} from '../src/viewer/characterDesign.js';
 import {TOUR_LEVELS,makeTourPlan,occupantViewCount} from '../src/viewer/occupantTour.js';
 
 test('authored character geometries are triangulated curved assets, not rectangular prisms',()=>{
@@ -85,4 +85,58 @@ test('occupants use a restrained deterministic gait and honour stationary mode',
  assert.equal(paused.gait,0);
  assert.equal(paused.sway,0);
  assert.equal(paused.bob,0);
+});
+
+test('brighter office outfits remain distinct with readable, separate footwear',()=>{
+ const outers=CHARACTER_STYLES.map(v=>v.palette.outer);
+ assert.ok(outers.every(c=>Math.max(...c)-Math.min(...c)>.22),'muted-gray outfits lack visible colour contrast');
+ assert.ok(outers.some(c=>c[2]>.68),'cobalt or iris accents must stay legible in X-ray');
+ assert.ok(outers.some(c=>c[1]>.60),'teal must stay legible in X-ray');
+ assert.ok(outers.some(c=>c[0]>.75),'warm coral must stay legible in X-ray');
+ assert.ok(CHARACTER_SCALES.shoeL[0]*2<.228,'shoe widths must not merge across the resting stance');
+ const g=characterProfileGeometry();
+ assert.ok(g.thigh&&g.shin,'two independently articulated leg sections are needed');
+});
+
+test('walk turns smoothly rather than moonwalking backward or sliding during a turn',()=>{
+ const anchor={start:[2,60,4],end:[3,60,4]};
+ const atEnd=characterMotion(anchor,0,2650,true);
+ const midway=characterMotion(anchor,0,2900,true);
+ const reverse=characterMotion(anchor,0,3150,true);
+ assert.ok(Math.abs(atEnd.base[0]-3)<1e-9);
+ assert.ok(Math.abs(midway.base[0]-3)<1e-9);
+ assert.ok(Math.abs(reverse.base[0]-3)<1e-9);
+ assert.ok(midway.heading>atEnd.heading+75&&midway.heading<atEnd.heading+105);
+ assert.ok(Math.abs(reverse.heading-atEnd.heading-180)<1e-9);
+ assert.equal(midway.gait,0);
+ assert.equal(midway.footL.lift,0);
+ assert.equal(midway.footR.lift,0);
+ assert.ok(characterMotion(anchor,0,3500,true).base[0]<3,'reversal should move back along the same room-safe segment');
+});
+
+test('opposing feet lift alternately and thigh/shin stay joined to each ankle',()=>{
+ const anchor={start:[1,63,2],end:[2,63,2]};
+ const left=characterMotion(anchor,0,331,true);
+ const right=characterMotion(anchor,0,993,true);
+ assert.ok(left.footL.lift>0&&left.footR.lift===0);
+ assert.ok(right.footR.lift>0&&right.footL.lift===0);
+ for(const motion of [left,right,characterMotion(anchor,0,1790,true),characterMotion(anchor,0,2900,true)]){
+  for(const foot of [motion.footL,motion.footR]){
+   const leg=characterLegPose(foot);
+   assert.ok(leg.knee[1]<leg.hip[1]&&leg.knee[1]>leg.ankle[1]);
+   assert.ok(Math.abs(leg.thigh.length-.359)<.002);
+   assert.ok(Math.abs(leg.shin.length-.359)<.002);
+   assert.ok(leg.shoe[1]-CHARACTER_SCALES.shoeL[1]>=0,'feet cannot sink below the model floor');
+  }
+ }
+});
+
+test('walk endpoints remain within IFC triangles and limit corridor speed',()=>{
+ const start=[0,60,0],end=[8,60,5];
+ const result=boundWalkSegment(start,end);
+ const distance=Math.hypot(result.end[0]-result.start[0],result.end[2]-result.start[2]);
+ assert.ok(distance<=1.1000001);
+ assert.ok(result.end[0]>=start[0]&&result.end[0]<=end[0]);
+ assert.ok(result.end[2]>=start[2]&&result.end[2]<=end[2]);
+ assert.deepEqual(boundWalkSegment([0,60,0],[.5,60,.1]),{start:[0,60,0],end:[.5,60,.1]});
 });
