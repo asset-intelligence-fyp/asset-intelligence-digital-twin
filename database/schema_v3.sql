@@ -142,6 +142,27 @@ INSERT INTO digital_twin.alert_severity(severity_name)
 INSERT INTO digital_twin.alert_status(status_name)
  VALUES ('New'),('Review'),('Acknowledged'),('Closed')
  ON CONFLICT(status_name) DO NOTHING;
+-- Approved, one-time invitation codes. Store only SHA-256 digests, never plaintext codes.
+CREATE TABLE IF NOT EXISTS digital_twin.access_invites (
+ invite_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ email TEXT NOT NULL,
+ role_name TEXT NOT NULL DEFAULT 'viewer' CHECK(role_name='viewer'),
+ code_hash TEXT NOT NULL UNIQUE,
+ expires_at TIMESTAMPTZ NOT NULL,
+ used_at TIMESTAMPTZ,
+ created_by TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS digital_twin.admin_audit (
+ audit_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ actor TEXT NOT NULL,
+ action TEXT NOT NULL,
+ target TEXT NOT NULL,
+ detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO digital_twin.roles(role_name) VALUES ('admin'),('viewer')
+ON CONFLICT(role_name) DO NOTHING;
 COMMIT;
 
 -- Canonical database schema for the active digital_twin Website.
