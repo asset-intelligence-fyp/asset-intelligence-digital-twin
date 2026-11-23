@@ -108,20 +108,6 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(result==='referenced')return res.status(409).json({error:'Cannot remove a sensor with readings, AI results, alerts or maintenance records. Historical data is preserved.'});
   res.json({ok:true});
  }));
- app.patch('/api/admin/manage/locations/:code',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
-  if(!enabled(pool,schema,res))return;
-  const display_name=clean(req.body?.display_name,120),code=req.params.code;
-  if(!display_name)return res.status(400).json({error:'Location name is required.'});
-  const changed=await transaction(pool,async c=>{
-   const previous=await c.query('SELECT display_name FROM digital_twin.monitoring_locations WHERE location_code=$1 FOR UPDATE',[code]);
-   if(!previous.rowCount)return 0;
-   const r=await c.query('UPDATE digital_twin.monitoring_locations SET display_name=$1 WHERE location_code=$2 RETURNING location_code',[display_name,code]);
-   if(r.rowCount)await audit(c,req.admin.username,'location.rename',code,{previous:previous.rows[0].display_name,new:display_name});
-   return r.rowCount;
-  });
-  if(!changed)return res.status(404).json({error:'Location not found.'});
-  res.json({ok:true});
- }));
  app.get('/api/admin/manage/users',requireAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const [users,invites,auditRows]=await Promise.all([
