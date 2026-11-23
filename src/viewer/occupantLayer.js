@@ -1,5 +1,6 @@
 import {Mesh,ReadableGeometry,PhongMaterial,buildSphereGeometry} from '@xeokit/xeokit-sdk';
 import {characterProfileGeometry} from './characterGeometry.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion} from './characterDesign.js';
 import {makeTourPlan,TOUR_LEVELS} from './occupantTour.js';
 
 /**
@@ -23,18 +24,16 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  const profiles=characterProfileGeometry();
  const shapes=Object.fromEntries(Object.entries(profiles).map(([name,data])=>[name,own(new ReadableGeometry(scene,data))]));
  shapes.sphere=own(new ReadableGeometry(scene,buildSphereGeometry({radius:1,widthSegments:10,heightSegments:8})));
- const colours=[
-  {shirt:[.22,.55,.74],pants:[.18,.27,.37],skin:[.88,.65,.47],hair:[.16,.17,.22],accessory:[.93,.73,.37]},
-  {shirt:[.79,.48,.42],pants:[.32,.33,.42],skin:[.60,.39,.28],hair:[.12,.15,.19],accessory:[.94,.81,.51]},
-  {shirt:[.50,.46,.72],pants:[.20,.27,.34],skin:[.96,.80,.65],hair:[.32,.20,.17],accessory:[.45,.80,.76]},
-  {shirt:[.45,.63,.48],pants:[.28,.32,.43],skin:[.74,.53,.37],hair:[.19,.19,.21],accessory:[.90,.82,.67]}
- ];
- const mats=colours.map(c=>{
-  const mat=(rgb,glow=.13)=>own(new PhongMaterial(scene,{
-   diffuse:rgb,ambient:rgb.map(v=>v*.48),emissive:rgb.map(v=>v*glow),
-   backfaces:true,shininess:14
+ // One shared set of matte materials per architectural outfit variant.
+ // This retains the original lightweight, texture-free rendering pipeline.
+ const mats=CHARACTER_STYLES.map(style=>{
+  const mat=rgb=>own(new PhongMaterial(scene,{
+   diffuse:rgb,ambient:rgb.map(v=>v*.50),emissive:rgb.map(v=>v*.025),
+   specular:[.07,.075,.08],backfaces:true,shininess:5
   }));
-  return {shirt:mat(c.shirt,.19),pants:mat(c.pants,.10),skin:mat(c.skin,.21),hair:mat(c.hair,.09),acc:mat(c.accessory,.18),eyes:mat([.10,.14,.19],.02)};
+  const palette=style.palette;
+  return {outer:mat(palette.outer),pants:mat(palette.trousers),skin:mat(palette.skin),
+   hair:mat(palette.hair),shoes:mat(palette.shoes),trim:mat(palette.trim)};
  });
  function part(shape,material,name){
   const mesh=new Mesh(scene,{
@@ -44,21 +43,20 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   meshes.push(mesh);return {mesh,name};
  }
  function actor(anchor,i){
-  const c=mats[i%4],variant=i%4;
-  const female=variant===1||variant===3;
-  const shirt=female?'blouse':'jacket';
+  const style=CHARACTER_STYLES[i%CHARACTER_STYLES.length],materials=mats[i%CHARACTER_STYLES.length];
   const items=[
-   part('sphere',c.skin,'head'),part('hair',c.hair,'hair'),
-   part('neck',c.skin,'neck'),part(shirt,c.shirt,'torso'),
-   part('arm',c.shirt,'armL'),part('arm',c.shirt,'armR'),
-   part('sphere',c.skin,'handL'),part('sphere',c.skin,'handR'),
-   part('leg',c.pants,'legL'),part('leg',c.pants,'legR'),
-   part('sphere',c.hair,'shoeL'),part('sphere',c.hair,'shoeR'),
-   part('sphere',c.eyes,'eyeL'),part('sphere',c.eyes,'eyeR'),
-   part('nose',c.skin,'nose'),part('sphere',c.acc,'badge')
+   part('sphere',materials.skin,'head'),
+   part(style.hair,materials.hair,'hair'),
+   part('neck',materials.skin,'neck'),
+   part(style.torso,materials.outer,'torso'),
+   part('arm',materials.outer,'armL'),part('arm',materials.outer,'armR'),
+   part('sphere',materials.skin,'handL'),part('sphere',materials.skin,'handR'),
+   part('leg',materials.pants,'legL'),part('leg',materials.pants,'legR'),
+   part('sphere',materials.shoes,'shoeL'),part('sphere',materials.shoes,'shoeR')
   ];
-  if(female)items.push(part('skirt',c.pants,'skirt'));
-  return {anchor,items,index:i,angle:(i%4)*Math.PI/2};
+  if(style.collar)items.push(part('collar',materials.trim,'collar'));
+  if(style.lapels)items.push(part('lapel',materials.trim,'lapelL'),part('lapel',materials.trim,'lapelR'));
+  return {anchor,items,index:i,height:style.height};
  }
  function pointsFromIFC(point){
   const room=footprints.rooms[footprints.sensors[point.guid]?.roomGuid];
@@ -92,38 +90,32 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   const obj={floor,actors:anchors.map((anchor,i)=>actor(anchor,seed+i))};
   groups.set(key,obj);return obj;
  }
- const placements={
-  head:[0,1.73,0],hair:[0,1.94,0],neck:[0,1.42,0],
-  torso:[0,1.16,0],armL:[-.395,1.15,0],armR:[.395,1.15,0],
-  handL:[-.395,.80,0],handR:[.395,.80,0],
-  legL:[-.13,.39,0],legR:[.13,.39,0],
-  shoeL:[-.13,.09,-.10],shoeR:[.13,.09,-.10],
-  eyeL:[-.095,1.78,-.20],eyeR:[.095,1.78,-.20],
-  nose:[0,1.67,-.255],badge:[.15,1.28,-.175],
-  skirt:[0,.84,0]
- };
  const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
  let enabled=false,moving=false,floor='all',mode='sensor',headcounts={},last=0,tourPlan={};
  function place(character,now){
-  const {start,end}=character.anchor;
-  const t=now*.0016+character.index*.8,animated=moving&&!reducedMotion;
-  const travel=animated?(1-Math.cos(t))*.5:0;
-  const yLift=animated?Math.sin(t*5)*.02:0;
-  const base=[start[0]+(end[0]-start[0])*travel,start[1]+yLift,start[2]+(end[2]-start[2])*travel];
-  const gait=animated?Math.sin(t*5)*18:0,cos=Math.cos(character.angle),sin=Math.sin(character.angle);
-  for(const part of character.items){
-   const local=placements[part.name],dx=local[0],dz=local[2];
-   part.mesh.position=[base[0]+dx*cos-dz*sin,base[1]+local[1],base[2]+dx*sin+dz*cos];
-   const animatedLimb=/^(arm|leg|shoe)/.test(part.name);
-   const direction=part.name.endsWith('L')?1:-1;
-   const swing=animatedLimb?direction*gait*(part.name.startsWith('arm')?-1:1):0;
-   part.mesh.rotation=[swing,character.angle*180/Math.PI,0];
-   if(part.name==='head')part.mesh.scale=[.25,.29,.23];
-   else if(part.name.startsWith('hand'))part.mesh.scale=[.102,.111,.103];
-   else if(part.name.startsWith('shoe'))part.mesh.scale=[.155,.10,.245];
-   else if(part.name.startsWith('eye'))part.mesh.scale=[.024,.031,.018];
-   else if(part.name==='badge')part.mesh.scale=[.068,.075,.024];
-   else part.mesh.scale=[1,1,1];
+  const animated=moving&&!reducedMotion;
+  const pose=characterMotion(character.anchor,character.index,now,animated);
+  const {base,heading,gait,sway,bob}=pose;
+  const radians=heading*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians);
+  for(const item of character.items){
+   const local=CHARACTER_PLACEMENTS[item.name],dx=local[0],dz=local[2];
+   const side=item.name.endsWith('L')?1:-1;
+   const isArm=item.name.startsWith('arm'),isLeg=item.name.startsWith('leg');
+   const isHand=item.name.startsWith('hand');
+   const isShoe=item.name.startsWith('shoe');
+   // Hands follow the understated arm swing; shoes stay planted rather than
+   // bouncing with the torso. No rigging or per-frame geometry allocation.
+   const forward=isHand?side*.028*(gait/8):isShoe?side*.018*(gait/8):0;
+   const heightOffset=(isShoe||isLeg)?0:bob;
+   item.mesh.position=[
+    base[0]+dx*cos-(dz+forward)*sin,
+    base[1]+local[1]*character.height+heightOffset,
+    base[2]+dx*sin+(dz+forward)*cos
+   ];
+   const pitch=isArm?side*gait*.72:isLeg?-side*gait:isShoe?-side*gait*.35:0;
+   item.mesh.rotation=[pitch,heading+(item.name==='torso'?sway:0),0];
+   const scale=CHARACTER_SCALES[item.name]||[1,1,1];
+   item.mesh.scale=[scale[0],scale[1]*character.height,scale[2]];
   }
  }
  function refresh(now){
@@ -137,7 +129,9 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   if(!isTour&&enabled){
    for(const [id,point] of pointsByRoom){
     if(Math.max(0,Number(headcounts[id])||0)>0&&!groups.has('sensor:'+id)){
-     group('sensor:'+id,point.floor,pointsFromIFC(point),pointsByRoom.size);
+     // Stable room-specific seed yields varied outfits without random flicker.
+     const roomIndex=[...pointsByRoom.keys()].indexOf(id);
+     group('sensor:'+id,point.floor,pointsFromIFC(point),roomIndex*3);
     }
    }
   }
