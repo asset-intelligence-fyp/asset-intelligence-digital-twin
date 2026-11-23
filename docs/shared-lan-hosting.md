@@ -23,7 +23,7 @@ npm run host:lan
 
 The launcher automatically installs missing npm dependencies, confirms the configured PostgreSQL tables, creates a database administrator only **if absent** (and prints its generated password once), builds the React site, starts Express (UI + API on port 3001), and starts the optional Python AI bridge and the simulator. Failure to start optional Python services does not stop the core website.
 
-**No migration is run automatically.** This intentionally protects the existing database and historical readings. The launcher will fail clearly if PostgreSQL/schema is missing, rather than silently using an empty memory database.
+**The launcher runs one narrowly scoped additive alert compatibility migration** before starting the API. It adds missing `digital_twin.alerts.replay_id`, `detector`, and `evidence` columns with `IF NOT EXISTS` and ensures required severity/status lookup rows exist. It does not delete or replace sensor readings or existing alerts. Back up your database before the first run. If core PostgreSQL/schema tables are missing, it stops with an error rather than silently using an empty memory database.
 
 The terminal prints:
 - `http://localhost:3001` for the host
