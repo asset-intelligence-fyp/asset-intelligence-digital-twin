@@ -44,7 +44,7 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     let user;
     try{
       const result=await pool.query(
-        `SELECT users.user_id,users.username,users.password_hash,roles.role_name
+        `SELECT users.user_id,users.username,users.password_hash,users.is_active,roles.role_name
          FROM digital_twin.users users
          JOIN digital_twin.roles roles ON roles.role_id=users.role_id
          WHERE users.username=$1 LIMIT 1`,[username]);
@@ -53,7 +53,7 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
       console.error('Admin authentication database query failed:',e.message);
       return res.status(503).json({error:'Admin database unavailable. Check PostgreSQL and digital_twin schema.'});
     }
-    const valid=!!user&&verifyPassword(password,user.password_hash);
+    const valid=!!user&&user.is_active!==false&&verifyPassword(password,user.password_hash);
     if(!valid){
       const prev=record?.until>now?record.count:0;
       attempts.set(ip,{count:prev+1,until:now+WINDOW_MS});
@@ -84,7 +84,7 @@ export async function requireAdmin(req,res,next) {
   try{
     if(!authenticationPool)return res.status(503).json({error:'Authentication database unavailable'});
     const check=await authenticationPool.query(
-      "SELECT 1 FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1 AND r.role_name='admin'",
+      "SELECT 1 FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1 AND r.role_name='admin' AND u.is_active=TRUE",
       [admin.userId]
     );
     if(!check.rowCount)return res.status(403).json({error:'Administrator access revoked; sign in again'});
