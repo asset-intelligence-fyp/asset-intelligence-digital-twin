@@ -10,7 +10,7 @@ The host Windows laptop runs the whole TwinLabs website against its own existing
 
 - Node.js 22+ installed; Python 3 available if you want the optional Qwen3 bridge / hybrid simulator.
 - A working local PostgreSQL + TimescaleDB database **already configured** in your host's Git-ignored `.env`. Use `PGDATABASE`, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` or `DATABASE_URL`. The launcher will **not** replace or reset existing database tables. Unlike the older prototype, database admin login does not need `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` in `.env`.
-- Your intended PostgreSQL database already contains `digital_twin.sensor_registry`, `digital_twin.sensor_readings`, `digital_twin.roles`, and `digital_twin.users`. Back up the database and review `npm run db:setup:v3` separately if the schema is not initialized.
+- The PostgreSQL database itself and its TimescaleDB extension must already exist. The launcher **automatically creates missing `digital_twin` schema tables and registers missing sensor metadata** using the existing `db:setup:v3` initializer, and skips this step when the schema and 18 sensor registrations are already present. It does not automatically create a PostgreSQL database or install TimescaleDB. Back up the database before its first initialization.
 - Ensure nothing else is listening on port 3001 (including any older `npm run dev` process).
 
 ## Start the entire website
@@ -21,9 +21,9 @@ From the repository root on the host laptop:
 npm run host:lan
 ```
 
-The launcher automatically installs missing npm dependencies, confirms the configured PostgreSQL tables, creates a database administrator only **if absent** (and prints its generated password once), builds the React site, starts Express (UI + API on port 3001), and starts the optional Python AI bridge and the simulator. Failure to start optional Python services does not stop the core website.
+The launcher automatically installs missing npm dependencies, checks and initializes missing v3 schema tables and sensor metadata when needed (skipping existing objects), creates a database administrator only **if absent** (and prints its generated password once), builds the React site, starts Express (UI + API on port 3001), and starts the optional Python AI bridge and the simulator. Failure to start optional Python services does not stop the core website.
 
-**The launcher runs one narrowly scoped additive alert compatibility migration** before starting the API. It adds missing `digital_twin.alerts.replay_id`, `detector`, and `evidence` columns with `IF NOT EXISTS` and ensures required severity/status lookup rows exist. It does not delete or replace sensor readings or existing alerts. Back up your database before the first run. If core PostgreSQL/schema tables are missing, it stops with an error rather than silently using an empty memory database.
+**The launcher runs one narrowly scoped additive alert compatibility migration** before starting the API. It adds missing `digital_twin.alerts.replay_id`, `detector`, and `evidence` columns with `IF NOT EXISTS` and ensures required severity/status lookup rows exist. It does not delete or replace sensor readings or existing alerts. Back up your database before the first run. If the configured PostgreSQL database or TimescaleDB extension is missing, or schema initialization fails, it stops with an error rather than using an empty memory database. Existing sensor/location metadata use `ON CONFLICT DO NOTHING` during initialization, so their values are not overwritten.
 
 The terminal prints:
 - `http://localhost:3001` for the host
