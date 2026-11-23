@@ -384,7 +384,7 @@ def score(args):
         "holdout": "2026-01-01 inclusive to 2026-02-01 exclusive",
         "training_or_fine_tuning": False,
         "scheduled_cases": len(model_results),
-        "valid_cases": sum(r and r.get("status") == "valid" for r in model_results.values()),
+        "valid_cases": sum(bool(r and r.get("status") == "valid") for r in model_results.values()),
         "partial_run": len(model_results) < len(requests),
         "by_metric": {},
     }
