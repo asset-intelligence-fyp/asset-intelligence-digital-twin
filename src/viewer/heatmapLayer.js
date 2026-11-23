@@ -1,95 +1,102 @@
-import {Mesh,ReadableGeometry,PhongMaterial,Texture} from '@xeokit/xeokit-sdk';
+import {Mesh,ReadableGeometry,PhongMaterial} from '@xeokit/xeokit-sdk';
 import definitions from '../../shared/sensorDefinitions.json';
-import {heatmapSamples,buildFloorHeatmapGrid,floorHeatmapPixels} from './heatmapField.js';
+import {heatmapSamples,buildFloorHeatmapGrid} from './heatmapField.js';
+import {buildHeatmapBands,bandMaterialColours} from './heatmapBands.js';
 
-const TEXTURE_SIZE=160;
+const BAND_COUNT=32;
 
 /**
- * Lightweight, floor-wide heatmap based on browser-generated RGBA textures.
+ * Reliable, floor-wide colour overlay made from small contiguous isobands.
  *
- * IMPORTANT: the earlier implementation assigned colour buffers to xeokit
- * meshes but displayed white and black plates in the user's WebGL screenshots.
- * xeokit's documented PhongMaterial.diffuseMap + ReadableGeometry.uv pipeline
- * is used instead. No geometry vertex colours or extra opaque slab faces.
+ * The previous two approaches (runtime vertex RGBA and PNG diffuse textures)
+ * produced only white/grey plates on the target WebGL renderer. Each band
+ * instead uses a plain xeokit PhongMaterial with a fixed diffuse/emissive RGB
+ * colour. This is the same core rendering path as the other visible BIM
+ * presentation objects, with no asynchronous texture decoding.
  *
- * In all-floor view materials are deliberately more transparent, so coloured
- * layers do not block the 3D BIM. Selected-floor view may show more colour.
- * All colours outside sensor locations are labelled interpolated estimates.
+ * No floor is drawn unless that floor has an eligible sensor reading. A
+ * one-sensor floor is uniform; multiple sensors create a smooth 32-step
+ * gradient along scalar-field contour boundaries, not square tiles.
  */
 export function createHeatmapLayer(scene,navigation,points){
- const regions=new Map();
+ const palette=bandMaterialColours(BAND_COUNT).map(rgb=>new PhongMaterial(scene,{
+  diffuse:rgb,
+  ambient:rgb.map(v=>v*.75),
+  emissive:rgb.map(v=>v*.28),
+  specular:[0,0,0],
+  shininess:0,
+  alpha:.45,
+  alphaMode:'blend',
+  backfaces:true
+ }));
+ const floors=new Map();
  let initialized=false;
- const setActive=(region,active)=>{
-  if(region.mesh.visible!==active)region.mesh.visible=active;
+ const clearFloor=region=>{
+  for(const part of region.parts){
+   part.mesh.destroy();
+   part.geometry.destroy();
+  }
+  region.parts=[];
+  region.signature='';
  };
  return {
   setFloorSurfaces(surfaces){
    if(initialized)return;
    initialized=true;
    for(const entry of surfaces){
-    const grid=buildFloorHeatmapGrid(entry.aabbs,entry.elevation);
+    const grid=buildFloorHeatmapGrid(entry.aabbs,entry.elevation,{cellSize:2.0,offset:.20});
     if(!grid.indices.length)continue;
-    const canvas=document.createElement('canvas');
-    canvas.width=TEXTURE_SIZE;canvas.height=TEXTURE_SIZE;
-    const context=canvas.getContext('2d');
-    if(!context)continue;
-    const texture=new Texture(scene,{src:canvas.toDataURL('image/png'),flipY:true});
-    const material=new PhongMaterial(scene,{
-     diffuse:[1,1,1],ambient:[.88,.88,.88],emissive:[.07,.07,.07],
-     diffuseMap:texture,alpha:.34,alphaMode:'blend',backfaces:false,shininess:0
-    });
-    const geometry=new ReadableGeometry(scene,{
-     primitive:'triangles',positions:grid.positions,indices:grid.indices,
-     normals:grid.normals,uv:grid.uv,compressGeometry:false
-    });
-    const mesh=new Mesh(scene,{
-     geometry,material,visible:false,pickable:false,collidable:false,
-     clippable:false,isObject:false,occluder:false,edges:false
-    });
-    regions.set(entry.floor,{
-     mesh,geometry,material,texture,canvas,context,
-     bounds:grid.bounds,source:entry.source,lastSignature:''
-    });
+    floors.set(entry.floor,{grid,source:entry.source,parts:[],signature:''});
    }
   },
   update({metric='status',readings={},floor='all',enabled=false}){
-   for(const region of regions.values())setActive(region,false);
-   if(!enabled)return;
+   if(!enabled){
+    for(const region of floors.values())for(const part of region.parts)part.mesh.visible=false;
+    return;
+   }
    const samples=heatmapSamples(points,navigation.sensors,readings,metric,definitions);
    const byFloor=new Map();
-   for(const point of samples){
-    if(!byFloor.has(point.floor))byFloor.set(point.floor,[]);
-    byFloor.get(point.floor).push(point);
+   for(const sample of samples){
+    if(!byFloor.has(sample.floor))byFloor.set(sample.floor,[]);
+    byFloor.get(sample.floor).push(sample);
    }
-   for(const [floorId,region] of regions){
-    if(floor!=='all'&&floor!==floorId)continue;
-    const available=byFloor.get(floorId)||[];
-    // A floor with no reading of this metric is left fully transparent:
-    // no opaque grey/white plates hiding the building.
-    if(!available.length)continue;
-    const signature=metric+'|'+available.map(point=>point.code+':'+point.score.toFixed(4)).join(',');
-    if(signature!==region.lastSignature){
-     const pixels=floorHeatmapPixels(region.bounds,available,TEXTURE_SIZE,TEXTURE_SIZE);
-     const data=region.context.createImageData(TEXTURE_SIZE,TEXTURE_SIZE);
-     data.data.set(pixels);
-     region.context.putImageData(data,0,0);
-     // Updating Texture.src uploads the new browser raster to WebGL using
-     // xeokit's supported texture path (rather than a colour-buffer rewrite).
-     region.texture.src=region.canvas.toDataURL('image/png');
-     region.lastSignature=signature;
+   // In whole-building view, lower alpha allows the architecture and lower
+   // storeys to show through. Single-floor view enhances selected floor.
+   const alpha=floor==='all'?.43:.68;
+   for(const material of palette)material.alpha=alpha;
+   for(const [id,region] of floors){
+    const visible=floor==='all'||floor===id;
+    const inputs=byFloor.get(id)||[];
+    if(!visible||!inputs.length){
+     for(const part of region.parts)part.mesh.visible=false;
+     continue;
     }
-    region.material.alpha=floor==='all'?.34:.57;
-    setActive(region,true);
+    const signature=metric+'|'+inputs.map(p=>p.code+':'+p.score.toFixed(5)).join(',');
+    if(region.signature!==signature){
+     clearFloor(region);
+     const bands=buildHeatmapBands(region.grid,inputs,BAND_COUNT);
+     for(const band of bands){
+      const geometry=new ReadableGeometry(scene,{
+       primitive:'triangles',positions:band.positions,
+       normals:band.normals,indices:band.indices,compressGeometry:false
+      });
+      const mesh=new Mesh(scene,{
+       geometry,material:palette[band.index],
+       visible:true,pickable:false,collidable:false,clippable:false,
+       isObject:false,occluder:false,edges:false
+      });
+      region.parts.push({mesh,geometry});
+     }
+     region.signature=signature;
+    }else{
+     for(const part of region.parts)part.mesh.visible=true;
+    }
    }
   },
   destroy(){
-   for(const region of regions.values()){
-    region.mesh.destroy();
-    region.geometry.destroy();
-    region.material.destroy();
-    region.texture.destroy();
-   }
-   regions.clear();
+   for(const region of floors.values())clearFloor(region);
+   for(const material of palette)material.destroy();
+   floors.clear();
   }
  };
 }
