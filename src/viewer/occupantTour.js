@@ -1,3 +1,4 @@
+import {boundWalkSegment} from './characterDesign.js';
 /** A clearly visual-only BIM demonstration: these people never affect sensors. */
 export const TOUR_LEVELS=[
  {floor:'Level_01',count:3,label:'Arrival / lobby'},
@@ -41,7 +42,7 @@ export function makeTourPlan(bounds,levels,roomFootprints=null){
     const p=(weights)=>[0,1,2].map(axis=>a[axis]*weights[0]+b[axis]*weights[1]+c[axis]*weights[2]);
     const start=p([.54,.23,.23]),end=p([.22,.39,.39]);
     start[1]+=.16;end[1]+=.16;
-    candidates.push({start,end,area,source:'ifc-room'});
+    candidates.push({...boundWalkSegment(start,end),area,source:'ifc-room'});
    }
   }
   return candidates.sort((a,b)=>b.area-a.area);
