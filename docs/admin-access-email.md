@@ -16,7 +16,31 @@ The administration area has a compact left navigation on desktop and a horizonta
 
 This is a *management* area, so built-in BIM sensors remain protected from deletion; adding a database-only sensor does **not** add an IFC/XKT object or a live simulator channel.
 
-## Real email invitation setup (host computer only)
+## Free Gmail SMTP option (recommended for FYP)
+
+You can send actual invitation emails from a **dedicated free Gmail address** such as `twinlabsdigital@gmail.com`. No domain purchase or Resend account is needed for this mode.
+
+1. Enable Google **2-Step Verification** for the dedicated account and generate an **App Password** at https://myaccount.google.com/apppasswords (if available for this account).
+2. Edit only the local host computer's untracked `.env`:
+
+```dotenv
+EMAIL_PROVIDER=gmail
+GMAIL_USER=twinlabsdigital@gmail.com
+GMAIL_APP_PASSWORD=your_16_character_app_password
+APP_PUBLIC_URL=http://YOUR_CURRENT_WIFI_IP:3001
+```
+
+The App Password is **not** the normal Gmail login password. Do not expose the App Password in screenshots, GitHub or chat. The sender appears as **TwinLabs <twinlabsdigital@gmail.com>**. The code always connects to `smtp.gmail.com:465` using verified TLS. Gmail sending limits and anti-abuse restrictions apply.
+
+3. Pull the Branch, stop the server, run `npm run test:invitation-email`, then `npm run host:lan` again. The Backend needs internet access to reach Gmail.
+4. In **Access → Grant access**, enter an email address **different from the sending account** and press **Send invitation**. The UI should confirm email acceptance if Gmail SMTP accepts the message. Check the recipient's inbox and Spam.
+5. If Gmail rejects SMTP authentication, confirm 2-Step Verification, the App Password, and account restrictions. Do not turn off 2FA.
+
+When `EMAIL_PROVIDER=gmail`, existing `RESEND_API_KEY` and `INVITE_FROM_EMAIL` settings are ignored. To go back to Resend, set `EMAIL_PROVIDER=resend` and keep the Resend credentials.
+
+**Security:** SMTP transmission is TLS-encrypted, but the TwinLabs invitation link is currently an **HTTP LAN URL**, so registration on an untrusted network is not secure. The invitation link is only reachable by devices connected to that LAN while the host is running. Do not expose it publicly or use real production accounts without HTTPS and end-to-end access controls.
+
+## Resend alternative (host computer only)
 
 TwinLabs supports real outbound mail through the **Resend HTTPS email API**, without adding new npm packages. You need a Resend sending account, a working API key and a sender address on a verified domain. Follow the provider's current setup: https://resend.com/docs/send-with-nodejs
 
