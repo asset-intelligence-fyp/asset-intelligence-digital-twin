@@ -131,8 +131,8 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
     <strong>{analysis.llm_used?'Qwen investigation':'Observed evidence · model fallback'}</strong>
     <p>{analysis.finding}</p>
     <p className="room-ai-subtle">Assessment: {(analysis.assessment||'insufficient_evidence').replaceAll('_',' ')} · Not an automatic fault alert</p>
-    {analysis.possible_explanations?.length>0&&<><h4>Possible operating causes</h4><ul>{analysis.possible_explanations.map((x,i)=><li key={i}>{x}</li>)}</ul></>}
-    {analysis.recommended_checks?.length>0&&<><h4>Suggested checks</h4><ul>{analysis.recommended_checks.map((x,i)=><li key={i}>{x}</li>)}</ul></>}
+    {!!analysis.possible_explanations?.length&&<><h4>Possible operating causes</h4><ul>{analysis.possible_explanations.map((x,i)=><li key={i}>{x}</li>)}</ul></>}
+    {!!analysis.recommended_checks?.length&&<><h4>Suggested checks</h4><ul>{analysis.recommended_checks.map((x,i)=><li key={i}>{x}</li>)}</ul></>}
     <details><summary>Agent retrieval trace · {analysis.trace?.length||0} tools</summary>
      <ol>{analysis.trace?.map((x,i)=><li key={i}><strong>{x.tool}</strong> — {x.reason} ({x.source})</li>)}</ol>
     </details>
@@ -161,7 +161,7 @@ export function RoomAIWorkspace({onSensor,draft}:{onSensor:(code:string)=>void;d
      <p>Direction: {forecast.direction||'uncertain'} · {forecast.explanation}</p>
      {forecast.coverage&&<p className="room-ai-subtle">Evidence: {forecast.coverage.observed_samples} recent samples; {forecast.coverage.historical_months} reference months</p>}
     </>:<p>{forecast.reason||'Not enough valid information to display a projection.'}</p>}
-    {forecast.assumptions?.length>0&&<details><summary>Projection assumptions</summary><ul>{forecast.assumptions.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
+    {!!forecast.assumptions?.length&&<details><summary>Projection assumptions</summary><ul>{forecast.assumptions.map((x,i)=><li key={i}>{x}</li>)}</ul></details>}
     <details><summary>Forecast limitations</summary><ul>{forecast.limitations?.map((x,i)=><li key={i}>{x}</li>)}</ul></details>
    </article>}
   </section>
