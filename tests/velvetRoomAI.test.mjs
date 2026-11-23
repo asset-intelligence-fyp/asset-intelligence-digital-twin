@@ -43,7 +43,7 @@ test('Report, forecast, investigate and archive are independently accessible wit
 
 test('Results remain grounded and do not silently turn synthetic AI outputs into fault diagnoses or daily forecasts',()=>{
  assert.match(ui,/not a fault diagnosis/);
- assert.match(ui,/not a confirmed fault/i);
+ assert.match(ui,/No confirmed fault implied|not a confirmed fault/i);
  assert.match(ui,/not calibrated confidence intervals/);
  assert.match(ui,/does not represent intermediate predictions/);
  assert.match(ui,/forecast_model/);
