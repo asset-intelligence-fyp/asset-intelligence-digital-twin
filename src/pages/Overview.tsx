@@ -1,12 +1,12 @@
 import {AlertEvidence} from '../components/AlertEvidence';
 import type {ReactNode} from 'react';import {useEffect,useState} from 'react';
-import {ArrowUpRight,Gauge,Radio,Thermometer,Activity,Droplets,Sun,Users,Zap,AlertTriangle,ShieldCheck,TrendingUp,ChevronDown,CloudSun} from 'lucide-react';
+import {ArrowUpRight,Gauge,Radio,Thermometer,Activity,Droplets,Sun,Users,Zap,AlertTriangle,TrendingUp,ChevronDown,CloudSun} from 'lucide-react';
 import {ASSETS,POINTS,displayTime,readingLabel,useTwin,type AssetId} from '../services/twin';
 import {WeatherStation} from '../components/WeatherStation';import {DemoBuilding} from '../components/DemoBuilding';import {TelemetryChart} from '../components/TelemetryChart';
 import {Eyebrow,Pill,StatusPill} from '../components/UI';import {roomTitle} from '../viewer/sensorPresentation.js';import type {Page} from '../components/Shell';
 const metricIcons:Record<string,typeof Thermometer>={temperature:Thermometer,humidity:Droplets,co2:Activity,occupancy:Users,light:Sun,power:Zap,water_leakage:Droplets};
 export function Overview({investigationId,onDismissInvestigation,onEvent,externalFocusRequest=0,setPage,selectedAsset,onSelectAsset,selectedCode,onSelectCode}:{investigationId:number|null;onDismissInvestigation:()=>void;onEvent:(id:number)=>void;externalFocusRequest?:number;setPage:(page:Page)=>void;selectedAsset:AssetId;onSelectAsset:(id:AssetId)=>void;selectedCode:string;onSelectCode:(id:string)=>void}){
- const {readings,events,httpCoverage,backendConnected}=useTwin();const [focusRequest,setFocusRequest]=useState(0),[viewFloor,setViewFloor]=useState('all'),[windowHours,setWindowHours]=useState(6);
+ const {readings,events}=useTwin();const [focusRequest,setFocusRequest]=useState(0),[viewFloor,setViewFloor]=useState('all'),[windowHours,setWindowHours]=useState(6);
  const focusSensor=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;onSelectCode(code);onSelectAsset(p.assetId);setViewFloor(p.floor);setFocusRequest(n=>n+1)};
  useEffect(()=>{if(externalFocusRequest)focusSensor(selectedCode)},[externalFocusRequest]);
  const incident=events.find(e=>e.id===investigationId);
@@ -19,12 +19,7 @@ export function Overview({investigationId,onDismissInvestigation,onEvent,externa
  const trendPoints=[...points].filter(p=>p.unit!=='binary').sort((a,b)=>['temperature','humidity','co2','light','power'].indexOf(a.sensorType)-['temperature','humidity','co2','light','power'].indexOf(b.sensorType)).slice(0,2);
  const noSensors=viewFloor!=='all'&&!POINTS.some(p=>p.floor===viewFloor);
  return <div className="overview-page overview-clean">
- <div className="overview-clean-heading"><div><Eyebrow>BUILDING INTELLIGENCE</Eyebrow><h1>Building overview</h1><p>Simulated telemetry, recorded alerts and a live digital twin.</p></div><button className="small-outline" onClick={()=>setPage('monitoring')}>Monitoring details <ArrowUpRight size={13}/></button></div>
- <div className="overview-clean-status">
- <button className="surface overview-status-tile" onClick={()=>setPage('sensors')}><Radio size={17}/><span><small>Sensor coverage</small><strong>{httpCoverage}/18</strong><em>{backendConnected?'Simulated HTTP feed':'API disconnected'}</em></span></button>
- <button className="surface overview-status-tile" onClick={()=>setPage('events')}><AlertTriangle size={17}/><span><small>Active alerts</small><strong>{activeAlerts.length}</strong><em>{critical} critical · needs review</em></span></button>
- <button className="surface overview-status-tile" onClick={()=>setPage('monitoring')}><ShieldCheck size={17}/><span><small>Automatic detection</small><strong>{backendConnected?'Rule-based':'Unavailable'}</strong><em>Simulated threshold checks</em></span></button>
- </div>
+ <div className="overview-clean-heading"><div><Eyebrow>BUILDING INTELLIGENCE</Eyebrow><h1>Building overview</h1><p>Simulated telemetry, recorded alerts and a live digital twin.</p></div><div className="overview-heading-actions"><button className="overview-active-alerts" onClick={()=>setPage('events')} aria-label={`${activeAlerts.length} active alerts; open Events`}><AlertTriangle size={14}/>{activeAlerts.length} active alerts</button><button className="small-outline" onClick={()=>setPage('monitoring')}>Monitoring details <ArrowUpRight size={13}/></button></div></div>
  {incident&&<section className="surface investigation-banner"><div className="heading-actions"><h2>{incident.title}</h2><button className="small-outline" onClick={onDismissInvestigation}>Close investigation</button></div><p>{incident.point_code} · {displayTime(incident.time)} · {incident.resolved_at?"Condition recovered":"Inspect current condition"}. Twin markers show current readings; the retained incident evidence follows.</p><AlertEvidence event={incident}/></section>}
  <div className="overview-room-picker"><span>Monitoring location</span><label><select aria-label="Select monitoring location" value={selectedAsset} onChange={e=>{const p=POINTS.find(p=>p.assetId===e.target.value);if(p)focusSensor(p.code)}}>{ASSETS.map(asset=>{const p=POINTS.find(p=>p.assetId===asset)!;return <option key={asset} value={asset}>{roomTitle(p)}</option>})}</select><ChevronDown size={14}/></label></div>
  <div className="overview-workbench"><DemoBuilding selectedCode={selectedCode} focusRequest={focusRequest} onFloorChange={floorChanged} onSelect={focusSensor}/>
