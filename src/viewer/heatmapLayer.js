@@ -1,5 +1,6 @@
 import {Mesh,ReadableGeometry,PhongMaterial} from '@xeokit/xeokit-sdk';
 import footprints from '../../shared/roomFootprints.json';
+import sensorDefinitions from '../../shared/sensorDefinitions.json';
 import {heatmapSamples,subdivideFootprint,sensorVicinity,heatmapVertexColours} from './heatmapField.js';
 
 /**
@@ -60,7 +61,7 @@ export function createHeatmapLayer(scene,navigation,points){
   update({metric='status',readings={},floor='all',enabled=false}){
    for(const region of regions.values())region.mesh.visible=false;
    if(!enabled)return;
-   const samples=heatmapSamples(samplesPoints,navigation.sensors,readings,metric);
+   const samples=heatmapSamples(samplesPoints,navigation.sensors,readings,metric,sensorDefinitions);
    const byFloor=new Map();
    for(const sample of samples){
     if(!byFloor.has(sample.floor))byFloor.set(sample.floor,[]);
@@ -76,6 +77,16 @@ export function createHeatmapLayer(scene,navigation,points){
      floorSamples.some(s=>s.guid===region.sensorGuid);
     if(!present)continue;
     const colors=heatmapVertexColours(region.positions,floorSamples,metric);
+    if(region.kind==='sensor-vicinity'){
+     // The fallback disc has no IFC room boundary: fade out entirely at
+     // the perimeter to avoid suggesting that the radius is measured.
+     const center=navSensors.get(region.sensorGuid)?.position;
+     if(center)for(let i=0;i<region.positions.length;i+=3){
+      const distance=Math.hypot(region.positions[i]-center[0],region.positions[i+2]-center[2]);
+      const edge=Math.min(1,Math.max(0,(3.6-distance)/1.5));
+      colors[i/3*4+3]*=edge*edge*(3-2*edge);
+     }
+    }
     if(!colors.some((v,i)=>i%4===3&&v>.03))continue;
     // ReadableGeometry updates the GPU colour buffer without rebuilding
     // meshes. Vertex alpha controls soft edges and sensor coverage.
