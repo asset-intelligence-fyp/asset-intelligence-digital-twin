@@ -23,7 +23,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  const own=x=>(resources.push(x),x);
  const profiles=characterProfileGeometry();
  const shapes=Object.fromEntries(Object.entries(profiles).map(([name,data])=>[name,own(new ReadableGeometry(scene,data))]));
- shapes.sphere=own(new ReadableGeometry(scene,buildSphereGeometry({radius:1,widthSegments:10,heightSegments:8})));
+ shapes.sphere=own(new ReadableGeometry(scene,buildSphereGeometry({radius:1,widthSegments:18,heightSegments:14})));
  // A single soft blue, teal, coral or violet material covers each mannequin.
  // Shared geometry and six meshes per figure keep busy-building playback cheap.
  const materials=CHARACTER_STYLES.map(style=>own(new PhongMaterial(scene,{
@@ -108,7 +108,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
     [isLeft?-.298:.298,1.390,0]:
     [isLeft?-.118:.118,.887,0];
    const pitch=(isLeft?1:-1)*(isArm?armSwing:legSwing);
-   const limb=mannequinLimbPose(pivot,isArm?.309:.386,pitch);
+   const limb=mannequinLimbPose(pivot,isArm ? .309 : .386,pitch);
    item.mesh.position=world(limb.center);
    item.mesh.rotation=[limb.pitch,heading,0];
    item.mesh.scale=[1,height,1];
