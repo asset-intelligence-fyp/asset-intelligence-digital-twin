@@ -24,7 +24,8 @@
     "test:ai": "node --test tests/roomAssistantValidated.test.mjs tests/roomPrediction.test.mjs tests/oneMonthEvaluationEndpoint.test.mjs tests/velvetRoomAI.test.mjs",
     "db:setup:v3": "node scripts/setup-v3.mjs",
     "admin:db:setup": "node scripts/setup-db-admin.mjs",
-    "test:admin:db": "node --test tests/adminDatabaseAuth.test.mjs"
+    "test:admin:db": "node --test tests/adminDatabaseAuth.test.mjs",
+    "host:lan": "node scripts/host-lan.mjs"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
