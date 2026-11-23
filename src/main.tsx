@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {Shell,type Page} from './components/Shell';
 import {TwinProvider,useTwin,POINTS} from './services/twin';
 import {Overview} from './pages/Overview';
+import {AIMonitoring} from './pages/AIMonitoring';
 import {Assets} from './pages/Assets';
 import {Sensors} from './pages/Sensors';
 import {Analytics} from './pages/Analytics';
@@ -19,6 +20,7 @@ import './control-room.css';
 import './workspace.css';
 import './pulse.css';
 import './presentation-refresh.css';
+import './clean-dashboard.css';
 import {applyTheme,getSavedTheme} from './theme.js';
 applyTheme(getSavedTheme());
 function App(){
@@ -42,6 +44,7 @@ function App(){
  return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.authenticated} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
   {page==='database'&&session.authenticated&&<AdminDatabase/>}
   {page==='overview'&&<Overview investigationId={investigationId} onDismissInvestigation={()=>setInvestigationId(null)} onEvent={openEvent} externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
+  {page==='monitoring'&&<AIMonitoring onEvent={openEvent} onAssistant={()=>setPage('assistant')} onFocus={focus}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='sensors'&&<Sensors initialCode={selectedCode}/>}
   {page==='analytics'&&<Analytics/>}
