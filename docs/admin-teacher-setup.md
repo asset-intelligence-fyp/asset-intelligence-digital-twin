@@ -1,4 +1,4 @@
-# TwinLabs administrator login — lecturer / demonstration setup
+> **Note for feature/amanda-lan-hosting:** This branch uses PostgreSQL-backed administrator accounts instead of the old local .env administrator workflow. Use [One-command LAN hosting](shared-lan-hosting.md) and `npm run admin:setup` on this branch. The legacy guide below describes the original integration branch, not this feature.\n\n# TwinLabs administrator login — lecturer / demonstration setup
 
 This guide applies to the **default `main` branch** and the integrated TwinLabs Alpha website. It is intended for a reviewer or student running a local copy. The administrator viewer does not use a cloud-hosted account and the GitHub repository intentionally contains **no reusable admin password or password hash**.
 
