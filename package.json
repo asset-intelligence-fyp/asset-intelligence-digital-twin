@@ -25,9 +25,12 @@
     "db:setup:v3": "node scripts/setup-v3.mjs",
     "test:alerts": "node --test tests/alerts.test.mjs",
     "db:check": "node scripts/check-database.mjs",
-    "admin:setup": "node scripts/setup-admin.mjs",
+    "admin:setup": "node scripts/setup-db-admin.mjs",
     "admin:check": "node scripts/check-admin.mjs",
-    "test:admin": "node --test tests/adminAuth.test.mjs"
+    "test:admin": "node --test tests/adminAuth.test.mjs",
+    "host:lan": "node scripts/host-lan.mjs",
+    "admin:db:setup": "node scripts/setup-db-admin.mjs",
+    "test:admin:db": "node --test tests/adminDatabaseAuth.test.mjs"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
