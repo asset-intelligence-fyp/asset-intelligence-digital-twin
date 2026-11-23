@@ -37,10 +37,14 @@ export function Simulator(){
  const chooseSensor=(code:string)=>{const p=POINTS.find(p=>p.code===code)!;setFaultCode(code);setFaultKind(p.sensorType==='water_leakage'?'leak':p.unit==='binary'?'stuck':'drift')};
  const magnitude=(offsets[point.sensorType]||[1,1,1])[severity]*direction;
  const preset=async(kind:'normal'|'rain'|'holiday'|'busy')=>{
-  const patch=presetPatch(kind,draft),label=scenarioLabel[kind];
+  const patch=presetPatch(kind,draft,source?.dataset_timestamp||source?.simulation?.weather.timestamp),label=scenarioLabel[kind];
   const baseline={kind,sequence:source?.sequence??null,replayId:source?.replay_id??null};
   setFeedback('queued');setMessage('Sending '+label+' to the simulator…');
-  if(await send(patch,label+' selected — request accepted. Checking the next generated weather/sensor batch…')){
+  const resetClock='start_clock' in patch&&typeof patch.start_clock==='string';
+  const acceptedMessage=resetClock
+   ?label+' selected — starting a new daytime simulation at 10:00 MYT so the occupancy schedule produces visible people. Checking the next generated batch…'
+   :label+' selected — request accepted. Checking the next generated weather/sensor batch…';
+  if(await send(patch,acceptedMessage)){
    setDraft(old=>pickControls({...old,...patch}));setPendingPreset(baseline);
   }
  };
