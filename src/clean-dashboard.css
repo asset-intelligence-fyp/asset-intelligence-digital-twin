@@ -197,3 +197,26 @@
 :root[data-theme="light"] .overview-active-alerts {background:#fff5f4;}
 @media(max-width:1040px){.bim-health-key {gap:6px;font-size:8px;}}
 @media(max-width:760px){.overview-heading-actions{width:100%;justify-content:space-between;}.bim-health-key{display:none;}}
+
+/* Sensor-interpolated whole-building and floor heatmap legend.
+   Colour is a demonstration severity/intensity score, never an extra reading. */
+.clarity-stage .bim-colour-key{width:min(250px,calc(100% - 32px));padding:13px 14px;gap:8px;z-index:12;}
+.clarity-stage .bim-colour-key label{font-weight:600;justify-content:space-between;}
+.clarity-stage .bim-colour-key select{width:154px;max-width:66%;font-size:11px;}
+.clarity-stage .bim-colour-scale{
+ height:13px;border-radius:7px;border:1px solid #9aabba50;
+ background:linear-gradient(90deg,
+ #21b35e 0%,#82cc47 25%,#f2d13b 50%,#f78531 75%,#d12e36 100%);
+ box-shadow:inset 0 0 0 1px #fff2;
+}
+.clarity-stage .bim-colour-scale.bim-colour-binary,
+.clarity-stage .bim-colour-scale.bim-colour-leak{
+ background:linear-gradient(90deg,#21b35e 0%,#21b35e 48%,#d12e36 52%,#d12e36 100%);
+}
+.clarity-stage .bim-colour-key span{font-size:10px;line-height:1.4;font-weight:500;}
+.clarity-stage .bim-colour-key small{line-height:1.5;font-size:9px;}
+.clarity-stage .bim-colour-key small:last-child{padding-top:8px;line-height:1.55;}
+@media(max-width:620px){
+ .clarity-stage .bim-colour-key{width:209px;max-width:calc(100% - 22px);padding:10px 11px;}
+ .clarity-stage .bim-colour-key select{width:120px;}
+}
