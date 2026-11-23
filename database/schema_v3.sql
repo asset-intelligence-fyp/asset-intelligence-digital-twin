@@ -159,6 +159,21 @@ ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_status TE
 ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
 ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
 ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS revoked_by TEXT;
+-- Editorial announcements are separate from automatic sensor-alert notifications.
+CREATE TABLE IF NOT EXISTS digital_twin.announcements (
+ announcement_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ title TEXT NOT NULL,
+ body TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'draft'
+  CHECK (status IN ('draft','published','archived')),
+ created_by TEXT NOT NULL,
+ updated_by TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ published_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS announcements_status_published_idx
+ ON digital_twin.announcements(status,published_at DESC);
 CREATE TABLE IF NOT EXISTS digital_twin.admin_audit (
  audit_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  actor TEXT NOT NULL,
