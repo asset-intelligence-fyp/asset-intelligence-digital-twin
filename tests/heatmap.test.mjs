@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {buildHeatmapBands,bandMaterialColours,clipHeatmapPolygon} from '../src/viewer/heatmapBands.js';
 import {
  HEATMAP_STOPS,heatmapColour,heatmapScore,heatmapSamples,
  interpolateHeatmap,subdivideFootprint,sensorVicinity,heatmapVertexColours,
  buildFloorHeatmapGrid,interpolateWholeFloor,wholeFloorVertexColours,
- trimSlabsToEnvelope,floorHeatmapPixels
+ trimSlabsToEnvelope,floorHeatmapPixels,limitFloorHeatmapToBuilding
 } from '../src/viewer/heatmapField.js';
 const points=JSON.parse(readFileSync('shared/sensorRegistry.json','utf8'));
 const navigation=JSON.parse(readFileSync('shared/modelNavigation.json','utf8'));
@@ -174,4 +175,65 @@ test('browser texture pixel raster includes vivid green, yellow and red zones',(
  assert.ok([green,mid,red].every(c=>c[3]===255),'RGBA texture source remains opaque; material controls transparency');
  const empty=floorHeatmapPixels(floor,[],16,16);
  assert.deepEqual(Array.from(empty.slice(0,4)),[138,150,163,255]);
+});
+
+test('actual heatmap renderer builds solid-colour 32-band polygons instead of blank textures',()=>{
+ const grid=buildFloorHeatmapGrid([[0,60,0,24,60.3,12]],60,{cellSize:2});
+ const samples=[{x:1,z:6,score:0},{x:23,z:6,score:1}];
+ const bands=buildHeatmapBands(grid,samples,32);
+ assert.ok(bands.length>=15,'normal-to-abnormal data must produce intermediate gradient bands');
+ assert.ok(bands.every(b=>b.positions.length===b.normals.length));
+ assert.ok(bands.every(b=>b.indices.length%3===0));
+ assert.ok(new Set(bands.map(b=>b.index)).size===bands.length);
+ const bandArea=bands.reduce((sum,band)=>{
+  for(let i=0;i<band.positions.length;i+=9){
+   const p=band.positions.slice(i,i+9);
+   const signed=(p[3]-p[0])*(p[8]-p[2])-(p[5]-p[2])*(p[6]-p[0]);
+   sum+=Math.abs(signed)/2;
+  }
+  return sum;
+ },0);
+ const originalArea=grid.cellCount*24/Math.ceil(24/2)*12/Math.ceil(12/2);
+ assert.ok(Math.abs(bandArea-originalArea)<.01,'iso-band triangles must cover entire real floor footprint without gaps');
+ const palette=bandMaterialColours(32);
+ assert.equal(palette.length,32);
+ assert.ok(palette[0][1]>palette[0][0],'first direct material is green');
+ assert.ok(palette.at(-1)[0]>palette.at(-1)[1],'last direct material is red');
+ assert.ok(palette[16][0]>.6&&palette[16][1]>.6,'middle direct material is yellow');
+ const single=buildHeatmapBands(grid,[{x:10,z:5,score:.25}],32);
+ assert.equal(single.length,1,'single-sensor floor should be uniform, never a fabricated gradient');
+ assert.equal(buildHeatmapBands(grid,[],32).length,0,'no sensor means no visible floor plate');
+});
+
+test('iso-band clipping retains interpolated contour boundaries',()=>{
+ const tri=[{x:0,y:60,z:0,score:0},{x:10,y:60,z:0,score:1},{x:0,y:60,z:10,score:0}];
+ const higher=clipHeatmapPolygon(tri,.5,true);
+ const lower=clipHeatmapPolygon(tri,.5,false);
+ assert.ok(higher.length>=3&&lower.length>=3);
+ assert.ok(higher.every(v=>v.score>=.5-1e-8));
+ assert.ok(lower.every(v=>v.score<=.5+1e-8));
+ assert.ok([...higher,...lower].some(v=>Math.abs(v.x-5)<1e-8&&Math.abs(v.score-.5)<1e-8));
+});
+
+test('site-sized floor rectangles are bounded by actual IFC room-derived building extent',()=>{
+ const rooms={
+  a:{positions:[40,60,-80,70,60,-80,70,60,-42,40,60,-42]},
+  b:{positions:[27,64,-50,39,64,-50,39,64,-42]}
+ };
+ const giant=[[0,60,-120,120,60.3,20]];
+ const clipped=limitFloorHeatmapToBuilding(giant,rooms,5);
+ assert.deepEqual(clipped,[[22,60,-85,75,60.3,-37]]);
+ assert.deepEqual(limitFloorHeatmapToBuilding([[20,60,-85,76,60.3,-38]],rooms,5),[[20,60,-85,76,60.3,-38]],'plausible IFC slabs must not be truncated');
+ assert.deepEqual(limitFloorHeatmapToBuilding(giant,{},5),giant);
+});
+
+test('live floor overlay uses native xeokit colour materials rather than broken texture or vertex colours',()=>{
+ const source=readFileSync(new URL('../src/viewer/heatmapLayer.js',import.meta.url),'utf8');
+ assert.ok(source.includes('PhongMaterial(scene,'));
+ assert.ok(source.includes('diffuse:rgb'));
+ assert.ok(source.includes('buildHeatmapBands('));
+ assert.ok(!source.includes('diffuseMap:'),'dynamic diffuse texture path previously rendered white');
+ assert.ok(!source.includes('new Texture('));
+ assert.ok(!source.includes('.geometry.colors='));
+ assert.ok(!source.includes('region.mesh.opacity'));
 });
