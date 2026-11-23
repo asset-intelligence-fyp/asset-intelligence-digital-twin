@@ -632,16 +632,53 @@ def score(args):
         print("Saved comparison of original A and available B/C/D arms.")
 
 
+
+def score_retrieval_only(args):
+    """Evaluate case-local numeric analogue retrieval, with no Ollama call.
+
+    This explicit scoring command is allowed to open hidden January truth,
+    and provides a diagnostic BEFORE spending GPU time on Qwen.
+    """
+    all_cases=cases(args.out)
+    truth=base.truth_monthly()
+    pools={metric:{k:[] for k in ("retrieval_only","last_31d","last_90d",
+                                 "weekday_matched")} for metric in METRICS}
+    for cid,case in sorted(all_cases.items()):
+        estimates=analogue_baseline(case["history"])
+        for metric in METRICS:
+            actual=truth[cid][metric]
+            estimate=estimates[metric]
+            if estimate is not None:
+                pools[metric]["retrieval_only"].append((estimate,actual))
+            for name in ("last_31d","last_90d","weekday_matched"):
+                pools[metric][name].append(
+                    (case["request"]["baselines"][name][metric],actual))
+    summary={"method":"numeric DTW historical analogue continuation",
+             "cases":len(all_cases),
+             "model_used":False,"future_truth_read_only_for_scoring":True,
+             "no_embeddings":True,"no_training":True,"by_metric":{}}
+    for metric in METRICS:
+        scores={k:base.metrics(v) for k,v in pools[metric].items()}
+        best=min(scores[k]["mae"] for k in ("last_31d","last_90d","weekday_matched"))
+        scores["skill_vs_best_nonretrieval_pct"]=round(100*(1-scores["retrieval_only"]["mae"]/best),2)
+        summary["by_metric"][metric]={"unit":base.SENSORS[metric][1],**scores}
+    path=args.out/"agentic_rag"/"summary_retrieval_only.json"
+    base.write_json(path,summary)
+    print(json.dumps(summary,indent=2,ensure_ascii=False))
+    print("Saved genuine retrieval-only baseline:",path)
+    return summary
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     sub=parser.add_subparsers(dest="command",required=True)
-    for command in ("preview","run","score"):
+    for command in ("preview","run","score","score-retrieval"):
         p=sub.add_parser(command)
         p.add_argument("--out",type=Path,default=base.DEFAULT_OUT)
         p.add_argument("--model",choices=MODELS,default="qwen3:1.7b")
         p.add_argument("--mode",choices=MODES+("all",) if command=="score" else MODES,
                        default="structured")
-        if command!="score":
+        if command in ("preview","run"):
             p.add_argument("--case",default="")
             p.add_argument("--limit-cases",type=int,default=3,
                            help="3 case smoke test; 0 for all 60")
@@ -657,6 +694,8 @@ def main(argv=None):
         run(args)
     elif args.command=="run":
         run(args)
+    elif args.command=="score-retrieval":
+        score_retrieval_only(args)
     else:
         score(args)
 
