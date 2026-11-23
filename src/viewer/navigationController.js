@@ -5,7 +5,7 @@ import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './
 /** One owner for floor visibility, selection and camera movement. No competing React flights. */
 export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},floorGuides={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
  const scene=viewer.scene;
- const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,floorGuides:true,metric:'humidity',foundMarkers:0,objectsOnFloor:0};
+ const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,floorGuides:true,metric:'status',foundMarkers:0,objectsOnFloor:0};
  let all=[],markerIds=[],architectureIds=[],floorIndex=new Map(),guidIndex=new Map(),flight=0,destroyed=false,pinSignature='',lastPins=0,slabIds=[],architecturalColours=[],glazingIds=[],heatReadings={};
  const sensors=new Map(navigation.sensors.map(p=>[p.guid,p]));
  const levelFor=id=>navigation.levels.find(p=>p.id===id);
@@ -135,12 +135,8 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   },focusSensor,showFloor,home,fit,setView,
   setMode(mode){
    const next=['xray','heatmap'].includes(mode)?mode:'solid';
-   if(next==='heatmap'&&state.mode!=='heatmap'&&state.floor==='all'){
-    const countByFloor=new Map();
-    for(const p of points.filter(p=>p.sensorType===state.metric))countByFloor.set(p.floor,(countByFloor.get(p.floor)||0)+1);
-    const best=[...countByFloor].sort((a,b)=>b[1]-a[1])[0]?.[0];
-    if(best){state.floor=best;state.view='plan';state.cutaway=true;}
-   }
+   // Keep the user's existing floor selection. Heatmap supports all floors
+   // concurrently; never redirect whole-building mode to a single storey.
    state.mode=next;pinSignature='';scope();emit();if(next==='heatmap')fit();
   },
   setCutaway(value){state.cutaway=!!value;clipping();emit()},
