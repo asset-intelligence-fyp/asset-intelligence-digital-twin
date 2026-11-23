@@ -37,6 +37,20 @@ All retrieval occurs in Python allowlisted functions, not arbitrary model-genera
 
 An analogue-only numeric reference method is reported alongside conventional persistence and weekday baselines. It uses the mean pre/post change in historical matches and does not involve an LLM.
 
+A second deterministic reference conditions historical averages on observed occupied/AC days versus unoccupied days and weighs them using **known planned January workdays**. It never uses January's actual attendance. This is a contextual baseline, not a trained LSTM or a claimed Qwen prediction.
+
+### Initial deterministic retrieval diagnostic (60 January cases, no Qwen)
+
+| Daily-variable monthly-mean target | Numeric DTW analogue MAE | Calendar-workday MAE | Strongest original A baseline MAE |
+|---|---:|---:|---:|
+| Temperature (°C) | 0.09734 | 0.20632 | 0.13234 |
+| Humidity (%RH) | 0.80489 | 1.39362 | 0.87731 |
+| CO2 (ppm) | 35.84393 | 41.24687 | 28.97042 |
+| Energy (kWh/day) | 1.48811 | 0.71561 | 0.77740 |
+
+These are **actual deterministic predictions tested against the hidden synthetic January period**, computed by CI, NOT Qwen3 B/C/D results. Retrieval improved temperature/humidity, while the calendar reference improved energy. CO2 is still better predicted by the last-31-day mean. This supports evaluating multiple evidence types, rather than assuming one retrieval method works for every sensor. Since these design choices were developed around the January study, subsequent claims about generalization require fresh, previously unseen forecast origins.
+
+
 ## Update the research worktree, not the main TwinLabs website
 
 Your previously completed A predictions are saved in local outputs and are preserved. Run from the separate research worktree:
