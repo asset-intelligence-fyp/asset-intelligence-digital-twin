@@ -129,6 +129,68 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   ]);
   res.json({users:users.rows,invites:invites.rows,audit:auditRows.rows});
  }));
+ app.get('/api/admin/manage/audit',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const limit=50,offset=Math.min(10000,Math.max(0,Number.parseInt(req.query.offset,10)||0));
+  const search=clean(req.query.search,100);
+  const result=await pool.query(`SELECT audit_id,actor,action,target,detail,created_at
+    FROM digital_twin.admin_audit
+    WHERE ($1='' OR actor ILIKE '%'||$1||'%' OR action ILIKE '%'||$1||'%' OR target ILIKE '%'||$1||'%')
+    ORDER BY audit_id DESC LIMIT $2 OFFSET $3`,[search,limit,offset]);
+  res.json({rows:result.rows,limit,offset});
+ }));
+ app.get('/api/admin/manage/alerts',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const r=await pool.query(`SELECT a.alert_id,a.point_code,a.alert_type,a.message,a.triggered_at,a.resolved_at,
+    a.detector,s.severity_name,t.status_name
+    FROM digital_twin.alerts a JOIN digital_twin.alert_severity s ON s.alert_severity_id=a.alert_severity_id
+    JOIN digital_twin.alert_status t ON t.alert_status_id=a.alert_status_id
+    ORDER BY a.triggered_at DESC,a.alert_id DESC LIMIT 200`);
+  res.json({rows:r.rows});
+ }));
+ app.patch('/api/admin/manage/alerts/:id/status',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const id=Number(req.params.id),status=clean(req.body?.status,32);
+  if(!Number.isSafeInteger(id)||id<1||!['New','Review','Acknowledged','Closed'].includes(status))
+   return res.status(400).json({error:'Invalid alert or status.'});
+  const changed=await transaction(pool,async c=>{
+   const prior=await c.query(`SELECT a.alert_id,t.status_name FROM digital_twin.alerts a
+     JOIN digital_twin.alert_status t ON t.alert_status_id=a.alert_status_id WHERE a.alert_id=$1 FOR UPDATE OF a`,[id]);
+   if(!prior.rowCount)return false;
+   await c.query(`UPDATE digital_twin.alerts SET
+     alert_status_id=(SELECT alert_status_id FROM digital_twin.alert_status WHERE status_name=$1),
+     resolved_at=CASE WHEN $1='Closed' THEN COALESCE(resolved_at,now()) ELSE NULL END
+     WHERE alert_id=$2`,[status,id]);
+   await audit(c,req.admin.username,'alert.status',String(id),{previous:prior.rows[0].status_name,new:status});
+   return true;
+  });
+  if(!changed)return res.status(404).json({error:'Alert not found.'});
+  res.json({ok:true});
+ }));
+ app.get('/api/admin/manage/notifications',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const r=await pool.query(`SELECT n.notification_id,n.alert_id,n.user_id,u.username,
+    n.message,n.created_at,n.read_at FROM digital_twin.notifications n
+    JOIN digital_twin.users u ON u.user_id=n.user_id
+    ORDER BY n.created_at DESC,n.notification_id DESC LIMIT 200`);
+  res.json({rows:r.rows});
+ }));
+ app.patch('/api/admin/manage/notifications/:id/read',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const id=Number(req.params.id),read=req.body?.read;
+  if(!Number.isSafeInteger(id)||id<1||typeof read!=='boolean')
+    return res.status(400).json({error:'Invalid notification or read state.'});
+  const changed=await transaction(pool,async c=>{
+   const previous=await c.query('SELECT read_at FROM digital_twin.notifications WHERE notification_id=$1 FOR UPDATE',[id]);
+   if(!previous.rowCount)return false;
+   await c.query(`UPDATE digital_twin.notifications SET read_at=CASE WHEN $1 THEN now() ELSE NULL END
+     WHERE notification_id=$2`,[read,id]);
+   await audit(c,req.admin.username,read?'notification.read':'notification.unread',String(id));
+   return true;
+  });
+  if(!changed)return res.status(404).json({error:'Notification not found.'});
+  res.json({ok:true});
+ }));
  app.post('/api/admin/manage/invites',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const email=clean(req.body?.email,254).toLowerCase();
