@@ -1,6 +1,6 @@
 import {Mesh,ReadableGeometry,PhongMaterial,buildSphereGeometry} from '@xeokit/xeokit-sdk';
 import {characterProfileGeometry} from './characterGeometry.js';
-import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,characterLegPose} from './characterDesign.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,characterLegPose,boundWalkSegment} from './characterDesign.js';
 import {makeTourPlan,TOUR_LEVELS} from './occupantTour.js';
 
 /**
@@ -73,7 +73,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
     // legible, without placing figures outside the room's supplied geometry.
     const start=a.map((v,n)=>v*.56+b[n]*.22+c[n]*.22);
     const end=a.map((v,n)=>v*.22+b[n]*.39+c[n]*.39);
-    candidates.push({start,end,area});
+    candidates.push({...boundWalkSegment(start,end),area});
    }
    candidates.sort((a,b)=>b.area-a.area);
    const result=[];
