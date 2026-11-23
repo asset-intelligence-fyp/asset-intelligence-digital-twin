@@ -27,7 +27,7 @@ function verifyPassword(password, stored) {
   return timingSafeEqual(actual,Buffer.from(expected,'hex'));
 }
 function cookie(req, value, maxAge) {
-  const secure = process.env.NODE_ENV === 'production' || req.secure;
+  const secure = req.secure || req.headers['x-forwarded-proto']==='https';
   return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${maxAge}${secure?'; Secure':''}`;
 }
 export function adminAuth(app,pool=null,schema='digital_twin') {
@@ -42,10 +42,10 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     let user;
     try{
       const result=await pool.query(
-        `SELECT users.user_id,users.username,users.password_hash
+        `SELECT users.user_id,users.username,users.password_hash,roles.role_name
          FROM digital_twin.users users
          JOIN digital_twin.roles roles ON roles.role_id=users.role_id
-         WHERE users.username=$1 AND roles.role_name='admin' LIMIT 1`,[username]);
+         WHERE users.username=$1 LIMIT 1`,[username]);
       user=result.rows[0];
     }catch(e){
       console.error('Admin authentication database query failed:',e.message);
@@ -59,14 +59,14 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     }
     attempts.delete(ip);
     const token=randomBytes(32).toString('hex');
-    sessions.set(token,{username:user.username,userId:user.user_id,expires:now+SESSION_MS});
+    sessions.set(token,{username:user.username,userId:user.user_id,role:user.role_name,expires:now+SESSION_MS});
     res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
-    return res.json({authenticated:true,username:user.username});
+    return res.json({authenticated:true,username:user.username,role:user.role_name});
   });
   app.get('/api/admin/session',(req,res)=>{
     res.setHeader('Cache-Control','no-store');
     const session=readSession(req);
-    res.json({authenticated:!!session,username:session?.username||null});
+    res.json({authenticated:!!session,username:session?.username||null,role:session?.role||null});
   });
   app.post('/api/admin/logout',(req,res)=>{
     sessions.delete(parseCookie(req));
@@ -75,7 +75,9 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
   });
 }
 export function requireAdmin(req,res,next) {
-  if(!readSession(req)) return res.status(401).json({error:'Admin login required'});
+  const admin=readSession(req);
+  if(!admin||admin.role!=='admin') return res.status(401).json({error:'Administrator login required'});
+  req.admin=admin;
   // Same-origin checks for authenticated API requests.
   const origin=req.get('origin');
   const host=req.get('host');
