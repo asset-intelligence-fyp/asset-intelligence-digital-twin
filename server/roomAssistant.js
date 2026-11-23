@@ -17,10 +17,24 @@ function localUrl(raw, label) {
  return url.origin;
 }
 function replyError(res,status,message) { return res.status(status).json({error:message}); }
+// node-postgres returns SQL timestamps as Date objects (unlike SSE's ISO strings).
+// Normalize both representations before cutoff comparison to avoid dropping valid telemetry.
+function normalizeEvidenceRows(rows,codes,cutoff){
+ const accepted=new Map();
+ for(const row of rows){
+  if(!row||!codes.has(row.point_code)||typeof row.value!=='number'||!Number.isFinite(row.value))continue;
+  const ms=row.timestamp instanceof Date?row.timestamp.getTime():Date.parse(row.timestamp);
+  if(!Number.isFinite(ms)||ms>cutoff)continue;
+  const timestamp=new Date(ms).toISOString();
+  accepted.set(row.point_code+'|'+timestamp,{point_code:row.point_code,value:row.value,
+    timestamp,quality:row.quality||'synthetic'});
+ }
+ return [...accepted.values()].sort((a,b)=>Date.parse(a.timestamp)-Date.parse(b.timestamp)).slice(-18000);
+}
 function validCutoff(value) {
  return typeof value==='string' && /(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value));
 }
-export function registerRoomAssistant(app,{getHistory,getSource=()=>null,getAlerts=async()=>[],fetchImpl=fetch,evaluationPath=new URL('../reports/llm_one_month_eval/summary.json',import.meta.url)}={}) {
+export function registerRoomAssistant(app,{getHistory,getStreamHistory=()=>[],getSource=()=>null,getAlerts=async()=>[],fetchImpl=fetch,evaluationPath=new URL('../reports/llm_one_month_eval/summary.json',import.meta.url)}={}) {
  const allowed = (req,res,next) => {
   if (!LOOPBACK.has(req.socket?.remoteAddress)) return replyError(res,403,'Room AI is available only on this computer');
   const origin = req.headers?.origin;
@@ -110,11 +124,23 @@ export function registerRoomAssistant(app,{getHistory,getSource=()=>null,getAler
    if(!validCutoff(as_of))return replyError(res,400,'Observation time requires a timezone offset');
    if(typeof question!=='string'||question.length>900)return replyError(res,400,'Question must be at most 900 characters');
    const cutoff=Date.parse(as_of),codes=new Set(points.map(p=>p.code));
-   const raw=source==='http'?await getHistory(points.map(p=>p.code)):snapshot;
-   if(!Array.isArray(raw)||raw.length>18000)return replyError(res,400,'Invalid sensor history');
-   const history=raw.filter(r=>r&&codes.has(r.point_code)&&typeof r.value==='number'&&Number.isFinite(r.value)&&
-      typeof r.timestamp==='string'&&Number.isFinite(Date.parse(r.timestamp))&&Date.parse(r.timestamp)<=cutoff);
-   if(!history.some(r=>r.point_code===sensor_id))return replyError(res,400,'No observations for selected sensor; start the simulator first');
+   let databaseRows=[],databaseError=null;
+   if(source==='http'){
+    try{databaseRows=await getHistory(points.map(p=>p.code));}
+    catch(e){databaseError=e;}
+   }else databaseRows=snapshot;
+   if(!Array.isArray(databaseRows)||databaseRows.length>18000)return replyError(res,400,'Invalid sensor history');
+   // Use server-received, committed live batches as a trustworthy fallback if
+   // the SQL view is empty or timestamp decoding differs from SSE.
+   const streamRows=source==='http'?await getStreamHistory(points.map(p=>p.code)):[];
+   if(!Array.isArray(streamRows)||streamRows.length>18000)return replyError(res,503,'Stream history unavailable');
+   if(databaseError&&!streamRows.length)return replyError(res,503,'Sensor history database unavailable');
+   const history=normalizeEvidenceRows([...databaseRows,...streamRows],codes,cutoff);
+   if(!history.some(r=>r.point_code===sensor_id))return replyError(res,400,
+     'No eligible reading at this timestamp for '+sensor_id+'. The 18/18 indicator confirms transport, not AI history; wait for a fresh batch or reselect the sensor.');
+   const provenance={database_rows:databaseRows.length,stream_rows:streamRows.length,
+       accepted_rows:history.length,used_stream_fallback:!!databaseError||
+          !normalizeEvidenceRows(databaseRows,codes,cutoff).some(r=>r.point_code===sensor_id)};
    const past=task==='investigate'&&source==='http'?await getAlerts():[];
    const incidents=Array.isArray(past)?past.filter(a=>a&&codes.has(a.point_code)&&
        typeof a.time==='string'&&Date.parse(a.time)<=cutoff).slice(0,30).map(a=>({
@@ -123,7 +149,7 @@ export function registerRoomAssistant(app,{getHistory,getSource=()=>null,getAler
    const response=await fetchImpl(bridge()+(task==='forecast'?'/agentic-forecast':'/agentic-investigate'),{
     method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(180000),
     body:JSON.stringify({config:config(),request:{room_id:point.simulatorRoomId,sensor_id,question:question.trim(),
-      source,as_of,points,history,simulation:source==='http'?getSource():null,incidents}})
+      source,as_of,points,history,provenance,simulation:source==='http'?getSource():null,incidents}})
    });
    const data=await response.json();res.status(response.status).json(data);
   }catch(e){replyError(res,503,'Agentic investigation unavailable: '+e.message+'. Check Python bridge and Ollama.')}
