@@ -1,6 +1,6 @@
 import {Mesh,ReadableGeometry,PhongMaterial,buildSphereGeometry} from '@xeokit/xeokit-sdk';
 import {characterProfileGeometry} from './characterGeometry.js';
-import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,characterLegPose,boundWalkSegment} from './characterDesign.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,mannequinLimbPose,boundWalkSegment} from './characterDesign.js';
 import {makeTourPlan,TOUR_LEVELS} from './occupantTour.js';
 
 /**
@@ -24,17 +24,13 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  const profiles=characterProfileGeometry();
  const shapes=Object.fromEntries(Object.entries(profiles).map(([name,data])=>[name,own(new ReadableGeometry(scene,data))]));
  shapes.sphere=own(new ReadableGeometry(scene,buildSphereGeometry({radius:1,widthSegments:10,heightSegments:8})));
- // One shared set of matte materials per architectural outfit variant.
- // This retains the original lightweight, texture-free rendering pipeline.
- const mats=CHARACTER_STYLES.map(style=>{
-  const mat=rgb=>own(new PhongMaterial(scene,{
-   diffuse:rgb,ambient:rgb.map(v=>v*.63),emissive:rgb.map(v=>v*.055),
-   specular:[.095,.10,.11],backfaces:true,shininess:8
-  }));
-  const palette=style.palette;
-  return {outer:mat(palette.outer),pants:mat(palette.trousers),skin:mat(palette.skin),
-   hair:mat(palette.hair),shoes:mat(palette.shoes),trim:mat(palette.trim)};
- });
+ // A single soft blue, teal, coral or violet material covers each mannequin.
+ // Shared geometry and six meshes per figure keep busy-building playback cheap.
+ const materials=CHARACTER_STYLES.map(style=>own(new PhongMaterial(scene,{
+  diffuse:style.colour,ambient:style.colour.map(v=>v*.56),
+  emissive:style.colour.map(v=>v*.065),
+  specular:[.14,.14,.15],shininess:12,backfaces:true
+ })));
  function part(shape,material,name){
   const mesh=new Mesh(scene,{
    geometry:shapes[shape],material,pickable:false,collidable:false,
@@ -43,20 +39,13 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   meshes.push(mesh);return {mesh,name};
  }
  function actor(anchor,i){
-  const style=CHARACTER_STYLES[i%CHARACTER_STYLES.length],materials=mats[i%CHARACTER_STYLES.length];
+  const style=CHARACTER_STYLES[i%CHARACTER_STYLES.length];
+  const material=materials[i%CHARACTER_STYLES.length];
   const items=[
-   part('sphere',materials.skin,'head'),
-   part(style.hair,materials.hair,'hair'),
-   part('neck',materials.skin,'neck'),
-   part(style.torso,materials.outer,'torso'),
-   part('arm',materials.outer,'armL'),part('arm',materials.outer,'armR'),
-   part('sphere',materials.skin,'handL'),part('sphere',materials.skin,'handR'),
-   part('thigh',materials.pants,'thighL'),part('thigh',materials.pants,'thighR'),
-   part('shin',materials.pants,'shinL'),part('shin',materials.pants,'shinR'),
-   part('sphere',materials.shoes,'shoeL'),part('sphere',materials.shoes,'shoeR')
+   part('sphere',material,'head'),part('torso',material,'torso'),
+   part('arm',material,'armL'),part('arm',material,'armR'),
+   part('leg',material,'legL'),part('leg',material,'legR')
   ];
-  if(style.collar)items.push(part('collar',materials.trim,'collar'));
-  if(style.lapels)items.push(part('lapel',materials.trim,'lapelL'),part('lapel',materials.trim,'lapelR'));
   return {anchor,items,index:i,height:style.height};
  }
  function pointsFromIFC(point){
@@ -97,50 +86,32 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  let enabled=false,moving=false,floor='all',mode='sensor',headcounts={},last=0,tourPlan={};
  function place(character,now){
   const pose=characterMotion(character.anchor,character.index,now,moving&&!reducedMotion);
-  const {base,heading,gait,bob,sway}=pose;
+  const {base,heading,legSwing,armSwing,bob}=pose;
   const radians=heading*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians);
-  const world=(x,y,z)=>[
-   base[0]+x*cos-z*sin,
-   base[1]+y,
-   base[2]+x*sin+z*cos
+  const height=character.height;
+  const world=local=>[
+   base[0]+local[0]*cos-local[2]*sin,
+   base[1]+local[1]*height+bob,
+   base[2]+local[0]*sin+local[2]*cos
   ];
-  // Compute the right/left hip-knee-ankle poses once per figure per frame.
-  // The shoe is lifted by the same phase driving its shin and thigh.
-  const legs={
-   L:characterLegPose(pose.footL,character.height),
-   R:characterLegPose(pose.footR,character.height)
-  };
   for(const item of character.items){
-   const name=item.name,side=name.endsWith('L')?'L':'R';
-   const isLeg=name.startsWith('thigh')||name.startsWith('shin');
-   const isShoe=name.startsWith('shoe');
-   const isArm=name.startsWith('arm'),isHand=name.startsWith('hand');
-   if(isLeg){
-    const segment=name.startsWith('thigh')?legs[side].thigh:legs[side].shin;
-    item.mesh.position=world(side==='L' ? -.114 : .114,segment.center[1],segment.center[2]);
-    item.mesh.rotation=[segment.pitch,heading,0];
-    item.mesh.scale=[1,segment.length,1];
-    continue;
-   }
-   if(isShoe){
-    const foot=legs[side].shoe;
-    item.mesh.position=world(side==='L' ? -.114 : .114,foot[1],foot[2]);
-    item.mesh.rotation=[(side==='L'?1:-1)*gait*.26,heading,0];
+   const name=item.name;
+   if(name==='head'||name==='torso'){
+    item.mesh.position=world(CHARACTER_PLACEMENTS[name]);
+    item.mesh.rotation=[0,heading,0];
     const scale=CHARACTER_SCALES[name];
-    item.mesh.scale=[scale[0],scale[1]*character.height,scale[2]];
+    item.mesh.scale=[scale[0],scale[1]*height,scale[2]];
     continue;
    }
-   const local=CHARACTER_PLACEMENTS[name];
-   // Arms counter-swing opposite the stepping feet, hands follow their
-   // sleeves; upper body stays almost level instead of bobbing like a toy.
-   const direction=side==='L'?-1:1;
-   const forward=isArm?direction*.034*gait/8:isHand?direction*.075*gait/8:0;
-   const y=local[1]*character.height+bob;
-   item.mesh.position=world(local[0],y,local[2]-forward);
-   const pitch=isArm?direction*9*gait/8:0;
-   item.mesh.rotation=[pitch,heading+(name==='torso'?sway:0),0];
-   const scale=CHARACTER_SCALES[name]||[1,1,1];
-   item.mesh.scale=[scale[0],scale[1]*character.height,scale[2]];
+   const isLeft=name.endsWith('L'),isArm=name.startsWith('arm');
+   const pivot=isArm?
+    [isLeft?-.298:.298,1.390,0]:
+    [isLeft?-.118:.118,.887,0];
+   const pitch=(isLeft?1:-1)*(isArm?armSwing:legSwing);
+   const limb=mannequinLimbPose(pivot,isArm?.309:.386,pitch);
+   item.mesh.position=world(limb.center);
+   item.mesh.rotation=[limb.pitch,heading,0];
+   item.mesh.scale=[1,height,1];
   }
  }
  function refresh(now){
