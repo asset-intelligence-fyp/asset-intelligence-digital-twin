@@ -14,7 +14,7 @@ dotenv.config();
 const ACTIVE_SCHEMA=process.env.TWIN_DB_SCHEMA==='digital_twin'?'digital_twin':'twin18';
 export function createSensorApp({pool=null}={}) {
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
- adminAuth(app);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
+ adminAuth(app,pool,ACTIVE_SCHEMA);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
  registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
