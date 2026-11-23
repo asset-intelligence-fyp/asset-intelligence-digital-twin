@@ -66,7 +66,7 @@ export function AdminWorkspace(){
   finally{setConfirmBusy(false)}
  }
  const [tab,setTab]=useState<Tab>('overview'),[overview,setOverview]=useState<Overview|null>(null);
- const [sensors,setSensors]=useState<Rec[]>([]),[users,setUsers]=useState<Rec[]>([]),[invites,setInvites]=useState<Rec[]>([]),[audit,setAudit]=useState<Rec[]>([]);
+ const [sensors,setSensors]=useState<Rec[]>([]),[users,setUsers]=useState<Rec[]>([]),[invites,setInvites]=useState<Rec[]>([]);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
  const [sensorSearch,setSensorSearch]=useState(''),[showNew,setShowNew]=useState(false);
  const [sensorForm,setSensorForm]=useState<SensorForm>(baseSensor),[editing,setEditing]=useState<string|null>(null);
@@ -90,7 +90,7 @@ export function AdminWorkspace(){
  const loadNotifications=useCallback(async()=>setNotifications((await request('/api/admin/manage/notifications') as {rows:Rec[]}).rows),[]);
  const loadAudit=useCallback(async()=>{const params=new URLSearchParams({offset:String(auditOffset),search:auditSearch});setAuditRows((await request('/api/admin/manage/audit?'+params) as {rows:Rec[]}).rows)},[auditOffset,auditSearch]);
  const loadMaintenance=useCallback(async()=>setMaintenance((await request('/api/admin/manage/maintenance') as {rows:Rec[]}).rows),[]);
- const loadUsers=useCallback(async()=>{const data=await request('/api/admin/manage/users') as {users:Rec[];invites:Rec[];audit:Rec[]};setUsers(data.users);setInvites(data.invites);setAudit(data.audit)},[]);
+ const loadUsers=useCallback(async()=>{const data=await request('/api/admin/manage/users') as {users:Rec[];invites:Rec[]};setUsers(data.users);setInvites(data.invites)},[]);
  const loadDataset=useCallback(async()=>{const params=new URLSearchParams({offset:String(offset)});if(dataSearch&&['buildings','locations','sensors'].includes(datasetName))params.set('search',dataSearch);setDataset(await request('/api/admin/database/'+datasetName+'?'+params) as DataSet)},[datasetName,offset,dataSearch]);
  const refresh=useCallback(async(t:Tab=tab)=>{setBusy(true);setError('');try{
   if(t==='overview'||t==='locations')await loadOverview();
