@@ -136,3 +136,64 @@ export function heatmapVertexColours(positions,samples,metric){
  }
  return rgba;
 }
+
+
+/**
+ * Build a complete floor plane from the union of real IFC slab bounding
+ * rectangles. Grid cells are accepted when their centres lie inside at least
+ * one slab; this preserves L-shaped / disconnected areas rather than
+ * drawing an unrelated circle around each marker.
+ *
+ * Fallback bounds are only used when the BIM does not expose slab objects;
+ * those areas are explicitly estimates, not measured geometry.
+ */
+export function buildFloorHeatmapGrid(slabAabbs,elevation,{cellSize=1.7,offset=.46}={}){
+ const boxes=(slabAabbs||[]).filter(b=>Array.isArray(b)&&b.length===6&&b.every(Number.isFinite)&&b[3]-b[0]>.35&&b[5]-b[2]>.35);
+ if(!boxes.length||!Number.isFinite(elevation))return {positions:[],normals:[],indices:[],cellCount:0,bounds:null};
+ const minX=Math.min(...boxes.map(b=>b[0])),maxX=Math.max(...boxes.map(b=>b[3]));
+ const minZ=Math.min(...boxes.map(b=>b[2])),maxZ=Math.max(...boxes.map(b=>b[5]));
+ const nx=Math.max(6,Math.min(84,Math.ceil((maxX-minX)/cellSize)));
+ const nz=Math.max(6,Math.min(84,Math.ceil((maxZ-minZ)/cellSize)));
+ const dx=(maxX-minX)/nx,dz=(maxZ-minZ)/nz;
+ const y=elevation+offset,positions=[],normals=[],indices=[];
+ for(let iz=0;iz<=nz;iz++)for(let ix=0;ix<=nx;ix++){
+  positions.push(minX+ix*dx,y,minZ+iz*dz);normals.push(0,1,0);
+ }
+ const row=nx+1;
+ for(let iz=0;iz<nz;iz++)for(let ix=0;ix<nx;ix++){
+  const x=minX+(ix+.5)*dx,z=minZ+(iz+.5)*dz;
+  if(!boxes.some(b=>x>=b[0]-.05&&x<=b[3]+.05&&z>=b[2]-.05&&z<=b[5]+.05))continue;
+  const a=iz*row+ix,b=a+1,c=a+row,d=c+1;
+  // Winding gives an upward normal for X/Z surfaces.
+  indices.push(a,c,b,b,c,d);
+ }
+ return {positions,normals,indices,cellCount:indices.length/6,bounds:[minX,y,minZ,maxX,y,maxZ]};
+}
+
+/**
+ * Whole-floor estimated field. Every vertex on a monitored storey receives
+ * an interpolated value; no distance cutoff or circular alpha falloff.
+ * A single sensor produces a constant estimate rather than a fabricated
+ * gradient. Never mix sensors from separate storeys.
+ */
+export function interpolateWholeFloor(x,z,samples,softening=5){
+ if(!samples.length)return null;
+ if(samples.length===1)return samples[0].score;
+ let weighted=0,total=0;
+ for(const sample of samples){
+  const d2=(sample.x-x)**2+(sample.z-z)**2;
+  if(d2<.0025)return sample.score;
+  const weight=1/(d2+softening**2);
+  weighted+=sample.score*weight;total+=weight;
+ }
+ return total>0?clamp(weighted/total):null;
+}
+export function wholeFloorVertexColours(positions,samples,{noDataAlpha=.45,alpha=.96}={}){
+ const colours=[];
+ for(let i=0;i<positions.length;i+=3){
+  const score=interpolateWholeFloor(positions[i],positions[i+2],samples);
+  if(score===null){colours.push(.45,.51,.56,noDataAlpha);continue}
+  const [r,g,b]=heatmapColour(score);colours.push(r,g,b,alpha);
+ }
+ return colours;
+}
