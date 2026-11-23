@@ -141,8 +141,11 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    return r.rows[0];
   });
   const delivery=await sendInvitationEmail({to:email,code,expiresAt:result.expires_at});
-  await pool.query("UPDATE digital_twin.access_invites SET email_status=$1,email_sent_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE invite_id=$3",
-   [delivery.sent?'sent':emailConfigured()?'failed':'not_configured',delivery.sent,result.invite_id]);
+  try{
+   await pool.query("UPDATE digital_twin.access_invites SET email_status=$1,email_sent_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE invite_id=$3",
+    [delivery.sent?'sent':emailConfigured()?'failed':'not_configured',delivery.sent,result.invite_id]);
+  }catch(e){console.error('Invitation delivery status update failed:',e.message);}
+
   res.status(201).json({...result,code,email,role:'viewer',emailSent:delivery.sent,deliveryMessage:delivery.sent?'Invitation accepted by email provider.':delivery.reason});
  }));
  app.post('/api/admin/manage/invites/:id/revoke',requireAdmin,safe(async(req,res)=>{
