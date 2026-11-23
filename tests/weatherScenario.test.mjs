@@ -29,3 +29,15 @@ test('accepted control and new observed telemetry are different statuses',()=>{
  assert.equal(weatherSceneLabel(newData.simulation.weather),'Rainy night');
  assert.equal(effectiveWeatherScene(before.simulation.weather),'night');
 });
+
+test('Busy Building walking mode is triggered by observed generator state, not queued controls',()=>{
+ const request=presetPatch('busy',{step_seconds:5,calendar_mode:'auto',attendance_factor:1});
+ assert.equal(request.calendar_mode,'workday');
+ assert.equal(request.attendance_factor,1.5);
+ const before={sequence:22,simulation:{calendar:{override:'auto'},operation:{attendance_factor:1}}};
+ const applied={sequence:23,simulation:{calendar:{override:'workday'},operation:{attendance_factor:1.5},simulated_headcounts:{'L03-OPEN-01':12}}};
+ assert.equal(observedScenario('busy',before),false);
+ assert.equal(observedScenario('busy',applied),true);
+ assert.equal(observedScenario('busy',{sequence:24,simulation:{calendar:{override:'holiday'},operation:{attendance_factor:1.5}}}),false);
+ assert.equal(observedScenario('busy',{sequence:24,simulation:{calendar:{override:'workday'},operation:{attendance_factor:1}}}),false);
+});
