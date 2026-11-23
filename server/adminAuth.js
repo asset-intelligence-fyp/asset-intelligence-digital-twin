@@ -1,4 +1,4 @@
-import {randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
+import {randomBytes,scryptSync,timingSafeEqual,createHash} from 'node:crypto';
 
 const sessions = new Map();
 let authenticationPool=null;
@@ -26,6 +26,9 @@ function verifyPassword(password, stored) {
   if (algorithm !== 'scrypt' || !/^[a-f0-9]{32}$/.test(salt || '') || !/^[a-f0-9]{128}$/.test(expected || '')) return false;
   const actual = scryptSync(password,Buffer.from(salt,'hex'),64);
   return timingSafeEqual(actual,Buffer.from(expected,'hex'));
+}
+function actionFingerprint(method,path,body){
+ return createHash('sha256').update(JSON.stringify([method,path,body])).digest('hex');
 }
 function cookie(req, value, maxAge) {
   const secure = req.secure || req.headers['x-forwarded-proto']==='https';
@@ -65,14 +68,20 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
     return res.json({authenticated:true,username:user.username,role:user.role_name});
   });
-  // Step-up authentication for administrator writes: short-lived, session-bound.
+  // Every management write requires a fresh password. Authorization is one-use,
+  // scoped to the exact HTTP method, path and request body, and expires in 60 seconds.
   app.post('/api/admin/confirm-password',requireAdmin,async(req,res)=>{
     const session=readSession(req);
     if(!session)return res.status(401).json({error:'Admin session expired'});
     const now=Date.now();
     if((session.confirmLockedUntil||0)>now)return res.status(429).json({error:'Too many attempts. Try again later.'});
-    const password=req.body?.password;
+    const {password,action}=req.body||{};
     if(typeof password!=='string'||password.length>1024)return res.status(400).json({error:'Admin password is required.'});
+    if(!action||!['POST','PATCH','DELETE','PUT'].includes(action.method)||
+      typeof action.path!=='string'||!action.path.startsWith('/api/admin/manage/')||
+      action.path.length>512||action.path.includes('?')||action.path.includes('#')||
+      action.body===undefined||typeof action.body!=='object'||action.body===null||Array.isArray(action.body))
+      return res.status(400).json({error:'Invalid change request.'});
     try{
       const result=await pool.query('SELECT password_hash FROM digital_twin.users WHERE user_id=$1 AND is_active=TRUE',[session.userId]);
       if(!result.rowCount||!verifyPassword(password,result.rows[0].password_hash)){
@@ -85,9 +94,14 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
       }
       session.confirmFailures=0;
       session.confirmLockedUntil=0;
-      session.elevatedUntil=now+5*60*1000;
+      const token=randomBytes(32).toString('hex');
+      session.confirmation={
+        tokenHash:createHash('sha256').update(token).digest('hex'),
+        fingerprint:actionFingerprint(action.method,action.path,action.body),
+        expires:now+60*1000
+      };
       res.setHeader('Cache-Control','no-store');
-      res.json({confirmed:true,validForSeconds:300});
+      res.json({confirmed:true,authorization:token});
     }catch(e){
       console.error('Admin password confirmation unavailable:',e.message);
       res.status(503).json({error:'Unable to verify administrator password.'});
@@ -147,7 +161,16 @@ export async function requireAdmin(req,res,next) {
 export function requireConfirmedAdmin(req,res,next){
  const session=readSession(req);
  if(!session||session.role!=='admin')return res.status(401).json({error:'Administrator session required'});
- if(!session.elevatedUntil||session.elevatedUntil<=Date.now())
-  return res.status(428).json({error:'Confirm your administrator password before changing data.',requiresPassword:true});
+ const pending=session.confirmation;
+ // Never leave a previous confirmation available after a write attempt.
+ session.confirmation=null;
+ const supplied=req.get('x-admin-confirmation')||'';
+ if(!pending||pending.expires<=Date.now()||!/^[a-f0-9]{64}$/.test(supplied))
+  return res.status(428).json({error:'Confirm your administrator password for this change.',requiresPassword:true});
+ const actualHash=createHash('sha256').update(supplied).digest('hex');
+ const tokenOK=timingSafeEqual(Buffer.from(pending.tokenHash,'hex'),Buffer.from(actualHash,'hex'));
+ const actionOK=pending.fingerprint===actionFingerprint(req.method,req.path,req.body||{});
+ if(!tokenOK||!actionOK)
+  return res.status(428).json({error:'Password confirmation does not match this change. Please confirm again.',requiresPassword:true});
  next();
 }
