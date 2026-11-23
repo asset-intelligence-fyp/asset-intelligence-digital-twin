@@ -21,10 +21,10 @@ async function login(url,username,password){
 
 test('database administrator logs in, receives a session and can log out',async()=>{
  const password='private-db-admin-password';
- const users=[{user_id:1,username:'admin',password_hash:hashFor(password)}];
+ const users=[{user_id:1,username:'admin',password_hash:hashFor(password),role_name:'admin'}];
  const pool={query:async(query,params)=>{
   assert.match(query,/digital_twin\.users/);
-  assert.match(query,/role_name='admin'/);
+  assert.match(query,/JOIN digital_twin\\.roles/);
   return {rows:users.filter(x=>x.username===params[0])};
  }};
  await serve(pool,async base=>{
