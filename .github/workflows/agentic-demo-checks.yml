@@ -28,3 +28,6 @@ jobs:
         run: npm run build
       - name: Test existing API and AI contracts
         run: npm run test:ai
+
+      - name: Test contextual Agentic API routing
+        run: node --test tests/agenticTwinRoute.test.mjs
