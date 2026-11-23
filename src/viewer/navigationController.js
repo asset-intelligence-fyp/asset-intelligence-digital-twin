@@ -151,6 +151,11 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
     const slabs=ids.filter(id=>/IfcSlab/.test(viewer.metaScene.metaObjects[id]?.type||''))
      .map(id=>Array.from(scene.objects[id]?.aabb||[]))
      .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]-box[0]>.35&&box[5]-box[2]>.35);
+    // These model objects describe enclosing walls / curtain glazing,
+    // rather than the oversized bounding rectangles of IFC floor slabs.
+    const facadeAabbs=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
+     .map(id=>Array.from(scene.objects[id]?.aabb||[]))
+     .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
     const buildingEnvelope=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
      .map(id=>Array.from(scene.objects[id]?.aabb||[]))
      .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
@@ -161,10 +166,10 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
      return [sensor.guid,{positions:[b[0],b[1],b[2],b[3],b[4],b[5]]}];
     }));
     const clipped=limitFloorHeatmapToBuilding(trimSlabsToEnvelope(slabs,buildingEnvelope,1.1),monitoredSpaces);
-    if(clipped.length)return {floor:level.id,elevation:level.elevation,aabbs:clipped,source:'clipped-ifc-slab'};
-    if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],source:'no-model-geometry'};
+    if(clipped.length)return {floor:level.id,elevation:level.elevation,aabbs:clipped,facadeAabbs,source:'clipped-ifc-slab'};
+    if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],facadeAabbs:[],source:'no-model-geometry'};
     const fallback=buildingEnvelope.length?Array.from(scene.getAABB(ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||'')))):Array.from(scene.getAABB(ids));
-    return {floor:level.id,elevation:level.elevation,aabbs:[fallback],source:'storey-architecture-bounds'};
+    return {floor:level.id,elevation:level.elevation,aabbs:[fallback],facadeAabbs,source:'storey-architecture-bounds'};
    });
    heatmap.setFloorSurfaces?.(floorSurfaces);
    const palette={wall:[.79,.84,.87],glazing:[.41,.65,.74],roof:[.42,.51,.58],floor:[.69,.72,.72],door:[.55,.63,.62],structure:[.69,.76,.80]};
