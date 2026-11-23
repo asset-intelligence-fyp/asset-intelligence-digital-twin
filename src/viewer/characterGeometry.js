@@ -67,14 +67,20 @@ export const CHARACTER_PROFILES={
   {y:-.10,rx:.210,rz:.148},{y:.24,rx:.244,rz:.155},
   {y:.37,rx:.134,rz:.098}
  ],
- // Cylindrical tapered sleeves and legs; wrists/ankles stay slender.
+ // Tapered sleeves; wrists remain visually distinct from the hands.
  arm:[
   {y:-.31,rx:.061,rz:.070},{y:-.15,rx:.066,rz:.075},
   {y:.12,rx:.079,rz:.082},{y:.285,rx:.092,rz:.089}
  ],
- leg:[
-  {y:-.335,rx:.077,rz:.086},{y:-.10,rx:.082,rz:.092},
-  {y:.17,rx:.085,rz:.094},{y:.33,rx:.099,rz:.099}
+ // Independently articulated thigh/shin, built around a centred unit
+ // Y axis so the viewer can position each part between hip/knee/ankle.
+ thigh:[
+  {y:-.5,rx:.076,rz:.081},{y:-.25,rx:.087,rz:.094},
+  {y:.16,rx:.093,rz:.100},{y:.5,rx:.105,rz:.106}
+ ],
+ shin:[
+  {y:-.5,rx:.061,rz:.071},{y:-.27,rx:.065,rz:.074},
+  {y:.16,rx:.073,rz:.079},{y:.5,rx:.083,rz:.086}
  ],
  // Low-profile cap and three hair silhouettes, not helmet-like spheres.
  hairCrop:[
