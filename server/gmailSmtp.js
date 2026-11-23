@@ -52,10 +52,10 @@ function readReplies(socket){
  function done(err){
   finished=true;
   if(pending){const p=pending;pending=null;p.reject(err)}
-  for(const p of queue)p.reject(err);
   queue=[];
  }
  function deliver(response){
+  if(finished)return;
   if(pending){const p=pending;pending=null;p.resolve(response)}
   else queue.push({response});
  }
@@ -73,7 +73,7 @@ function readReplies(socket){
  socket.once('error',e=>done(e));
  socket.once('close',()=>{if(!finished)done(Error('SMTP connection closed unexpectedly'))});
  return function next(){
-  if(queue.length){const p=queue.shift();return p.response?Promise.resolve(p.response):Promise.reject(Error('SMTP reply error'))}
+  if(queue.length)return Promise.resolve(queue.shift().response);
   if(finished)return Promise.reject(Error('SMTP connection closed'));
   return new Promise((resolve,reject)=>pending={resolve,reject});
  };
