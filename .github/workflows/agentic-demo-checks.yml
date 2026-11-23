@@ -1,0 +1,30 @@
+name: Agentic context and one-month forecast checks
+on:
+  push:
+    branches:
+      - feature/agentic-context-forecast-demo-20261123
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify Python syntax
+        run: python -m py_compile llm_service/agentic_twin.py llm_service/bridge.py tests/test_agentic_twin.py
+      - name: Test evidence isolation and scenario forecast
+        run: python -m unittest discover -s tests -p test_agentic_twin.py -v
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build website
+        run: npm run build
+      - name: Test existing API and AI contracts
+        run: npm run test:ai
