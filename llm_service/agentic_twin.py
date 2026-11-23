@@ -251,10 +251,14 @@ def investigate(request, config):
     optional={"historical":lambda:historical_evidence(target,cutoff,config),
               "related":lambda:related_evidence(indexed,by_code,target,cutoff),
               "incidents":lambda:incidents_evidence(request,target,cutoff)}
-    client=_llm(config)
-    model_error=None
+    try:
+        client=_llm(config)
+        model_error=None
+    except Exception as exc:
+        client=None
+        model_error=f"Qwen initialization unavailable: {type(exc).__name__}"
     used=set()
-    for _ in range(2):
+    for _ in range(2 if client is not None else 0):
         try:
             plan=ask_json(client,
                 "You are a bounded retrieval planner for a building sensor. Choose ONE useful new tool or finish. "
@@ -290,11 +294,13 @@ def investigate(request, config):
             "assessment":"insufficient_evidence",
             "possible_explanations":[],
             "recommended_checks":["Compare the pattern with room occupancy and ventilation before diagnosing a fault."],
-            "evidence":evidence,"trace":trace,"numeric_verification_passed":True,
+            "evidence":evidence,"trace":trace,"numeric_verification_passed":False,
             "human_review_required":True,"llm_used":False,
             "limitations":["Synthetic measurements; this is not a confirmed equipment diagnosis.",
-                           "E8-A research accuracy metrics do not apply to this live contextual adapter."]}
+                           "E8-A research accuracy metrics do not apply to this live contextual adapter.",
+                           "Citations are source-checked, but the model's narrative is not independently numerically verified."]}
     try:
+        if client is None: raise RuntimeError('Local inference client unavailable')
         verdict=ask_json(client,
             "You are the TwinLabs contextual investigation assistant, NOT an automatic fault alarm. "
             "Use observed readings, retrieved historical data and occupancy/HVAC/weather where available. "
@@ -310,7 +316,7 @@ def investigate(request, config):
         cited=[x for x in ids if isinstance(x,str) and x in supported]
         if cited:
             output.update({"finding":scrub(verdict.get("finding",factual),1400) or factual,
-                           "assessment":verdict.get("assessment","insufficient_evidence"),
+                           "assessment":verdict.get("assessment") if verdict.get("assessment") in ("explained_variation","investigate","insufficient_evidence") else "insufficient_evidence",
                            "possible_explanations":[scrub(x,300) for x in verdict.get("possible_explanations",[])[:5]],
                            "recommended_checks":[scrub(x,300) for x in verdict.get("recommended_checks",[])[:5]],
                            "cited_evidence_ids":cited,"llm_used":True})
@@ -335,10 +341,12 @@ def forecast_one_month(request, config):
     monthly=historical.get("months",[]) if historical.get("available") else []
     last=indexed[target][-1]
     # A one-calendar-month-ahead point, not a fabricated month-long time series.
-    m=cutoff.month+1
-    year=cutoff.year+(m-1)//12
+    # Calendar-month arithmetic uses Malaysia local time, then restores UTC.
+    malaysia=cutoff.astimezone(timezone(timedelta(hours=8)))
+    m=malaysia.month+1
+    year=malaysia.year+(m-1)//12
     month=(m-1)%12+1
-    target_dt=cutoff.replace(year=year,month=month,day=min(cutoff.day,calendar.monthrange(year,month)[1]))
+    target_dt=malaysia.replace(year=year,month=month,day=min(malaysia.day,calendar.monthrange(year,month)[1])).astimezone(timezone.utc)
     coverage=recent["whole_available_window"]
     enough=bool(monthly) or coverage["span_minutes"] >= 14*24*60
     payload={"task":"one calendar month ahead single-point projection",
