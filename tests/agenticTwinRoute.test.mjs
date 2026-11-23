@@ -1,0 +1,80 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {registerRoomAssistant} from '../server/roomAssistant.js';
+import {registry} from '../server/sensorContract.js';
+
+const point=registry.find(p=>p.sensorType==='temperature');
+const base={room_id:point.assetId,sensor_id:point.code,question:'Compare history and operating context',
+ source:'http',as_of:'2026-11-23T18:00:00+08:00'};
+const observation={point_code:point.code,value:25.2,timestamp:'2026-11-23T17:55:00+08:00',quality:'synthetic'};
+
+function fake(fetchImpl,{history=[observation],source=null,alerts=[]}={}){
+ const routes=new Map();
+ const app={get:(path,...handlers)=>routes.set('GET '+path,handlers),
+            post:(path,...handlers)=>routes.set('POST '+path,handlers)};
+ registerRoomAssistant(app,{fetchImpl,getHistory:async()=>history,
+  getSource:()=>source,getAlerts:async()=>alerts});
+ async function request(task,body=base,remoteAddress='127.0.0.1'){
+  const handlers=routes.get('POST /api/assistant/agentic/:task');
+  assert.ok(handlers);
+  const req={params:{task},body,headers:{origin:'http://localhost:5173'},
+   socket:{remoteAddress}};
+  const res={statusCode:200,status(n){this.statusCode=n;return this},
+   json(v){this.body=v;return this},setHeader(){}};
+  let allowed=false;
+  handlers[0](req,res,()=>{allowed=true});
+  if(allowed)await handlers[1](req,res);
+  return res;
+ }
+ return {request};
+}
+
+test('Agentic investigation passes causal room readings and safe operational context',async()=>{
+ let called,request;
+ const f=fake(async(url,opts)=>{called=url;request=JSON.parse(opts.body);
+  return {status:200,json:async()=>({status:'investigation',finding:'observed'})};
+ },{history:[observation,{...observation,timestamp:'2026-11-24T18:00:00+08:00',value:99}],
+    source:{name:'calibrated_hybrid_v1',simulation:{weather:{scene:'rain'}}},
+    alerts:[{point_code:point.code,time:'2026-11-23T17:50:00+08:00',title:'Warning'},
+            {point_code:point.code,time:'2026-11-24T17:50:00+08:00',title:'Future'}]});
+ const res=await f.request('investigate');
+ assert.equal(res.statusCode,200);
+ assert.equal(called,'http://127.0.0.1:8011/agentic-investigate');
+ assert.equal(request.request.sensor_id,point.code);
+ assert.equal(request.request.history.length,1);
+ assert.equal(request.request.incidents.length,1);
+ assert.equal(request.request.simulation.name,'calibrated_hybrid_v1');
+ assert.equal(request.config.model,'qwen3:1.7b');
+});
+
+test('One-month forecast is a separate endpoint and can work with a recent sensor history',async()=>{
+ let called;
+ const f=fake(async(url)=>{called=url;return {status:200,json:async()=>({
+  status:'exploratory_scenario',horizon_months:1,projected_value:25.3})}});
+ const res=await f.request('forecast');
+ assert.equal(res.statusCode,200);
+ assert.equal(called,'http://127.0.0.1:8011/agentic-forecast');
+ assert.equal(res.body.horizon_months,1);
+});
+
+test('Unknown sensors, tasks, bad timezones and LAN access do not reach Ollama',async()=>{
+ const f=fake(async()=>{throw Error('must not call service')});
+ const wrong=[
+  await f.request('wrong'),
+  await f.request('investigate',{...base,sensor_id:'NONEXISTENT'}),
+  await f.request('investigate',{...base,as_of:'2026-11-23T18:00:00'}),
+  await f.request('investigate',base,'192.168.1.8')
+ ];
+ assert.deepEqual(wrong.map(r=>r.statusCode),[404,400,400,403]);
+});
+
+test('Browser demo snapshot cannot inherit the live simulator context or rule alerts',async()=>{
+ let data;
+ const f=fake(async(_url,opts)=>{data=JSON.parse(opts.body);return {status:200,json:async()=>({status:'investigation'})}},
+  {history:[],source:{name:'calibrated_hybrid_v1',simulation:{operation:{ac_mode:'off'}}},
+   alerts:[{point_code:point.code,time:base.as_of}]});
+ const res=await f.request('investigate',{...base,source:'browser_demo',snapshot:[observation]});
+ assert.equal(res.statusCode,200);
+ assert.equal(data.request.simulation,null);
+ assert.deepEqual(data.request.incidents,[]);
+});
