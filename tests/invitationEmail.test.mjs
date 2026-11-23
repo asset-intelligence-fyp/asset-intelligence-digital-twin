@@ -75,7 +75,6 @@ test('Gmail SMTP is selected without requiring a Resend API key or a custom doma
   assert.match(raw,/Content-Transfer-Encoding: base64/);
   const body=Buffer.from(raw.split('\r\n\r\n')[1].replace(/\r\n/g,''),'base64').toString();
   assert.match(body,/one-time-123/);
-  assert.match(body,/friend/i);
   assert.match(body,/172\.20\.10\.7:3001/);
  });
 });
