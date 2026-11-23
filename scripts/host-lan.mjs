@@ -32,7 +32,7 @@ const requiredTables=[
  'buildings','building_floors','bim_models','bim_elements','monitoring_locations',
  'sensor_registry','sensor_readings','simulation_runs','roles','users',
  'ai_results','forecast_results','alert_severity','alert_status','alerts',
- 'notifications','maintenance_events'
+ 'notifications','maintenance_events','access_invites','admin_audit'
 ];
 try{
  const extension=await db.query("SELECT extversion FROM pg_extension WHERE extname='timescaledb'");
