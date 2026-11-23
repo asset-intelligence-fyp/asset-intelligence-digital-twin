@@ -5,11 +5,11 @@ import './adminWorkspace.css';
 type Rec=Record<string,unknown>;
 type Overview={counts:Record<string,number>;locations:Rec[];buildings:Rec[];fixedSensors:string[];emailConfigured?:boolean};
 type DataSet={rows:Rec[];offset:number;limit:number;total?:number};
-type Tab='overview'|'sensors'|'locations'|'maintenance'|'accounts'|'grant'|'audit'|'alerts'|'notifications'|'data';
+type Tab='overview'|'sensors'|'locations'|'maintenance'|'accounts'|'grant'|'audit'|'alerts'|'announcements'|'data';
 const tabs:{key:Tab;label:string}[]=[
  {key:'overview',label:'Overview'},{key:'sensors',label:'Sensors'},
  {key:'locations',label:'Locations'},{key:'maintenance',label:'Maintenance'},
- {key:'alerts',label:'Alerts'},{key:'notifications',label:'Notifications'},
+ {key:'alerts',label:'Alerts'},{key:'announcements',label:'Announcements'},
  {key:'accounts',label:'User Accounts'},{key:'grant',label:'Grant Access'},
  {key:'audit',label:'Audit Log'},{key:'data',label:'Database'}
 ];
@@ -77,9 +77,10 @@ export function AdminWorkspace(){
  const [readingSensor,setReadingSensor]=useState(''),[readingRows,setReadingRows]=useState<Rec[]>([]),[readingsLoading,setReadingsLoading]=useState(false);
  const [readingOffset,setReadingOffset]=useState(0);
  const [maintenance,setMaintenance]=useState<Rec[]>([]);
- const [adminAlerts,setAdminAlerts]=useState<Rec[]>([]),[notifications,setNotifications]=useState<Rec[]>([]);
+ const [adminAlerts,setAdminAlerts]=useState<Rec[]>([]),[announcements,setAnnouncements]=useState<Rec[]>([]);
+ const [announcementForm,setAnnouncementForm]=useState({title:'',body:'',status:'draft'}),[editingAnnouncement,setEditingAnnouncement]=useState<number|null>(null),[announcementStatusFilter,setAnnouncementStatusFilter]=useState('all');
  const [auditRows,setAuditRows]=useState<Rec[]>([]),[auditOffset,setAuditOffset]=useState(0),[auditSearch,setAuditSearch]=useState('');
- const [alertFilter,setAlertFilter]=useState('all'),[notificationFilter,setNotificationFilter]=useState('all');
+ const [alertFilter,setAlertFilter]=useState('all');
  const [work,setWork]=useState({location_code:'',point_code:'',event_type:'Inspection',event_date:new Date().toISOString().slice(0,16),description:''});
  const [showWork,setShowWork]=useState(false);
  const [datasetName,setDatasetName]=useState('buildings'),[dataset,setDataset]=useState<DataSet|null>(null);
@@ -88,7 +89,7 @@ export function AdminWorkspace(){
  const loadOverview=useCallback(async()=>setOverview(await request('/api/admin/manage/overview') as Overview),[]);
  const loadSensors=useCallback(async()=>setSensors((await request('/api/admin/manage/sensors') as {rows:Rec[]}).rows),[]);
  const loadAlerts=useCallback(async()=>setAdminAlerts((await request('/api/admin/manage/alerts') as {rows:Rec[]}).rows),[]);
- const loadNotifications=useCallback(async()=>setNotifications((await request('/api/admin/manage/notifications') as {rows:Rec[]}).rows),[]);
+ const loadAnnouncements=useCallback(async()=>setAnnouncements((await request('/api/admin/manage/announcements') as {rows:Rec[]}).rows),[]);
  const loadAudit=useCallback(async()=>{const params=new URLSearchParams({offset:String(auditOffset),search:auditSearch});setAuditRows((await request('/api/admin/manage/audit?'+params) as {rows:Rec[]}).rows)},[auditOffset,auditSearch]);
  const loadMaintenance=useCallback(async()=>setMaintenance((await request('/api/admin/manage/maintenance') as {rows:Rec[]}).rows),[]);
  const loadUsers=useCallback(async()=>{const data=await request('/api/admin/manage/users') as {users:Rec[];invites:Rec[]};setUsers(data.users);setInvites(data.invites)},[]);
@@ -99,10 +100,10 @@ export function AdminWorkspace(){
   if(t==='accounts'||t==='grant')await Promise.all([loadUsers(),loadOverview()]);
   if(t==='audit')await loadAudit();
   if(t==='alerts')await loadAlerts();
-  if(t==='notifications')await loadNotifications();
+  if(t==='announcements')await loadAnnouncements();
   if(t==='maintenance')await Promise.all([loadMaintenance(),loadOverview(),loadSensors()]);
   if(t==='data')await loadDataset();
- }catch(e){notify(e)}finally{setBusy(false)}},[tab,loadOverview,loadSensors,loadUsers,loadDataset,loadMaintenance,loadAlerts,loadNotifications,loadAudit]);
+ }catch(e){notify(e)}finally{setBusy(false)}},[tab,loadOverview,loadSensors,loadUsers,loadDataset,loadMaintenance,loadAlerts,loadAnnouncements,loadAudit]);
  useEffect(()=>{void refresh(tab)},[tab,refresh]);
  async function mutate(url:string,method:string,payload?:unknown,after?:()=>void){
   setBusy(true);setError('');setMessage('');
@@ -231,11 +232,34 @@ export function AdminWorkspace(){
     <div className="aw-table-scroll"><table><thead><tr><th>Triggered</th><th>Sensor</th><th>Severity</th><th>Alert</th><th>Message</th><th>Status</th></tr></thead><tbody>{adminAlerts.filter(a=>alertFilter==='all'||a.status_name===alertFilter).map(a=><tr key={String(a.alert_id)}><td>{new Date(String(a.triggered_at)).toLocaleString()}</td><td>{value(a.point_code)}</td><td><span className="aw-tag">{value(a.severity_name)}</span></td><td>{value(a.alert_type)}</td><td title={value(a.message)}>{brief(a.message)}</td><td><select aria-label={'Status of alert '+a.alert_id} disabled={busy} value={String(a.status_name)} onChange={e=>void mutate('/api/admin/manage/alerts/'+a.alert_id+'/status','PATCH',{status:e.target.value})}>{['New','Review','Acknowledged','Closed'].map(st=><option key={st}>{st}</option>)}</select></td></tr>)}</tbody></table>{!adminAlerts.length&&<p className="aw-empty">No alerts recorded.</p>}</div></div>
    <p className="aw-footnote">Changing an alert status updates its PostgreSQL record and writes an audit entry. It does not change anomaly-detection thresholds.</p>
   </div>}
-  {tab==='notifications'&&<div className="aw-content">
-   <div className="aw-toolbar"><div className="aw-select-label">Show <select aria-label="Filter notifications" value={notificationFilter} onChange={e=>setNotificationFilter(e.target.value)}><option value="all">All notifications</option><option value="unread">Unread</option><option value="read">Read</option></select></div><span className="aw-status">{notifications.filter(n=>!n.read_at).length} unread · last 200</span></div>
-   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Notifications</h2></div>
-    <div className="aw-table-scroll"><table><thead><tr><th>Created</th><th>Recipient</th><th>Alert ID</th><th>Notification</th><th>Status</th><th>Action</th></tr></thead><tbody>{notifications.filter(n=>notificationFilter==='all'||(notificationFilter==='unread'?!n.read_at:!!n.read_at)).map(n=><tr key={String(n.notification_id)}><td>{new Date(String(n.created_at)).toLocaleString()}</td><td>{value(n.username)}</td><td>{value(n.alert_id)}</td><td title={value(n.message)}>{brief(n.message)}</td><td>{n.read_at?'Read':'Unread'}</td><td><button disabled={busy} onClick={()=>void mutate('/api/admin/manage/notifications/'+n.notification_id+'/read','PATCH',{read:!n.read_at})}>{n.read_at?'Mark unread':'Mark read'}</button></td></tr>)}</tbody></table>{!notifications.length&&<p className="aw-empty">No notifications recorded in PostgreSQL.</p>}</div></div>
-   <p className="aw-footnote">Notifications are stored for specific users. Marking a notification read changes its database status and is recorded in the Audit Log.</p>
+  {tab==='announcements'&&<div className="aw-content">
+   <div className="aw-toolbar"><div className="aw-select-label">Show <select value={announcementStatusFilter} aria-label="Filter announcements" onChange={e=>setAnnouncementStatusFilter(e.target.value)}>
+    <option value="all">All announcements</option><option value="draft">Drafts</option><option value="published">Published</option><option value="archived">Archived</option>
+   </select></div><span className="aw-status">{announcements.filter(a=>a.status==='published').length} published</span></div>
+   <form className="aw-panel aw-form" onSubmit={async(e:FormEvent)=>{
+    e.preventDefault();const data={title:announcementForm.title.trim(),body:announcementForm.body.trim(),status:announcementForm.status};
+    const ok=await mutate(editingAnnouncement===null?'/api/admin/manage/announcements':'/api/admin/manage/announcements/'+editingAnnouncement,
+     editingAnnouncement===null?'POST':'PATCH',editingAnnouncement===null?{title:data.title,body:data.body}:data);
+    if(ok){setEditingAnnouncement(null);setAnnouncementForm({title:'',body:'',status:'draft'});}
+   }}>
+    <div className="aw-panel-head"><h2>{editingAnnouncement===null?'New announcement':'Edit announcement'}</h2>
+     {editingAnnouncement!==null&&<button type="button" onClick={()=>{setEditingAnnouncement(null);setAnnouncementForm({title:'',body:'',status:'draft'})}}>Cancel edit</button>}</div>
+    <label>Title<input required maxLength={140} placeholder="Announcement title" value={announcementForm.title} onChange={e=>setAnnouncementForm({...announcementForm,title:e.target.value})}/></label>
+    <label>Message<textarea required maxLength={2000} rows={4} placeholder="Write a notice for TwinLabs users" value={announcementForm.body} onChange={e=>setAnnouncementForm({...announcementForm,body:e.target.value})}/></label>
+    {editingAnnouncement!==null&&<label>Status<select value={announcementForm.status} onChange={e=>setAnnouncementForm({...announcementForm,status:e.target.value})}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>}
+    <div className="aw-actions"><button className="aw-primary" disabled={busy} type="submit"><Save size={14}/>{editingAnnouncement===null?'Save draft':'Save changes'}</button></div>
+    <p className="aw-footnote">Publish saved drafts to make them visible to website users. Every change requires your admin password.</p>
+   </form>
+   <section className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Announcements</h2><span>{announcements.length} records</span></div>
+    <div className="aw-table-scroll"><table><thead><tr><th>Title</th><th>Message</th><th>Status</th><th>Updated by</th><th>Updated</th><th>Actions</th></tr></thead><tbody>
+     {announcements.filter(a=>announcementStatusFilter==='all'||a.status===announcementStatusFilter).map(a=><tr key={String(a.announcement_id)}>
+      <td><strong>{value(a.title)}</strong></td><td title={value(a.body)}>{brief(a.body)}</td><td><span className={a.status==='published'?'aw-tag good':'aw-tag'}>{value(a.status)}</span></td>
+      <td>{value(a.updated_by)}</td><td>{new Date(String(a.updated_at)).toLocaleString()}</td>
+      <td className="aw-row-actions"><button type="button" disabled={busy} onClick={()=>{setEditingAnnouncement(Number(a.announcement_id));setAnnouncementForm({title:String(a.title),body:String(a.body),status:String(a.status)});window.scrollTo({top:0,behavior:'instant'})}}>Edit</button>
+      {a.status!=='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'published'})}>Publish</button>}
+      {a.status==='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'archived'})}>Archive</button>}</td>
+     </tr>)}</tbody></table>{!announcements.length&&<p className="aw-empty">No announcements yet.</p>}</div>
+   </section>
   </div>}
   {tab==='data'&&<div className="aw-content"><div className="aw-toolbar"><label className="aw-select-label">Table<select value={datasetName} onChange={e=>{setDatasetName(e.target.value);setOffset(0);setDataSearch('')}}>{datasets.map(([k,n])=><option key={k} value={k}>{n}</option>)}</select></label>{['buildings','locations','sensors'].includes(datasetName)&&<input aria-label="Search table" placeholder="Search records" value={dataSearch} onChange={e=>{setDataSearch(e.target.value);setOffset(0)}}/>}</div>
   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>{datasets.find(x=>x[0]===datasetName)?.[1]}</h2><span>{dataset?.rows.length||0} rows on page</span></div><div className="aw-table-scroll"><table><thead><tr>{Object.keys(dataset?.rows[0]||{}).map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset?.rows.map((r,i)=><tr key={i}>{Object.keys(dataset.rows[0]||{}).map(k=><td title={value(r[k])} key={k}>{brief(r[k])}</td>)}</tr>)}</tbody></table>{!dataset?.rows.length&&<p className="aw-empty">No records.</p>}</div></div>
