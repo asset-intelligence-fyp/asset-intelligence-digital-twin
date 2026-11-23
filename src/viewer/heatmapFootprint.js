@@ -82,7 +82,7 @@ export function enclosedCells(walls,minX,minZ,dx,dz,nx,nz,hull){
  if(boundaryWalls.length<4)return null;
  // Dilate walls by half a cell: adjacent facade segments and door gaps
  // meet without widening the map outside the true wall line.
- const padding=Math.min(.45,Math.min(dx,dz)*.52);
+ const padding=Math.min(.80,Math.min(dx,dz)*.75);
  for(const box of boundaryWalls){
   const loX=Math.max(0,ix(box[0]-padding)),hiX=Math.min(nx-1,ix(box[3]+padding));
   const loZ=Math.max(0,iz(box[2]-padding)),hiZ=Math.min(nz-1,iz(box[5]+padding));
@@ -150,7 +150,18 @@ export function buildContainedFloorGrid(slabAabbs,wallAabbs,elevation,{
    {x:x0,z:z0},{x:x1,z:z0},{x:x1,z:z1},{x:x0,z:z1}
   ],hull,inset);
   if(cell.length<3)continue;
-  if(enclosure&&enclosure.outside[z*nx+x])continue;
+  if(enclosure){
+   const k=z*nx+x;
+   if(enclosure.outside[k])continue;
+   if(enclosure.barrier[k]){
+    // Do not draw onto the outside half of the facade wall itself.
+    // Internal partition walls may still be coloured on the floor plane.
+    const exterior=x===0||z===0||x===nx-1||z===nz-1||
+     [[x-1,z],[x+1,z],[x,z-1],[x,z+1]].some(([ax,az])=>
+      ax>=0&&ax<nx&&az>=0&&az<nz&&enclosure.outside[az*nx+ax]);
+    if(exterior)continue;
+   }
+  }
   for(let i=1;i<cell.length-1;i++){
    const a=cell[0],b=cell[i],c=cell[i+1];
    if(Math.abs(cross(a,b,c))<1e-7)continue;
