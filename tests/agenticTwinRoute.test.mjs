@@ -8,12 +8,12 @@ const base={room_id:point.assetId,sensor_id:point.code,question:'Compare history
  source:'http',as_of:'2026-11-23T18:00:00+08:00'};
 const observation={point_code:point.code,value:25.2,timestamp:'2026-11-23T17:55:00+08:00',quality:'synthetic'};
 
-function fake(fetchImpl,{history=[observation],source=null,alerts=[]}={}){
+function fake(fetchImpl,{history=[observation],stream=[],source=null,alerts=[]}={}){
  const routes=new Map();
  const app={get:(path,...handlers)=>routes.set('GET '+path,handlers),
             post:(path,...handlers)=>routes.set('POST '+path,handlers)};
  registerRoomAssistant(app,{fetchImpl,getHistory:async()=>history,
-  getSource:()=>source,getAlerts:async()=>alerts});
+  getStreamHistory:async()=>stream,getSource:()=>source,getAlerts:async()=>alerts});
  async function request(task,body=base,remoteAddress='127.0.0.1'){
   const handlers=routes.get('POST /api/assistant/agentic/:task');
   assert.ok(handlers);
@@ -77,4 +77,39 @@ test('Browser demo snapshot cannot inherit the live simulator context or rule al
  assert.equal(res.statusCode,200);
  assert.equal(data.request.simulation,null);
  assert.deepEqual(data.request.incidents,[]);
+});
+
+
+test('PostgreSQL Date timestamps are retained, normalized and compared causally',async()=>{
+ let payload;
+ const f=fake(async(_url,opts)=>{payload=JSON.parse(opts.body);
+  return {status:200,json:async()=>({status:'investigation'})};
+ },{history:[{...observation,timestamp:new Date('2026-11-23T09:55:00.000Z')},
+             {...observation,timestamp:new Date('2026-11-23T10:05:00.000Z'),value:99}]});
+ const res=await f.request('investigate');
+ assert.equal(res.statusCode,200);
+ assert.equal(payload.request.history.length,1);
+ assert.equal(payload.request.history[0].timestamp,'2026-11-23T09:55:00.000Z');
+ assert.equal(payload.request.history[0].value,25.2);
+ assert.equal(payload.request.provenance.database_rows,2);
+ assert.equal(payload.request.provenance.used_stream_fallback,false);
+});
+
+test('Trusted server-side telemetry stream supplies current reading when SQL history is empty',async()=>{
+ let payload;
+ const f=fake(async(_url,opts)=>{payload=JSON.parse(opts.body);
+  return {status:200,json:async()=>({status:'investigation'})};
+ },{history:[],stream:[observation]});
+ const res=await f.request('investigate');
+ assert.equal(res.statusCode,200);
+ assert.equal(payload.request.history.length,1);
+ assert.equal(payload.request.history[0].point_code,point.code);
+ assert.equal(payload.request.provenance.used_stream_fallback,true);
+});
+
+test('Missing sensor observations return a specific error without calling Qwen',async()=>{
+ const f=fake(async()=>{throw Error('must not invoke AI')},{history:[],stream:[]});
+ const r=await f.request('investigate');
+ assert.equal(r.statusCode,400);
+ assert.match(r.body.error,/No eligible reading.*sensor/i);
 });
