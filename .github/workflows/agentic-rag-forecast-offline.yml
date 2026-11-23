@@ -30,9 +30,12 @@ jobs:
         run: |
           python3 experiments/qwen4b_one_month_backtest.py prepare --out /tmp/agentic-jan2026
           python3 experiments/agentic_rag_forecast.py preview --mode analogue --out /tmp/agentic-jan2026 --limit-cases 1 > /tmp/agentic-preview.json
+          python3 experiments/agentic_rag_forecast.py score-retrieval --out /tmp/agentic-jan2026 > /tmp/retrieval-baseline.json
       - name: Save pre-cutoff preview only
         uses: actions/upload-artifact@v4
         with:
           name: agentic-rag-precutoff-evidence
-          path: /tmp/agentic-preview.json
+          path: |
+            /tmp/agentic-preview.json
+            /tmp/retrieval-baseline.json
           retention-days: 14
