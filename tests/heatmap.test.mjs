@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {buildHeatmapBands,bandMaterialColours,clipHeatmapPolygon} from '../src/viewer/heatmapBands.js';
+import {facadeHull,clipToFacade,buildContainedFloorGrid} from '../src/viewer/heatmapFootprint.js';
 import {
  HEATMAP_STOPS,heatmapColour,heatmapScore,heatmapSamples,
  interpolateHeatmap,subdivideFootprint,sensorVicinity,heatmapVertexColours,
@@ -236,4 +237,56 @@ test('live floor overlay uses native xeokit colour materials rather than broken 
  assert.ok(!source.includes('new Texture('));
  assert.ok(!source.includes('.geometry.colors='));
  assert.ok(!source.includes('region.mesh.opacity'));
+});
+
+test('floor overlays are clipped to IFC facade walls, not slab AABB rectangles',()=>{
+ const slab=[[0,59.8,0,60,60.2,60]];
+ const walls=[
+  [10,60,20,30,63.5,20.3],[10,60,39.7,30,63.5,40],
+  [10,60,20,10.3,63.5,40],[29.7,60,20,30,63.5,40]
+ ];
+ const grid=buildContainedFloorGrid(slab,walls,60,{cellSize:1.25});
+ assert.ok(grid.cellCount>100,'interior should still be covered by a broad colour field');
+ assert.ok(grid.cellCount<500,'site slab must not create a giant external sheet');
+ assert.ok(['wall-enclosed','facade-hull'].includes(grid.source));
+ const vertices=[];
+ for(let i=0;i<grid.positions.length;i+=3)vertices.push([grid.positions[i],grid.positions[i+2]]);
+ assert.ok(vertices.every(([x,z])=>x>=10.39&&x<=29.61&&z>=20.39&&z<=39.61),
+  'every rendered triangle must be inset from exterior IFC walls');
+ assert.ok(grid.positions.every(Number.isFinite));
+ const hull=facadeHull(walls);
+ assert.equal(hull.length,4);
+ assert.equal(clipToFacade([{x:0,z:0},{x:2,z:0},{x:2,z:2},{x:0,z:2}],hull,.3).length,0);
+ assert.ok(clipToFacade([{x:15,z:25},{x:20,z:25},{x:20,z:30},{x:15,z:30}],hull,.3).length>=3);
+ const absent=buildContainedFloorGrid(slab,[],60);
+ assert.equal(absent.cellCount,0,'missing wall geometry cannot silently justify an oversized heatmap');
+});
+
+test('closed concave IFC wall outline does not colour the outdoor L-shaped courtyard',()=>{
+ const polygon=[[0,0],[20,0],[20,8],[8,8],[8,20],[0,20],[0,0]];
+ const walls=[];
+ for(let i=1;i<polygon.length;i++){
+  const [a,b]=[polygon[i-1],polygon[i]];
+  walls.push([Math.min(a[0],b[0])-.2,60,Math.min(a[1],b[1])-.2,
+   Math.max(a[0],b[0])+.2,63.5,Math.max(a[1],b[1])+.2]);
+ }
+ const grid=buildContainedFloorGrid([[-3,60,-3,23,60.2,23]],walls,60,{cellSize:.65,inset:.25});
+ assert.equal(grid.source,'wall-enclosed','the closed facade should be rasterised, not just convex-hulled');
+ assert.ok(grid.cellCount>100);
+ let courtyard=0,wing=0;
+ for(let i=0;i<grid.positions.length;i+=3){
+  const x=grid.positions[i],z=grid.positions[i+2];
+  if(x>10&&z>10)courtyard++;
+  if(x<5&&z>10)wing++;
+ }
+ assert.equal(courtyard,0,'do not draw colours over the outdoor concave recess');
+ assert.ok(wing>0,'the interior upper wing must still be painted');
+});
+
+test('heatmap renderer consumes the wall-clipped mesh rather than the old slab grid',()=>{
+ const source=readFileSync(new URL('../src/viewer/heatmapLayer.js',import.meta.url),'utf8');
+ const navigationSource=readFileSync(new URL('../src/viewer/navigationController.js',import.meta.url),'utf8');
+ assert.ok(source.includes('buildContainedFloorGrid(entry.aabbs,entry.facadeAabbs'));
+ assert.ok(navigationSource.includes('facadeAabbs'));
+ assert.ok(!source.includes('buildFloorHeatmapGrid(entry.aabbs'));
 });
