@@ -75,6 +75,7 @@ export function AdminWorkspace(){
  const [inviteEmail,setInviteEmail]=useState(''),[newInvite,setNewInvite]=useState('');
  const [emailDelivery,setEmailDelivery]=useState('');
  const [readingSensor,setReadingSensor]=useState(''),[readingRows,setReadingRows]=useState<Rec[]>([]),[readingsLoading,setReadingsLoading]=useState(false);
+ const [readingOffset,setReadingOffset]=useState(0);
  const [maintenance,setMaintenance]=useState<Rec[]>([]);
  const [adminAlerts,setAdminAlerts]=useState<Rec[]>([]),[notifications,setNotifications]=useState<Rec[]>([]);
  const [auditRows,setAuditRows]=useState<Rec[]>([]),[auditOffset,setAuditOffset]=useState(0),[auditSearch,setAuditSearch]=useState('');
@@ -109,18 +110,24 @@ export function AdminWorkspace(){
   catch(e){notify(e);return false}finally{setBusy(false)}
  }
  function startEdit(row:Rec){setEditing(String(row.point_code));setEditForm({location_code:String(row.location_code),measurement_type:String(row.measurement_type),unit:String(row.unit)})}
- async function showSensorReadings(code:string){
-  setReadingSensor(code);setReadingsLoading(true);setError('');
+ async function showSensorReadings(code:string,nextOffset=0){
+  setReadingSensor(code);setReadingOffset(nextOffset);setReadingsLoading(true);setError('');
+  window.scrollTo({top:0,behavior:'instant'});
   try{
-   const result=await request('/api/admin/database/readings?point='+encodeURIComponent(code)) as DataSet;
+   const params=new URLSearchParams({point:code,offset:String(nextOffset)});
+   const result=await request('/api/admin/database/readings?'+params) as DataSet;
    setReadingRows(result.rows);
   }catch(e){notify(e);setReadingRows([])}finally{setReadingsLoading(false)}
+ }
+ function closeSensorReadings(){
+  setReadingSensor('');setReadingRows([]);setReadingOffset(0);
+  window.scrollTo({top:0,behavior:'instant'});
  }
  const filtered=sensors.filter(r=>[r.point_code,r.display_name,r.measurement_type,r.location_code].some(v=>String(v).toLowerCase().includes(sensorSearch.toLowerCase())));
  const locations=overview?.locations||[];
  return <section className="admin-workspace" aria-label="Administration workspace">
   <header className="aw-header"><div><h1>Administration</h1></div><div className="aw-head-actions"><span className="aw-status">PostgreSQL · digital_twin</span><button type="button" onClick={()=>void refresh()} disabled={busy}><RefreshCw size={15}/> Refresh</button></div></header>
-  <div className="aw-frame"><nav className="aw-tabs" aria-label="Administration sections">{tabs.map(t=><button key={t.key} type="button" className={tab===t.key?'active':''} onClick={()=>{setError('');setMessage('');setTab(t.key)}}>{t.label}</button>)}</nav>
+  <div className="aw-frame"><nav className="aw-tabs" aria-label="Administration sections">{tabs.map(t=><button key={t.key} type="button" className={tab===t.key?'active':''} onClick={()=>{setError('');setMessage('');if(t.key!=='sensors')closeSensorReadings();setTab(t.key)}}>{t.label}</button>)}</nav>
   {error&&<div className="aw-notice aw-error" role="alert">{error}</div>}
   {message&&<div className="aw-notice" role="status">{message}</div>}
   {tab==='overview'&&<div className="aw-content"><div className="aw-stats">{[
@@ -135,7 +142,7 @@ export function AdminWorkspace(){
    <button onClick={()=>setTab('grant')}><ShieldCheck size={17}/> Invite a user</button>
    <button onClick={()=>setTab('data')}><Database size={17}/> View database</button>
   </div></section><section className="aw-panel"><h2>System</h2><div className="aw-system-row"><span>Schema</span><strong>digital_twin</strong></div><div className="aw-system-row"><span>Built-in BIM sensors</span><strong>{overview?.fixedSensors.length??'—'}</strong></div><div className="aw-system-row"><span>Open invitations</span><strong>{overview?.counts.invites??'—'}</strong></div><p className="aw-footnote">Database-only sensors require a separate BIM/XKT mapping and simulator configuration before they appear in the building viewer.</p></section></div></div>}
-  {tab==='sensors'&&<div className="aw-content"><div className="aw-toolbar"><input aria-label="Search sensors" placeholder="Search sensor, room or type" value={sensorSearch} onChange={e=>setSensorSearch(e.target.value)}/><button className="aw-primary" onClick={()=>{setShowNew(s=>!s);setEditing(null)}}><Plus size={15}/> Add sensor</button></div>
+  {tab==='sensors'&&!readingSensor&&<div className="aw-content"><div className="aw-toolbar"><input aria-label="Search sensors" placeholder="Search sensor, room or type" value={sensorSearch} onChange={e=>setSensorSearch(e.target.value)}/><button className="aw-primary" onClick={()=>{setShowNew(s=>!s);setEditing(null)}}><Plus size={15}/> Add sensor</button></div>
    {showNew&&<form className="aw-panel aw-form" onSubmit={async(e:FormEvent)=>{e.preventDefault();const ok=await mutate('/api/admin/manage/sensors','POST',sensorForm,()=>{setShowNew(false);setSensorForm(baseSensor)});if(ok)await loadSensors()}}><h2>New sensor</h2><div className="aw-fields">
     <label>Sensor code<input required value={sensorForm.point_code} onChange={e=>setSensorForm({...sensorForm,point_code:e.target.value})} placeholder="TEMP-NEW-01"/></label>
     <label>Location<select required value={sensorForm.location_code} onChange={e=>setSensorForm({...sensorForm,location_code:e.target.value})}><option value="">Choose location</option>{locations.map(r=><option key={String(r.location_code)} value={String(r.location_code)}>{String(r.display_name)}</option>)}</select></label>
@@ -146,8 +153,27 @@ export function AdminWorkspace(){
     <td><strong>{String(r.point_code)}</strong></td><td>{String(r.display_name)}</td><td>{String(r.measurement_type)}</td><td>{String(r.unit)}</td><td><span className={r.model_bound?'aw-tag good':'aw-tag pending'}>{r.model_bound?'Built-in':'Pending BIM'}</span></td><td>{String(r.reading_count)}</td>
     <td className="aw-row-actions"><button onClick={()=>void showSensorReadings(String(r.point_code))}>Readings</button><button onClick={()=>startEdit(r)}>Edit</button><button disabled={Boolean(r.model_bound)||busy} title={r.model_bound?'Built-in BIM sensors are protected':'Remove database-only sensor'} onClick={async()=>{if(window.confirm('Delete '+r.point_code+'? Only unreferenced, database-only sensors can be removed.'))await mutate('/api/admin/manage/sensors/'+encodeURIComponent(String(r.point_code)),'DELETE')}}><Trash2 size={14}/></button></td>
    </tr>)}</tbody></table>{!filtered.length&&<p className="aw-empty">No matching sensors.</p>}</div></div>
-   {readingSensor&&<section className="aw-panel aw-table-shell" aria-label="Sensor reading history"><div className="aw-panel-head"><h2>{readingSensor} · Readings</h2><div className="aw-actions"><button disabled={readingsLoading} onClick={()=>void showSensorReadings(readingSensor)}>Refresh</button><button onClick={()=>setReadingSensor('')}>Close</button></div></div>{readingsLoading?<p className="aw-empty">Loading readings…</p>:<div className="aw-table-scroll"><table><thead><tr><th>Recorded at</th><th>Value</th><th>Quality</th><th>Replay ID</th></tr></thead><tbody>{readingRows.map((r,i)=><tr key={i}><td>{new Date(String(r.reading_timestamp||r.timestamp)).toLocaleString()}</td><td>{value(r.reading_value??r.value)}</td><td>{value(r.quality)}</td><td>{brief(r.replay_id)}</td></tr>)}</tbody></table>{!readingRows.length&&<p className="aw-empty">No historical readings for this sensor.</p>}</div>}</section>}
    {editing&&<div className="aw-panel aw-form"><div className="aw-panel-head"><h2>Edit {editing}</h2><button onClick={()=>setEditing(null)}>Close</button></div><div className="aw-fields"><label>Location<select value={editForm.location_code} onChange={e=>setEditForm({...editForm,location_code:e.target.value})}>{locations.map(r=><option key={String(r.location_code)} value={String(r.location_code)}>{String(r.display_name)}</option>)}</select></label><label>Type<input value={editForm.measurement_type} onChange={e=>setEditForm({...editForm,measurement_type:e.target.value})}/></label><label>Unit<input value={editForm.unit} onChange={e=>setEditForm({...editForm,unit:e.target.value})}/></label></div><div className="aw-actions"><button className="aw-primary" disabled={busy} onClick={async()=>{if(await mutate('/api/admin/manage/sensors/'+encodeURIComponent(editing),'PATCH',editForm))setEditing(null)}}><Save size={14}/> Save</button></div><p className="aw-footnote">Changing metadata does not rewrite the fixed simulator registry or relocate IFC geometry.</p></div>}
+  </div>}
+  {tab==='sensors'&&readingSensor&&<div className="aw-content" aria-label="Sensor reading details">
+   <div className="aw-reading-toolbar">
+    <button type="button" onClick={closeSensorReadings}>← Back to sensors</button>
+    <div className="aw-actions"><button type="button" disabled={readingsLoading} onClick={()=>void showSensorReadings(readingSensor,readingOffset)}><RefreshCw size={14}/> Refresh</button></div>
+   </div>
+   <section className="aw-panel aw-reading-summary">
+    <div><span className="aw-status">Sensor readings</span><h2>{readingSensor}</h2>
+    <p className="aw-footnote">{value(sensors.find(r=>r.point_code===readingSensor)?.display_name)} · {value(sensors.find(r=>r.point_code===readingSensor)?.measurement_type)} · {value(sensors.find(r=>r.point_code===readingSensor)?.unit)}</p></div>
+    <div className="aw-reading-meta"><strong>{value(sensors.find(r=>r.point_code===readingSensor)?.reading_count)}</strong><span>Total stored readings</span></div>
+   </section>
+   <section className="aw-panel aw-table-shell">
+    <div className="aw-panel-head"><h2>Reading history</h2><span>Most recent first · 100 per page</span></div>
+    {readingsLoading?<p className="aw-empty">Loading readings…</p>:<div className="aw-table-scroll">
+     <table><thead><tr><th>Recorded at</th><th>Value</th><th>Quality</th><th>Replay ID</th></tr></thead>
+     <tbody>{readingRows.map((r,i)=><tr key={i}><td>{new Date(String(r.reading_timestamp||r.timestamp)).toLocaleString()}</td><td>{value(r.reading_value??r.value)} {value(sensors.find(sensor=>sensor.point_code===readingSensor)?.unit)}</td><td>{value(r.quality)}</td><td>{brief(r.replay_id)}</td></tr>)}</tbody></table>
+     {!readingRows.length&&<p className="aw-empty">No historical readings for this sensor.</p>}
+    </div>}
+   </section>
+   <div className="aw-pagination"><button disabled={readingOffset===0||readingsLoading} onClick={()=>void showSensorReadings(readingSensor,Math.max(0,readingOffset-100))}>Previous</button><span>{readingRows.length?readingOffset+1:0}–{readingOffset+readingRows.length}</span><button disabled={readingRows.length<100||readingsLoading} onClick={()=>void showSensorReadings(readingSensor,readingOffset+100)}>Next</button></div>
   </div>}
   {tab==='locations'&&<div className="aw-content"><div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Monitoring locations</h2><span>{locations.length} locations</span></div><div className="aw-table-scroll"><table><thead><tr><th>Code</th><th>Name</th><th>Floor</th><th>Building</th><th>Action</th></tr></thead><tbody>{locations.map(r=><tr key={String(r.location_code)}><td>{String(r.location_code)}</td><td>{locationEdit===r.location_code?<input autoFocus value={locationName} onChange={e=>setLocationName(e.target.value)}/>:String(r.display_name)}</td><td>{String(r.floor_level)}</td><td>{String(r.building_code)}</td><td className="aw-row-actions">{locationEdit===r.location_code?<><button disabled={busy} onClick={async()=>{if(await mutate('/api/admin/manage/locations/'+encodeURIComponent(String(r.location_code)),'PATCH',{display_name:locationName}))setLocationEdit(null)}}>Save</button><button onClick={()=>setLocationEdit(null)}>Cancel</button></>:<button onClick={()=>{setLocationEdit(String(r.location_code));setLocationName(String(r.display_name))}}>Rename</button>}</td></tr>)}</tbody></table></div></div></div>}
   {tab==='maintenance'&&<div className="aw-content">
