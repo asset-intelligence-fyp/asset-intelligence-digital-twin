@@ -4,10 +4,10 @@ export const METRICS={
  temperature:{label:'Temperature',unit:'°C',range:[18,32],band:[22,27],legend:'18–32 °C · demo range'},
  humidity:{label:'Humidity',unit:'%RH',range:[25,85],band:[40,65],legend:'25–85 %RH · demo range'},
  co2:{label:'CO₂',unit:'ppm',range:[400,1600],band:[400,1000],legend:'400–1,600 ppm · demo range'},
- occupancy:{label:'Occupancy',unit:'',legend:'Vacant / Occupied'},
- water_leakage:{label:'Water leakage',unit:'',legend:'Dry / Leak detected'},
- light:{label:'Light',unit:'lux',range:[0,800],legend:'0–800 lux · display range'},
- power:{label:'Virtual power',unit:'kW',range:[0,5],legend:'0–5 kW · illustrative aggregate'},
+ occupancy:{label:'Occupancy',unit:'',legend:'Green = vacant · red = occupied (not a fault)'},
+ water_leakage:{label:'Water leakage',unit:'',legend:'Green = dry · red = leak detected'},
+ light:{label:'Light',unit:'lux',range:[0,800],legend:'Low to high illuminance · not a fault score'},
+ power:{label:'Virtual power',unit:'kW',range:[0,5],legend:'Green < 3 kW · red ≥ 8 kW demo rule'},
 };
 const rgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
 const stops=['#367fc5','#26a69b','#edb547','#d66348'];
