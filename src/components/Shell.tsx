@@ -1,15 +1,16 @@
-import { BellRing, Box, Boxes, ChartNoAxesCombined, FlaskConical, Clock3, Database, Grid2X2, Radio, ListFilter, MessageCircle, Activity, BookOpen, UserRound, LogOut, Sun, Moon } from 'lucide-react';
+import { BellRing, Megaphone, Box, Boxes, ChartNoAxesCombined, FlaskConical, Clock3, Database, Grid2X2, Radio, ListFilter, MessageCircle, Activity, BookOpen, UserRound, LogOut, Sun, Moon } from 'lucide-react';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import { useTwin,type EventRecord } from '../services/twin';
 import {applyTheme} from '../theme.js';
 
-export type Page='database'|'overview'|'assets'|'analytics'|'events'|'sensors'|'simulator'|'assistant'|'status'|'guide';
+export type Page='announcements'|'database'|'overview'|'assets'|'analytics'|'events'|'sensors'|'simulator'|'assistant'|'status'|'guide';
 const nav: {id:Page;label:string;Icon:typeof Grid2X2}[]=[
  {id:'overview',label:'Building overview',Icon:Grid2X2},
  {id:'assets',label:'Asset register',Icon:Boxes},
  {id:'analytics',label:'Building performance',Icon:ChartNoAxesCombined},
  {id:'sensors',label:'Sensor monitoring',Icon:ListFilter},
  {id:'events',label:'Event log',Icon:BellRing},
+ {id:'announcements',label:'Announcements',Icon:Megaphone},
  {id:'assistant',label:'AI assistant',Icon:MessageCircle},
  {id:'simulator',label:'Simulation lab',Icon:Radio},
  {id:'guide',label:'How to use',Icon:BookOpen},
