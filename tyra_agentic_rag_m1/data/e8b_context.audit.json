@@ -1,0 +1,25 @@
+{
+  "sources": {
+    "occupancy": {
+      "status": "indexed",
+      "key": "room_id",
+      "rows": 103680,
+      "unparseable_times": 0
+    },
+    "hvac": {
+      "status": "indexed",
+      "key": "ac_zone_id",
+      "rows": 51840,
+      "unparseable_times": 0
+    },
+    "weather": {
+      "status": "indexed",
+      "key": "global",
+      "rows": 25920,
+      "unparseable_times": 0
+    }
+  },
+  "sensor_count": 19,
+  "assumption": "naive context timestamps interpreted as Asia/Kuching",
+  "labels_used": false
+}

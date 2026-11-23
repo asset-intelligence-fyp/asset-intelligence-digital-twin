@@ -1,0 +1,20 @@
+sensor_id,room_id,sensor_type,unit,scope,primary_influences,synthetic,rain_context_policy
+TEMP-L03-OPEN-01,L03-OPEN-01,temperature,°C,room_level,outdoor heat;solar exposure;occupant heat;AC schedule;cooling problems,1,not directly linked
+RH-L03-OPEN-01,L03-OPEN-01,humidity,%RH,room_level,outdoor relative humidity;local rain and wetness lag;AC dehumidification;occupants;water ingress,1,consider local rainfall timing and AC dehumidification
+CO2-L03-OPEN-01,L03-OPEN-01,co2,ppm,room_level,headcount;ventilation rate;room volume;time lag;meeting bookings,1,not directly linked
+PIR-L03-OPEN-01,L03-OPEN-01,occupancy,binary,room_level,badge events;meeting attendance;cleaning activity;motion sensor state,1,not directly linked
+LUX-L03-OPEN-01,L03-OPEN-01,light,lux,room_level,occupancy;lighting schedule;daylight and cloud cover,1,not directly linked
+TEMP-L03-MEET-01,L03-MEET-01,temperature,°C,room_level,outdoor heat;solar exposure;occupant heat;AC schedule;cooling problems,1,not directly linked
+RH-L03-MEET-01,L03-MEET-01,humidity,%RH,room_level,outdoor relative humidity;local rain and wetness lag;AC dehumidification;occupants;water ingress,1,consider local rainfall timing and AC dehumidification
+CO2-L03-MEET-01,L03-MEET-01,co2,ppm,room_level,headcount;ventilation rate;room volume;time lag;meeting bookings,1,not directly linked
+PIR-L03-MEET-01,L03-MEET-01,occupancy,binary,room_level,badge events;meeting attendance;cleaning activity;motion sensor state,1,not directly linked
+LUX-L03-MEET-01,L03-MEET-01,light,lux,room_level,occupancy;lighting schedule;daylight and cloud cover,1,not directly linked
+PIR-L03-CLEAN-01,L03-CLEAN-01,occupancy,binary,room_level,badge events;meeting attendance;cleaning activity;motion sensor state,1,not directly linked
+LUX-L03-CLEAN-01,L03-CLEAN-01,light,lux,room_level,occupancy;lighting schedule;daylight and cloud cover,1,not directly linked
+LEAK-L03-CLEAN-01,L03-CLEAN-01,water_leakage,binary,room_level,water presence in local wet areas;leak faults;not directly predictable from precipitation,1,not directly linked
+RH-L03-WC-01,L03-WC-01,humidity,%RH,room_level,outdoor relative humidity;local rain and wetness lag;AC dehumidification;occupants;water ingress,1,consider local rainfall timing and AC dehumidification
+PIR-L03-WC-01,L03-WC-01,occupancy,binary,room_level,badge events;meeting attendance;cleaning activity;motion sensor state,1,not directly linked
+LUX-L03-WC-01,L03-WC-01,light,lux,room_level,occupancy;lighting schedule;daylight and cloud cover,1,not directly linked
+LEAK-L03-WC-01,L03-WC-01,water_leakage,binary,room_level,water presence in local wet areas;leak faults;not directly predictable from precipitation,1,not directly linked
+PWR-L03-PWR-POINT-01,L03-PWR-POINT-01,power,kW,floor_level,floor-level AC operation;people;lighting;outdoor temperature;after-hours loads,1,not directly linked
+RAIN-EXT-01,EXT-01,rainfall_intensity,mm/h,building_rooftop,local precipitation;geographic differences from NASA regional grid rainfall,1,rain itself normal; use local rain as context

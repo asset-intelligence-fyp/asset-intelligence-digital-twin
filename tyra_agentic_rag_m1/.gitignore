@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+*.pyc
+.DS_Store
+data/building.duckdb*
+data/tmp/
+data/raw/*
+!data/raw/.gitkeep
+data/ground_truth/*
+!data/ground_truth/.gitkeep
+results/*
+!results/.gitkeep

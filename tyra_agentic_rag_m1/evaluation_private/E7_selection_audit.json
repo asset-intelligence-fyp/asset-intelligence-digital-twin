@@ -1,0 +1,433 @@
+{
+  "source_labels": "/Users/tyralee/Desktop/malaysian_digital_twin_llm_dataset_v4/generated/anomaly_eval_2026_q1_evaluation_keys/ground_truth_labels.csv",
+  "source_labels_sha256": "82a70b9ded8e1337f2e4973b734e35ee207fdc960535e7a8f72bf4afbc693b23",
+  "excluded_event_ids": [],
+  "inference_cases_sha256": "0b0d9298705887b4abc90d3aa7db9d7fbc07396fd1d94d2275eac90b82af5fd1",
+  "selected_distinct_fault_events": 20,
+  "selected_normal_windows": 20,
+  "eligible_fault_sensor_windows": 289,
+  "selected_scenarios": {
+    "water_leak": 2,
+    "temperature_probe_drift": 4,
+    "cooling_underperformance": 6,
+    "light_underperform": 1,
+    "ventilation_reduction": 2,
+    "rain_gauge_stuck_dry": 1,
+    "co2_sensor_drift": 1,
+    "pir_stuck_on": 1,
+    "humidity_infiltration": 1,
+    "power_afterhours": 1
+  },
+  "selected_sensor_types": {
+    "RH": 6,
+    "TEMP": 6,
+    "LUX": 1,
+    "CO2": 2,
+    "LEAK": 1,
+    "RAIN": 1,
+    "PIR": 1,
+    "PWR": 2
+  },
+  "cases": [
+    {
+      "case_id": "CASE-0001",
+      "selection_type": "fault",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-01-07T06:45:00+08:00",
+      "end": "2026-01-07T07:40:00+08:00",
+      "event_id": "FTEM015",
+      "scenario": "temperature_probe_drift",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-07T07:00:00+08:00",
+      "event_group_key": "('event_id', 'FTEM015')"
+    },
+    {
+      "case_id": "CASE-0002",
+      "selection_type": "fault",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-01-05T12:45:00+08:00",
+      "end": "2026-01-05T13:40:00+08:00",
+      "event_id": "FCOO008",
+      "scenario": "cooling_underperformance",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-05T13:00:00+08:00",
+      "event_group_key": "('event_id', 'FCOO008')"
+    },
+    {
+      "case_id": "CASE-0003",
+      "selection_type": "normal",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-30T12:45:00+08:00",
+      "end": "2026-03-30T13:40:00+08:00",
+      "paired_event_id": "FCOO008"
+    },
+    {
+      "case_id": "CASE-0004",
+      "selection_type": "fault",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-03-11T20:45:00+08:00",
+      "end": "2026-03-11T21:40:00+08:00",
+      "event_id": "FPOW014",
+      "scenario": "power_afterhours",
+      "positive_points": 6,
+      "event_first_positive": "2026-03-11T21:00:00+08:00",
+      "event_group_key": "('event_id', 'FPOW014')"
+    },
+    {
+      "case_id": "CASE-0005",
+      "selection_type": "normal",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-01-10T12:00:00+08:00",
+      "end": "2026-01-10T12:55:00+08:00",
+      "paired_event_id": "FCOO006"
+    },
+    {
+      "case_id": "CASE-0006",
+      "selection_type": "normal",
+      "sensor_id": "PIR-L03-CLEAN-01",
+      "start": "2026-01-23T00:15:00+08:00",
+      "end": "2026-01-23T01:10:00+08:00",
+      "paired_event_id": "FPIR002"
+    },
+    {
+      "case_id": "CASE-0007",
+      "selection_type": "normal",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-03-14T20:45:00+08:00",
+      "end": "2026-03-14T21:40:00+08:00",
+      "paired_event_id": "FPOW014"
+    },
+    {
+      "case_id": "CASE-0008",
+      "selection_type": "normal",
+      "sensor_id": "LEAK-L03-WC-01",
+      "start": "2026-03-14T14:00:00+08:00",
+      "end": "2026-03-14T14:55:00+08:00",
+      "paired_event_id": "FWAT016"
+    },
+    {
+      "case_id": "CASE-0009",
+      "selection_type": "fault",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-27T14:45:00+08:00",
+      "end": "2026-02-27T15:40:00+08:00",
+      "event_id": "FTEM005",
+      "scenario": "temperature_probe_drift",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-27T15:00:00+08:00",
+      "event_group_key": "('event_id', 'FTEM005')"
+    },
+    {
+      "case_id": "CASE-0010",
+      "selection_type": "fault",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-03-25T10:15:00+08:00",
+      "end": "2026-03-25T11:10:00+08:00",
+      "event_id": "FCOO018",
+      "scenario": "cooling_underperformance",
+      "positive_points": 6,
+      "event_first_positive": "2026-03-25T10:30:00+08:00",
+      "event_group_key": "('event_id', 'FCOO018')"
+    },
+    {
+      "case_id": "CASE-0011",
+      "selection_type": "normal",
+      "sensor_id": "CO2-L03-OPEN-01",
+      "start": "2026-03-01T20:00:00+08:00",
+      "end": "2026-03-01T20:55:00+08:00",
+      "paired_event_id": "FCO2009"
+    },
+    {
+      "case_id": "CASE-0012",
+      "selection_type": "fault",
+      "sensor_id": "CO2-L03-OPEN-01",
+      "start": "2026-01-15T20:00:00+08:00",
+      "end": "2026-01-15T20:55:00+08:00",
+      "event_id": "FCO2009",
+      "scenario": "co2_sensor_drift",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-15T20:15:00+08:00",
+      "event_group_key": "('event_id', 'FCO2009')"
+    },
+    {
+      "case_id": "CASE-0013",
+      "selection_type": "fault",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-11T16:00:00+08:00",
+      "end": "2026-02-11T16:55:00+08:00",
+      "event_id": "FTEM002",
+      "scenario": "temperature_probe_drift",
+      "positive_points": 6,
+      "event_first_positive": "2026-02-11T16:15:00+08:00",
+      "event_group_key": "('event_id', 'FTEM002')"
+    },
+    {
+      "case_id": "CASE-0014",
+      "selection_type": "normal",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-02-06T12:15:00+08:00",
+      "end": "2026-02-06T13:10:00+08:00",
+      "paired_event_id": "FCOO002"
+    },
+    {
+      "case_id": "CASE-0015",
+      "selection_type": "fault",
+      "sensor_id": "PIR-L03-CLEAN-01",
+      "start": "2026-02-18T00:15:00+08:00",
+      "end": "2026-02-18T01:10:00+08:00",
+      "event_id": "FPIR002",
+      "scenario": "pir_stuck_on",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-18T00:30:00+08:00",
+      "event_group_key": "('event_id', 'FPIR002')"
+    },
+    {
+      "case_id": "CASE-0016",
+      "selection_type": "normal",
+      "sensor_id": "RH-L03-MEET-01",
+      "start": "2026-03-14T09:15:00+08:00",
+      "end": "2026-03-14T10:10:00+08:00",
+      "paired_event_id": "FVEN020"
+    },
+    {
+      "case_id": "CASE-0017",
+      "selection_type": "normal",
+      "sensor_id": "LUX-L03-MEET-01",
+      "start": "2026-01-27T11:00:00+08:00",
+      "end": "2026-01-27T11:55:00+08:00",
+      "paired_event_id": "FLIG019"
+    },
+    {
+      "case_id": "CASE-0018",
+      "selection_type": "fault",
+      "sensor_id": "RH-L03-MEET-01",
+      "start": "2026-01-06T09:15:00+08:00",
+      "end": "2026-01-06T10:10:00+08:00",
+      "event_id": "FVEN020",
+      "scenario": "ventilation_reduction",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-06T09:30:00+08:00",
+      "event_group_key": "('event_id', 'FVEN020')"
+    },
+    {
+      "case_id": "CASE-0019",
+      "selection_type": "normal",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-01-24T16:00:00+08:00",
+      "end": "2026-01-24T16:55:00+08:00",
+      "paired_event_id": "FTEM002"
+    },
+    {
+      "case_id": "CASE-0020",
+      "selection_type": "normal",
+      "sensor_id": "RAIN-EXT-01",
+      "start": "2026-03-20T05:35:00+08:00",
+      "end": "2026-03-20T06:30:00+08:00",
+      "paired_event_id": "FRAI001"
+    },
+    {
+      "case_id": "CASE-0021",
+      "selection_type": "normal",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-03-13T10:45:00+08:00",
+      "end": "2026-03-13T11:40:00+08:00",
+      "paired_event_id": "FCOO015"
+    },
+    {
+      "case_id": "CASE-0022",
+      "selection_type": "normal",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-03-19T06:45:00+08:00",
+      "end": "2026-03-19T07:40:00+08:00",
+      "paired_event_id": "FTEM015"
+    },
+    {
+      "case_id": "CASE-0023",
+      "selection_type": "fault",
+      "sensor_id": "CO2-L03-MEET-01",
+      "start": "2026-02-25T10:15:00+08:00",
+      "end": "2026-02-25T11:10:00+08:00",
+      "event_id": "FVEN019",
+      "scenario": "ventilation_reduction",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-25T10:30:00+08:00",
+      "event_group_key": "('event_id', 'FVEN019')"
+    },
+    {
+      "case_id": "CASE-0024",
+      "selection_type": "fault",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-01-19T12:00:00+08:00",
+      "end": "2026-01-19T12:55:00+08:00",
+      "event_id": "FCOO006",
+      "scenario": "cooling_underperformance",
+      "positive_points": 6,
+      "event_first_positive": "2026-01-19T12:15:00+08:00",
+      "event_group_key": "('event_id', 'FCOO006')"
+    },
+    {
+      "case_id": "CASE-0025",
+      "selection_type": "normal",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-03T14:45:00+08:00",
+      "end": "2026-02-03T15:40:00+08:00",
+      "paired_event_id": "FTEM005"
+    },
+    {
+      "case_id": "CASE-0026",
+      "selection_type": "normal",
+      "sensor_id": "RH-L03-WC-01",
+      "start": "2026-02-02T15:15:00+08:00",
+      "end": "2026-02-02T16:10:00+08:00",
+      "paired_event_id": "FWAT005"
+    },
+    {
+      "case_id": "CASE-0027",
+      "selection_type": "fault",
+      "sensor_id": "RAIN-EXT-01",
+      "start": "2026-01-11T05:35:00+08:00",
+      "end": "2026-01-11T06:30:00+08:00",
+      "event_id": "FRAI001",
+      "scenario": "rain_gauge_stuck_dry",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-11T05:50:00+08:00",
+      "event_group_key": "('event_id', 'FRAI001')"
+    },
+    {
+      "case_id": "CASE-0028",
+      "selection_type": "fault",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-03T13:30:00+08:00",
+      "end": "2026-03-03T14:25:00+08:00",
+      "event_id": "FHUM018",
+      "scenario": "humidity_infiltration",
+      "positive_points": 9,
+      "event_first_positive": "2026-03-03T13:45:00+08:00",
+      "event_group_key": "('event_id', 'FHUM018')"
+    },
+    {
+      "case_id": "CASE-0029",
+      "selection_type": "fault",
+      "sensor_id": "LEAK-L03-WC-01",
+      "start": "2026-01-03T14:00:00+08:00",
+      "end": "2026-01-03T14:55:00+08:00",
+      "event_id": "FWAT016",
+      "scenario": "water_leak",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-03T14:15:00+08:00",
+      "event_group_key": "('event_id', 'FWAT016')"
+    },
+    {
+      "case_id": "CASE-0030",
+      "selection_type": "normal",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-22T08:45:00+08:00",
+      "end": "2026-02-22T09:40:00+08:00",
+      "paired_event_id": "FTEM003"
+    },
+    {
+      "case_id": "CASE-0031",
+      "selection_type": "normal",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-03-29T10:15:00+08:00",
+      "end": "2026-03-29T11:10:00+08:00",
+      "paired_event_id": "FCOO018"
+    },
+    {
+      "case_id": "CASE-0032",
+      "selection_type": "fault",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-02-12T12:15:00+08:00",
+      "end": "2026-02-12T13:10:00+08:00",
+      "event_id": "FCOO002",
+      "scenario": "cooling_underperformance",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-12T12:30:00+08:00",
+      "event_group_key": "('event_id', 'FCOO002')"
+    },
+    {
+      "case_id": "CASE-0033",
+      "selection_type": "normal",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-08T13:30:00+08:00",
+      "end": "2026-03-08T14:25:00+08:00",
+      "paired_event_id": "FHUM018"
+    },
+    {
+      "case_id": "CASE-0034",
+      "selection_type": "fault",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-02-25T10:45:00+08:00",
+      "end": "2026-02-25T11:40:00+08:00",
+      "event_id": "FCOO015",
+      "scenario": "cooling_underperformance",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-25T11:00:00+08:00",
+      "event_group_key": "('event_id', 'FCOO015')"
+    },
+    {
+      "case_id": "CASE-0035",
+      "selection_type": "fault",
+      "sensor_id": "RH-L03-WC-01",
+      "start": "2026-02-23T15:15:00+08:00",
+      "end": "2026-02-23T16:10:00+08:00",
+      "event_id": "FWAT005",
+      "scenario": "water_leak",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-23T15:30:00+08:00",
+      "event_group_key": "('event_id', 'FWAT005')"
+    },
+    {
+      "case_id": "CASE-0036",
+      "selection_type": "fault",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-02-04T11:00:00+08:00",
+      "end": "2026-02-04T11:55:00+08:00",
+      "event_id": "FCOO005",
+      "scenario": "cooling_underperformance",
+      "positive_points": 9,
+      "event_first_positive": "2026-02-04T11:15:00+08:00",
+      "event_group_key": "('event_id', 'FCOO005')"
+    },
+    {
+      "case_id": "CASE-0037",
+      "selection_type": "normal",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-22T11:00:00+08:00",
+      "end": "2026-03-22T11:55:00+08:00",
+      "paired_event_id": "FCOO005"
+    },
+    {
+      "case_id": "CASE-0038",
+      "selection_type": "fault",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-03-23T08:45:00+08:00",
+      "end": "2026-03-23T09:40:00+08:00",
+      "event_id": "FTEM003",
+      "scenario": "temperature_probe_drift",
+      "positive_points": 6,
+      "event_first_positive": "2026-03-23T09:00:00+08:00",
+      "event_group_key": "('event_id', 'FTEM003')"
+    },
+    {
+      "case_id": "CASE-0039",
+      "selection_type": "normal",
+      "sensor_id": "CO2-L03-MEET-01",
+      "start": "2026-03-29T10:15:00+08:00",
+      "end": "2026-03-29T11:10:00+08:00",
+      "paired_event_id": "FVEN019"
+    },
+    {
+      "case_id": "CASE-0040",
+      "selection_type": "fault",
+      "sensor_id": "LUX-L03-MEET-01",
+      "start": "2026-01-05T11:00:00+08:00",
+      "end": "2026-01-05T11:55:00+08:00",
+      "event_id": "FLIG019",
+      "scenario": "light_underperform",
+      "positive_points": 9,
+      "event_first_positive": "2026-01-05T11:15:00+08:00",
+      "event_group_key": "('event_id', 'FLIG019')"
+    }
+  ]
+}

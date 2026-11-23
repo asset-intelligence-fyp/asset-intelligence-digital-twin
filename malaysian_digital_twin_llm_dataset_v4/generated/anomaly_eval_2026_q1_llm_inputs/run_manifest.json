@@ -1,0 +1,35 @@
+{
+  "generator": "sarawak_people_rain_v4.0",
+  "start_inclusive": "2026-01-01",
+  "end_exclusive": "2026-04-01",
+  "sampling_minutes": 5,
+  "timezone": "Asia/Kuching (+08:00)",
+  "sensor_count": 19,
+  "timestamps": 25920,
+  "expected_sensor_readings": 492480,
+  "rows": {
+    "calendar": 90,
+    "headcount": 103680,
+    "hvac_state": 51840,
+    "hvac_events": 574,
+    "sensor_history": 492480,
+    "ground_truth_labels": 492480,
+    "weather_5min": 25920,
+    "training_features": 51840,
+    "training_features_open_office": 25920,
+    "badge_events": 8584,
+    "room_bookings": 171,
+    "meeting_attendees": 1053
+  },
+  "weather_provenance": "WMO_NORMALS_CALIBRATED_SYNTHETIC",
+  "local_rain_provenance": "synthetic_gauge_correlated_with_regional_rain",
+  "building_data_source": "synthetic",
+  "fault_events": 200,
+  "seed": 211028,
+  "warnings": [
+    "No building sensor values are actual measurements.",
+    "NASA weather is regional reanalysis estimate if used, not rooftop observations.",
+    "Office geometry, WFH history and operating schedules are assumptions.",
+    "Truth labels are for evaluation only."
+  ]
+}

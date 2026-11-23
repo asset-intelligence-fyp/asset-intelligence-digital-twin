@@ -1,0 +1,57 @@
+{
+  "task": "Zero-shot/in-context anomaly analysis or 13-week condition forecasting",
+  "training_or_fine_tuning": false,
+  "vector_embeddings": false,
+  "allowed_input_sources": [
+    "past sensor_history",
+    "room_metadata",
+    "past weather/rain gauge",
+    "occupancy/headcount observations",
+    "past AC states",
+    "calendar known as of origin",
+    "WMO climate normals",
+    "historical normal reference segments"
+  ],
+  "forbidden_input_sources": [
+    "future actual observations after as_of_date",
+    "ground_truth_labels.csv",
+    "ground_truth_events.csv",
+    "forecast_90day_targets_HIDDEN.csv"
+  ],
+  "anomaly_output_schema": {
+    "sensor_id": "string",
+    "as_of": "ISO-8601",
+    "anomaly": "bool",
+    "severity": "normal|watch|warning|critical|unknown",
+    "evidence": [
+      "reading + timestamp + unit"
+    ],
+    "alternative_explanations": [
+      "plausible cause, not diagnosis"
+    ],
+    "action": "string"
+  },
+  "forecast_output_schema": {
+    "sensor_id": "string",
+    "origin": "ISO-date",
+    "horizon_days": 90,
+    "weekly_outlook": [
+      {
+        "week_start": "YYYY-MM-DD",
+        "central_reference_value": "number or null",
+        "range_low": "number or null",
+        "range_high": "number or null",
+        "status": "normal|watch|warning|unknown",
+        "trend": "stable|improving|deteriorating|uncertain"
+      }
+    ],
+    "overall_condition": "normal|watch|warning|unknown",
+    "overall_trend": "stable|improving|deteriorating|uncertain",
+    "assumptions": [
+      "text"
+    ],
+    "uncertainty": "text"
+  },
+  "numeric_forecast_policy": "Never assert uncalibrated model probabilities. Ranges may be scenario bands, not confidence intervals.",
+  "safety_alert_policy": "Real-time hard safety alerts should be deterministic; LLM is additional contextual analyst."
+}

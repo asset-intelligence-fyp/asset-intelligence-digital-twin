@@ -1,0 +1,201 @@
+event_id,start_time,end_time,scenario,affected_sensor_ids,severity,description,source
+FCO2007,2026-01-01T12:00:00+08:00,2026-01-01T13:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FPOW016,2026-01-01T20:00:00+08:00,2026-01-01T21:00:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FTEM008,2026-01-02T07:30:00+08:00,2026-01-02T10:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FCOO004,2026-01-02T11:30:00+08:00,2026-01-02T12:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,3,AC may fail to cool under occupancy,synthetic_injected
+FHUM004,2026-01-02T15:30:00+08:00,2026-01-02T17:00:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FWAT016,2026-01-03T14:15:00+08:00,2026-01-03T16:15:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FRAI006,2026-01-04T14:05:00+08:00,2026-01-04T15:35:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FVEN009,2026-01-05T10:30:00+08:00,2026-01-05T13:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FLIG019,2026-01-05T11:15:00+08:00,2026-01-05T12:45:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FTEM017,2026-01-05T12:30:00+08:00,2026-01-05T15:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,1,Probe drifts while other measurements remain coherent,synthetic_injected
+FCOO008,2026-01-05T13:00:00+08:00,2026-01-05T15:00:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FVEN020,2026-01-06T09:30:00+08:00,2026-01-06T12:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FHUM009,2026-01-06T14:20:00+08:00,2026-01-06T14:50:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,1,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FLIG009,2026-01-06T14:30:00+08:00,2026-01-06T18:30:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FRAI012,2026-01-07T03:15:00+08:00,2026-01-07T05:15:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,3,Rooftop gauge may miss actual precipitation,synthetic_injected
+FTEM015,2026-01-07T07:00:00+08:00,2026-01-07T10:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,1,Probe drifts while other measurements remain coherent,synthetic_injected
+FVEN011,2026-01-07T10:15:00+08:00,2026-01-07T12:15:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,3,Inadequate ventilation when occupied,synthetic_injected
+FPOW020,2026-01-07T20:15:00+08:00,2026-01-07T23:15:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FLIG012,2026-01-08T11:15:00+08:00,2026-01-08T12:45:00+08:00,light_underperform,LUX-L03-MEET-01,2,Meeting lighting below expected levels,synthetic_injected
+FVEN010,2026-01-08T12:15:00+08:00,2026-01-08T16:15:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,3,Inadequate ventilation when occupied,synthetic_injected
+FWAT004,2026-01-08T20:30:00+08:00,2026-01-08T23:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,3,Water presence and local moisture increase,synthetic_injected
+FRAI018,2026-01-09T12:05:00+08:00,2026-01-09T13:35:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,3,Rooftop gauge may miss actual precipitation,synthetic_injected
+FCOO012,2026-01-09T13:15:00+08:00,2026-01-09T14:15:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FTEM018,2026-01-09T19:00:00+08:00,2026-01-09T20:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FPOW011,2026-01-09T19:30:00+08:00,2026-01-09T21:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FRAI001,2026-01-11T05:50:00+08:00,2026-01-11T07:20:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FCO2001,2026-01-13T10:30:00+08:00,2026-01-13T12:30:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,2,CO2 probe drift independent of occupancy,synthetic_injected
+FLIG020,2026-01-13T11:30:00+08:00,2026-01-13T13:30:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FCOO013,2026-01-14T10:15:00+08:00,2026-01-14T10:45:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,1,AC may fail to cool under occupancy,synthetic_injected
+FTEM019,2026-01-14T11:30:00+08:00,2026-01-14T14:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,1,Probe drifts while other measurements remain coherent,synthetic_injected
+FHUM011,2026-01-14T13:10:00+08:00,2026-01-14T14:40:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,1,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FCO2002,2026-01-14T20:00:00+08:00,2026-01-14T21:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FLIG007,2026-01-15T10:00:00+08:00,2026-01-15T13:00:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FHUM001,2026-01-15T10:50:00+08:00,2026-01-15T14:50:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FCO2009,2026-01-15T20:15:00+08:00,2026-01-15T21:45:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FPOW019,2026-01-15T21:00:00+08:00,2026-01-15T22:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected
+FVEN003,2026-01-16T10:00:00+08:00,2026-01-16T11:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FPOW012,2026-01-16T20:00:00+08:00,2026-01-16T22:00:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FRAI015,2026-01-18T04:05:00+08:00,2026-01-18T05:35:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPIR014,2026-01-19T03:00:00+08:00,2026-01-19T04:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FWAT011,2026-01-19T09:15:00+08:00,2026-01-19T13:15:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,1,Water presence and local moisture increase,synthetic_injected
+FLIG001,2026-01-19T12:00:00+08:00,2026-01-19T15:00:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FCOO006,2026-01-19T12:15:00+08:00,2026-01-19T12:45:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,1,AC may fail to cool under occupancy,synthetic_injected
+FWAT015,2026-01-19T17:15:00+08:00,2026-01-19T18:15:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,3,Water presence and local moisture increase,synthetic_injected
+FPIR013,2026-01-20T02:30:00+08:00,2026-01-20T04:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,3,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FVEN015,2026-01-20T13:30:00+08:00,2026-01-20T14:00:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FPIR001,2026-01-21T03:00:00+08:00,2026-01-21T04:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,1,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FWAT013,2026-01-21T07:15:00+08:00,2026-01-21T08:15:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FTEM016,2026-01-21T09:30:00+08:00,2026-01-21T12:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,3,Probe drifts while other measurements remain coherent,synthetic_injected
+FLIG008,2026-01-21T11:15:00+08:00,2026-01-21T13:15:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FVEN008,2026-01-22T12:30:00+08:00,2026-01-22T15:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FTEM012,2026-01-22T13:30:00+08:00,2026-01-22T17:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,3,Probe drifts while other measurements remain coherent,synthetic_injected
+FRAI009,2026-01-22T19:15:00+08:00,2026-01-22T20:45:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FHUM007,2026-01-23T16:50:00+08:00,2026-01-23T18:20:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FWAT009,2026-01-24T07:00:00+08:00,2026-01-24T08:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,3,Water presence and local moisture increase,synthetic_injected
+FRAI003,2026-01-24T07:55:00+08:00,2026-01-24T10:55:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPIR017,2026-01-26T02:00:00+08:00,2026-01-26T03:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,3,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FHUM012,2026-01-26T14:45:00+08:00,2026-01-26T16:15:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,3,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI016,2026-01-27T01:15:00+08:00,2026-01-27T01:45:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FCO2014,2026-01-27T09:30:00+08:00,2026-01-27T13:30:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FVEN018,2026-01-28T13:00:00+08:00,2026-01-28T16:00:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FWAT003,2026-01-28T17:00:00+08:00,2026-01-28T18:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FHUM020,2026-01-29T09:30:00+08:00,2026-01-29T11:30:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FCOO001,2026-01-29T13:15:00+08:00,2026-01-29T14:45:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,3,AC may fail to cool under occupancy,synthetic_injected
+FCOO014,2026-01-30T09:30:00+08:00,2026-01-30T11:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,1,AC may fail to cool under occupancy,synthetic_injected
+FLIG010,2026-01-30T10:00:00+08:00,2026-01-30T14:00:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FCOO011,2026-01-30T13:30:00+08:00,2026-01-30T16:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FPOW009,2026-01-30T20:15:00+08:00,2026-01-31T00:15:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,1,Unscheduled high load after hours,synthetic_injected
+FWAT010,2026-01-31T19:30:00+08:00,2026-01-31T20:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,1,Water presence and local moisture increase,synthetic_injected
+FLIG004,2026-02-02T12:15:00+08:00,2026-02-02T15:15:00+08:00,light_underperform,LUX-L03-MEET-01,2,Meeting lighting below expected levels,synthetic_injected
+FCOO010,2026-02-02T13:30:00+08:00,2026-02-02T15:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FCO2011,2026-02-02T18:00:00+08:00,2026-02-02T21:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FLIG003,2026-02-03T09:00:00+08:00,2026-02-03T09:30:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FLIG014,2026-02-03T11:15:00+08:00,2026-02-03T12:45:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FVEN006,2026-02-03T12:00:00+08:00,2026-02-03T16:00:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,3,Inadequate ventilation when occupied,synthetic_injected
+FCO2010,2026-02-03T13:30:00+08:00,2026-02-03T15:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,2,CO2 probe drift independent of occupancy,synthetic_injected
+FWAT019,2026-02-03T20:00:00+08:00,2026-02-03T20:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,3,Water presence and local moisture increase,synthetic_injected
+FPIR020,2026-02-04T01:15:00+08:00,2026-02-04T02:15:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,1,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FCO2003,2026-02-04T10:00:00+08:00,2026-02-04T11:30:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FCOO005,2026-02-04T11:15:00+08:00,2026-02-04T13:15:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,3,AC may fail to cool under occupancy,synthetic_injected
+FVEN014,2026-02-05T13:30:00+08:00,2026-02-05T15:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FLIG015,2026-02-05T14:00:00+08:00,2026-02-05T17:00:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FTEM004,2026-02-05T14:15:00+08:00,2026-02-05T18:15:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FPOW004,2026-02-05T19:15:00+08:00,2026-02-05T19:45:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected
+FPIR019,2026-02-06T02:15:00+08:00,2026-02-06T04:15:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FCO2006,2026-02-06T08:15:00+08:00,2026-02-06T09:45:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FVEN005,2026-02-06T12:30:00+08:00,2026-02-06T13:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FCO2015,2026-02-09T12:15:00+08:00,2026-02-09T13:45:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,2,CO2 probe drift independent of occupancy,synthetic_injected
+FHUM010,2026-02-09T13:20:00+08:00,2026-02-09T15:20:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,3,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI008,2026-02-09T14:05:00+08:00,2026-02-09T15:35:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,3,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPOW003,2026-02-09T21:00:00+08:00,2026-02-09T21:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FHUM013,2026-02-10T10:30:00+08:00,2026-02-10T11:30:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FCOO020,2026-02-10T13:00:00+08:00,2026-02-10T13:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,1,AC may fail to cool under occupancy,synthetic_injected
+FTEM014,2026-02-10T15:15:00+08:00,2026-02-10T18:15:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FTEM002,2026-02-11T16:15:00+08:00,2026-02-11T16:45:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FWAT001,2026-02-11T17:15:00+08:00,2026-02-11T21:15:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,3,Water presence and local moisture increase,synthetic_injected
+FPOW005,2026-02-11T19:00:00+08:00,2026-02-11T21:00:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected
+FPIR003,2026-02-12T00:00:00+08:00,2026-02-12T03:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FTEM006,2026-02-12T08:00:00+08:00,2026-02-12T11:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FCOO002,2026-02-12T12:30:00+08:00,2026-02-12T16:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FPIR008,2026-02-13T03:00:00+08:00,2026-02-13T03:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,1,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FHUM017,2026-02-13T15:45:00+08:00,2026-02-13T19:45:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FWAT014,2026-02-14T12:00:00+08:00,2026-02-14T14:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FPOW001,2026-02-16T20:15:00+08:00,2026-02-16T23:15:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected
+FPIR015,2026-02-17T02:15:00+08:00,2026-02-17T02:45:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,3,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FLIG002,2026-02-17T12:00:00+08:00,2026-02-17T12:30:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FHUM016,2026-02-17T12:30:00+08:00,2026-02-17T13:00:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,1,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI019,2026-02-17T13:45:00+08:00,2026-02-17T17:45:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FTEM007,2026-02-17T14:00:00+08:00,2026-02-17T18:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FPIR002,2026-02-18T00:30:00+08:00,2026-02-18T01:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FWAT002,2026-02-18T07:00:00+08:00,2026-02-18T10:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FCO2005,2026-02-18T20:00:00+08:00,2026-02-18T21:30:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FPOW017,2026-02-18T20:00:00+08:00,2026-02-19T00:00:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FHUM006,2026-02-19T15:40:00+08:00,2026-02-19T19:40:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI002,2026-02-19T16:55:00+08:00,2026-02-19T17:55:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPOW010,2026-02-19T19:00:00+08:00,2026-02-19T23:00:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FCO2004,2026-02-19T20:30:00+08:00,2026-02-19T23:30:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FTEM001,2026-02-19T20:30:00+08:00,2026-02-19T22:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FCOO017,2026-02-20T09:15:00+08:00,2026-02-20T11:15:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FRAI013,2026-02-21T17:25:00+08:00,2026-02-21T18:55:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,3,Rooftop gauge may miss actual precipitation,synthetic_injected
+FLIG017,2026-02-23T10:15:00+08:00,2026-02-23T11:15:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FHUM015,2026-02-23T11:40:00+08:00,2026-02-23T15:40:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,3,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FWAT005,2026-02-23T15:30:00+08:00,2026-02-23T18:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FPOW007,2026-02-23T20:30:00+08:00,2026-02-23T23:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,1,Unscheduled high load after hours,synthetic_injected
+FPIR010,2026-02-24T00:15:00+08:00,2026-02-24T03:15:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,3,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FVEN002,2026-02-24T09:00:00+08:00,2026-02-24T12:00:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FWAT018,2026-02-24T12:30:00+08:00,2026-02-24T14:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FVEN019,2026-02-25T10:30:00+08:00,2026-02-25T11:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,3,Inadequate ventilation when occupied,synthetic_injected
+FCOO015,2026-02-25T11:00:00+08:00,2026-02-25T14:00:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,3,AC may fail to cool under occupancy,synthetic_injected
+FVEN001,2026-02-25T14:15:00+08:00,2026-02-25T15:15:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FCO2017,2026-02-25T17:30:00+08:00,2026-02-25T19:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FVEN013,2026-02-26T12:00:00+08:00,2026-02-26T12:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FCOO016,2026-02-26T13:00:00+08:00,2026-02-26T14:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FTEM010,2026-02-26T13:00:00+08:00,2026-02-26T15:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,3,Probe drifts while other measurements remain coherent,synthetic_injected
+FCO2020,2026-02-26T17:15:00+08:00,2026-02-26T18:45:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FRAI010,2026-02-27T06:15:00+08:00,2026-02-27T10:15:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FHUM003,2026-02-27T08:25:00+08:00,2026-02-27T10:25:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FTEM005,2026-02-27T15:00:00+08:00,2026-02-27T19:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,1,Probe drifts while other measurements remain coherent,synthetic_injected
+FPIR009,2026-03-02T02:30:00+08:00,2026-03-02T03:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FLIG011,2026-03-02T10:30:00+08:00,2026-03-02T12:30:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FWAT007,2026-03-02T13:15:00+08:00,2026-03-02T14:45:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FWAT020,2026-03-02T16:00:00+08:00,2026-03-02T16:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FPOW013,2026-03-02T20:15:00+08:00,2026-03-02T21:45:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected
+FHUM019,2026-03-03T08:00:00+08:00,2026-03-03T09:30:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FVEN016,2026-03-03T11:15:00+08:00,2026-03-03T11:45:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FHUM018,2026-03-03T13:45:00+08:00,2026-03-03T16:45:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FLIG016,2026-03-03T14:30:00+08:00,2026-03-03T15:00:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FPIR005,2026-03-04T01:30:00+08:00,2026-03-04T03:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,1,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FHUM005,2026-03-04T13:15:00+08:00,2026-03-04T14:45:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,1,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FWAT006,2026-03-04T16:30:00+08:00,2026-03-04T18:30:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FCO2018,2026-03-04T20:00:00+08:00,2026-03-04T22:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FPOW006,2026-03-04T21:00:00+08:00,2026-03-04T22:00:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected
+FVEN017,2026-03-05T13:30:00+08:00,2026-03-05T15:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FRAI011,2026-03-05T17:00:00+08:00,2026-03-05T20:00:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FVEN012,2026-03-06T14:00:00+08:00,2026-03-06T16:00:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FWAT017,2026-03-08T12:00:00+08:00,2026-03-08T13:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,3,Water presence and local moisture increase,synthetic_injected
+FTEM013,2026-03-09T09:30:00+08:00,2026-03-09T12:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FRAI005,2026-03-10T05:45:00+08:00,2026-03-10T06:45:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FCOO003,2026-03-10T09:30:00+08:00,2026-03-10T11:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,1,AC may fail to cool under occupancy,synthetic_injected
+FCO2019,2026-03-10T14:00:00+08:00,2026-03-10T17:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FPOW014,2026-03-11T21:00:00+08:00,2026-03-11T21:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,1,Unscheduled high load after hours,synthetic_injected
+FPIR018,2026-03-12T02:30:00+08:00,2026-03-12T04:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FVEN007,2026-03-12T10:30:00+08:00,2026-03-12T13:30:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,1,Inadequate ventilation when occupied,synthetic_injected
+FLIG018,2026-03-13T13:30:00+08:00,2026-03-13T15:30:00+08:00,light_underperform,LUX-L03-MEET-01,1,Meeting lighting below expected levels,synthetic_injected
+FCOO019,2026-03-16T10:15:00+08:00,2026-03-16T10:45:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FCO2013,2026-03-16T13:15:00+08:00,2026-03-16T14:45:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FLIG005,2026-03-16T14:15:00+08:00,2026-03-16T14:45:00+08:00,light_underperform,LUX-L03-MEET-01,2,Meeting lighting below expected levels,synthetic_injected
+FPOW018,2026-03-16T20:30:00+08:00,2026-03-16T22:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FTEM020,2026-03-16T20:30:00+08:00,2026-03-16T22:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,1,Probe drifts while other measurements remain coherent,synthetic_injected
+FPIR007,2026-03-17T00:15:00+08:00,2026-03-17T01:15:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FHUM008,2026-03-17T15:55:00+08:00,2026-03-17T16:55:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,2,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI004,2026-03-17T17:55:00+08:00,2026-03-17T19:55:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,3,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPIR006,2026-03-18T03:00:00+08:00,2026-03-18T05:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FHUM014,2026-03-18T14:55:00+08:00,2026-03-18T18:55:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,3,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI014,2026-03-18T15:30:00+08:00,2026-03-18T16:00:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPIR016,2026-03-19T01:30:00+08:00,2026-03-19T02:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,1,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FLIG013,2026-03-19T09:15:00+08:00,2026-03-19T10:15:00+08:00,light_underperform,LUX-L03-MEET-01,2,Meeting lighting below expected levels,synthetic_injected
+FPIR004,2026-03-20T02:00:00+08:00,2026-03-20T05:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,3,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FCOO009,2026-03-20T10:00:00+08:00,2026-03-20T14:00:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FPOW002,2026-03-20T20:00:00+08:00,2026-03-20T21:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,3,Unscheduled high load after hours,synthetic_injected
+FTEM003,2026-03-23T09:00:00+08:00,2026-03-23T09:30:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FVEN004,2026-03-24T11:15:00+08:00,2026-03-24T14:15:00+08:00,ventilation_reduction,CO2-L03-MEET-01;RH-L03-MEET-01,2,Inadequate ventilation when occupied,synthetic_injected
+FRAI020,2026-03-24T18:35:00+08:00,2026-03-24T20:05:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,1,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPOW008,2026-03-24T20:15:00+08:00,2026-03-24T21:45:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,1,Unscheduled high load after hours,synthetic_injected
+FCOO018,2026-03-25T10:30:00+08:00,2026-03-25T11:00:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,3,AC may fail to cool under occupancy,synthetic_injected
+FCO2012,2026-03-25T20:15:00+08:00,2026-03-26T00:15:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,3,CO2 probe drift independent of occupancy,synthetic_injected
+FCO2008,2026-03-26T07:30:00+08:00,2026-03-26T09:30:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,2,CO2 probe drift independent of occupancy,synthetic_injected
+FCOO007,2026-03-26T10:00:00+08:00,2026-03-26T11:30:00+08:00,cooling_underperformance,TEMP-L03-OPEN-01;RH-L03-OPEN-01;PWR-L03-PWR-POINT-01,2,AC may fail to cool under occupancy,synthetic_injected
+FLIG006,2026-03-26T10:00:00+08:00,2026-03-26T11:00:00+08:00,light_underperform,LUX-L03-MEET-01,3,Meeting lighting below expected levels,synthetic_injected
+FTEM009,2026-03-26T11:00:00+08:00,2026-03-26T12:00:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FHUM002,2026-03-27T12:25:00+08:00,2026-03-27T16:25:00+08:00,humidity_infiltration,RH-L03-OPEN-01;RH-L03-MEET-01,1,Moisture entry and elevated indoor RH following rain,synthetic_injected
+FRAI017,2026-03-27T12:40:00+08:00,2026-03-27T15:40:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FWAT012,2026-03-27T16:00:00+08:00,2026-03-27T17:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,1,Water presence and local moisture increase,synthetic_injected
+FRAI007,2026-03-28T10:05:00+08:00,2026-03-28T13:05:00+08:00,rain_gauge_stuck_dry,RAIN-EXT-01,2,Rooftop gauge may miss actual precipitation,synthetic_injected
+FPIR011,2026-03-30T03:30:00+08:00,2026-03-30T07:30:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,2,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FWAT008,2026-03-30T09:00:00+08:00,2026-03-30T13:00:00+08:00,water_leak,LEAK-L03-WC-01;RH-L03-WC-01,2,Water presence and local moisture increase,synthetic_injected
+FCO2016,2026-03-30T14:00:00+08:00,2026-03-30T15:00:00+08:00,co2_sensor_drift,CO2-L03-OPEN-01,1,CO2 probe drift independent of occupancy,synthetic_injected
+FPIR012,2026-03-31T03:00:00+08:00,2026-03-31T07:00:00+08:00,pir_stuck_on,PIR-L03-CLEAN-01,1,PIR reports occupancy when cleaning area is vacant,synthetic_injected
+FTEM011,2026-03-31T16:15:00+08:00,2026-03-31T18:15:00+08:00,temperature_probe_drift,TEMP-L03-MEET-01,2,Probe drifts while other measurements remain coherent,synthetic_injected
+FPOW015,2026-03-31T21:00:00+08:00,2026-03-31T21:30:00+08:00,power_afterhours,PWR-L03-PWR-POINT-01,2,Unscheduled high load after hours,synthetic_injected

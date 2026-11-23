@@ -1,0 +1,55 @@
+{
+  "2019": {
+    "timestamps": 105120,
+    "sensor_readings": 1997280,
+    "missing": 249
+  },
+  "2020": {
+    "timestamps": 105408,
+    "sensor_readings": 2002752,
+    "missing": 256
+  },
+  "2021": {
+    "timestamps": 105120,
+    "sensor_readings": 1997280,
+    "missing": 248
+  },
+  "2022": {
+    "timestamps": 105120,
+    "sensor_readings": 1997280,
+    "missing": 226
+  },
+  "2023": {
+    "timestamps": 105120,
+    "sensor_readings": 1997280,
+    "missing": 251
+  },
+  "2024": {
+    "timestamps": 105408,
+    "sensor_readings": 2002752,
+    "missing": 248
+  },
+  "2025": {
+    "timestamps": 105120,
+    "sensor_readings": 1997280,
+    "missing": 261
+  },
+  "fault_eval": {
+    "timestamps": 25920,
+    "sensor_readings": 492480,
+    "missing": 56,
+    "fault_events": 200,
+    "scenarios": {
+      "co2_sensor_drift": 20,
+      "power_afterhours": 20,
+      "temperature_probe_drift": 20,
+      "cooling_underperformance": 20,
+      "humidity_infiltration": 20,
+      "water_leak": 20,
+      "rain_gauge_stuck_dry": 20,
+      "ventilation_reduction": 20,
+      "light_underperform": 20,
+      "pir_stuck_on": 20
+    }
+  }
+}

@@ -1,0 +1,299 @@
+{
+  "manifest_version": "1.0",
+  "purpose": "frozen E7 evaluation; inference cases contain no labels",
+  "policy": {
+    "seed": 20261118,
+    "points_per_case": 12,
+    "excluded_days": [
+      "2026-01-02",
+      "2026-01-08"
+    ],
+    "min_positive_in_fault_window": 3,
+    "pre_onset_points": 3,
+    "normal_buffer_hours": 12,
+    "requested_distinct_events": 20
+  },
+  "cases": [
+    {
+      "case_id": "CASE-0001",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-01-07T06:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0002",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-01-05T12:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0003",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-30T12:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0004",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-03-11T20:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0005",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-01-10T12:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0006",
+      "sensor_id": "PIR-L03-CLEAN-01",
+      "start": "2026-01-23T00:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0007",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-03-14T20:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0008",
+      "sensor_id": "LEAK-L03-WC-01",
+      "start": "2026-03-14T14:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0009",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-27T14:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0010",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-03-25T10:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0011",
+      "sensor_id": "CO2-L03-OPEN-01",
+      "start": "2026-03-01T20:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0012",
+      "sensor_id": "CO2-L03-OPEN-01",
+      "start": "2026-01-15T20:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0013",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-11T16:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0014",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-02-06T12:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0015",
+      "sensor_id": "PIR-L03-CLEAN-01",
+      "start": "2026-02-18T00:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0016",
+      "sensor_id": "RH-L03-MEET-01",
+      "start": "2026-03-14T09:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0017",
+      "sensor_id": "LUX-L03-MEET-01",
+      "start": "2026-01-27T11:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0018",
+      "sensor_id": "RH-L03-MEET-01",
+      "start": "2026-01-06T09:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0019",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-01-24T16:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0020",
+      "sensor_id": "RAIN-EXT-01",
+      "start": "2026-03-20T05:35:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0021",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-03-13T10:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0022",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-03-19T06:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0023",
+      "sensor_id": "CO2-L03-MEET-01",
+      "start": "2026-02-25T10:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0024",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-01-19T12:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0025",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-03T14:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0026",
+      "sensor_id": "RH-L03-WC-01",
+      "start": "2026-02-02T15:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0027",
+      "sensor_id": "RAIN-EXT-01",
+      "start": "2026-01-11T05:35:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0028",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-03T13:30:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0029",
+      "sensor_id": "LEAK-L03-WC-01",
+      "start": "2026-01-03T14:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0030",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-02-22T08:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0031",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-03-29T10:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0032",
+      "sensor_id": "PWR-L03-PWR-POINT-01",
+      "start": "2026-02-12T12:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0033",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-08T13:30:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0034",
+      "sensor_id": "TEMP-L03-OPEN-01",
+      "start": "2026-02-25T10:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0035",
+      "sensor_id": "RH-L03-WC-01",
+      "start": "2026-02-23T15:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0036",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-02-04T11:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0037",
+      "sensor_id": "RH-L03-OPEN-01",
+      "start": "2026-03-22T11:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0038",
+      "sensor_id": "TEMP-L03-MEET-01",
+      "start": "2026-03-23T08:45:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0039",
+      "sensor_id": "CO2-L03-MEET-01",
+      "start": "2026-03-29T10:15:00+08:00",
+      "stride": 1,
+      "limit": 12
+    },
+    {
+      "case_id": "CASE-0040",
+      "sensor_id": "LUX-L03-MEET-01",
+      "start": "2026-01-05T11:00:00+08:00",
+      "stride": 1,
+      "limit": 12
+    }
+  ],
+  "cases_sha256": "0b0d9298705887b4abc90d3aa7db9d7fbc07396fd1d94d2275eac90b82af5fd1"
+}

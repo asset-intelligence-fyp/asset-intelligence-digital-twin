@@ -1,0 +1,9 @@
+date,weekday,is_holiday,holiday_name,is_workday,attendance_factor,occupancy_policy
+2025-01-05,6,0,,0,0,assumed_hybrid_office
+2025-01-06,0,0,,1,0.708,assumed_hybrid_office
+2025-01-07,1,0,,1,0.917,assumed_hybrid_office
+2025-01-08,2,0,,1,0.875,assumed_hybrid_office
+2025-01-09,3,0,,1,0.708,assumed_hybrid_office
+2025-01-10,4,0,,1,0.646,assumed_hybrid_office
+2025-01-11,5,0,,0,0,assumed_hybrid_office
+2025-01-12,6,0,,0,0,assumed_hybrid_office

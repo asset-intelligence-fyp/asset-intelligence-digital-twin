@@ -1,0 +1,7 @@
+room_id,room_name,type,area_m2_ASSUMED,ceiling_height_m_ASSUMED,volume_m3_ASSUMED,max_capacity_ASSUMED,seat_count_ASSUMED,orientation_ASSUMED,ac_zone_id
+L03-OPEN-01,Open Office,open_office,195,2.9,565.5,48,48,west,AC-L03-Z1
+L03-MEET-01,Meeting Room,meeting,32,2.8,89.6,12,12,east,AC-L03-Z2
+L03-CLEAN-01,Cleaning Store,cleaning,13,2.7,35.1,3,0,none,
+L03-WC-01,Washroom,toilet,25,2.7,67.5,6,0,none,
+L03-PWR-POINT-01,Floor Electricity Meter,meter_zone,0,0,0,0,0,none,
+EXT-01,Exterior Roof Weather Point,external,0,0,0,0,0,none,
