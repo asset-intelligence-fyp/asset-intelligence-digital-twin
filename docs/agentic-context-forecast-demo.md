@@ -100,3 +100,24 @@ npm run dev
 ~~~
 
 Keep one dev process running. The simulator must deliver a fresh batch after a Node restart for the in-memory stream mirror to be populated. The mirrored data is always from accepted server-side batches and contains neither injection instructions nor ground-truth fault labels.
+
+
+## Optional Qwen3 4B Q4 experiment: forecasting only
+
+The forecast panel now has a Forecast model selector for qwen3:1.7b and qwen3:4b. The choice affects only the Agentic forecast route. **Agentic investigation and the groupmate's anomaly-detection research remain pinned to Qwen3 1.7B.** The selected model is returned and displayed with the forecast output.
+
+On an Apple M4 with 16 GB unified memory, qwen3:4b is a reasonable 4-bit test option. It requires more runtime memory and may be slower than 1.7B. The standard Ollama qwen3:4b is already Q4-quantized; no manual conversion is needed:
+
+~~~bash
+ollama pull qwen3:4b
+ollama list
+ollama ps
+~~~
+
+After pulling the updated Git branch, restart npm run dev, then open AI assistant → Agentic RAG + 1-month forecast → Forecast model → Qwen3 4B. The Ollama health response lists installed forecast models. If the model is missing, install it before selecting 4B.
+
+For a controlled comparison, use both models on **the same sensor, same cutoff timestamp, same evidence/history and same forecast horizon**. The continuously changing website cutoff can make two manual forecasts use different observations; these are not an accuracy comparison. Perform a retrospective paired backtest using frozen cutoffs and held-out actual future sensor readings.
+
+Compare valid forecasts / attempts, MAE, RMSE, WAPE (when appropriate), skill relative to persistence/seasonal-naive baselines, and inference latency. Forecasting and anomaly detection need separate evaluation. A bigger reasoning model is not automatically a better numerical predictor.
+
+The website currently produces **a single one-calendar-month-ahead reading**, not a full month of five-minute forecasts. Short-history results are explicitly exploratory. This is useful for a prototype demonstration but not evidence of accurate month-ahead forecasting.
