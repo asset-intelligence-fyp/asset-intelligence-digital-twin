@@ -109,7 +109,8 @@ export function AdminWorkspace(){
   try{const res=await request(url,send(method,payload));setMessage((res as {note?:string}).note||'Saved.');after?.();await refresh(tab);return true}
   catch(e){notify(e);return false}finally{setBusy(false)}
  }
- function startEdit(row:Rec){setEditing(String(row.point_code));setEditForm({location_code:String(row.location_code),measurement_type:String(row.measurement_type),unit:String(row.unit)})}
+ function startEdit(row:Rec){setReadingSensor('');setShowNew(false);setEditing(String(row.point_code));setEditForm({location_code:String(row.location_code),measurement_type:String(row.measurement_type),unit:String(row.unit)});window.scrollTo({top:0,behavior:'instant'})}
+ function closeSensorEdit(){setEditing(null);window.scrollTo({top:0,behavior:'instant'})}
  async function showSensorReadings(code:string,nextOffset=0){
   setReadingSensor(code);setReadingOffset(nextOffset);setReadingsLoading(true);setError('');
   window.scrollTo({top:0,behavior:'instant'});
@@ -127,7 +128,7 @@ export function AdminWorkspace(){
  const locations=overview?.locations||[];
  return <section className="admin-workspace" aria-label="Administration workspace">
   <header className="aw-header"><div><h1>Administration</h1></div><div className="aw-head-actions"><span className="aw-status">PostgreSQL · digital_twin</span><button type="button" onClick={()=>void refresh()} disabled={busy}><RefreshCw size={15}/> Refresh</button></div></header>
-  <div className="aw-frame"><nav className="aw-tabs" aria-label="Administration sections">{tabs.map(t=><button key={t.key} type="button" className={tab===t.key?'active':''} onClick={()=>{setError('');setMessage('');if(t.key!=='sensors')closeSensorReadings();setTab(t.key)}}>{t.label}</button>)}</nav>
+  <div className="aw-frame"><nav className="aw-tabs" aria-label="Administration sections">{tabs.map(t=><button key={t.key} type="button" className={tab===t.key?'active':''} onClick={()=>{setError('');setMessage('');if(t.key!=='sensors'){closeSensorReadings();setEditing(null)}setTab(t.key)}}>{t.label}</button>)}</nav>
   {error&&<div className="aw-notice aw-error" role="alert">{error}</div>}
   {message&&<div className="aw-notice" role="status">{message}</div>}
   {tab==='overview'&&<div className="aw-content"><div className="aw-stats">{[
@@ -142,7 +143,7 @@ export function AdminWorkspace(){
    <button onClick={()=>setTab('grant')}><ShieldCheck size={17}/> Invite a user</button>
    <button onClick={()=>setTab('data')}><Database size={17}/> View database</button>
   </div></section><section className="aw-panel"><h2>System</h2><div className="aw-system-row"><span>Schema</span><strong>digital_twin</strong></div><div className="aw-system-row"><span>Built-in BIM sensors</span><strong>{overview?.fixedSensors.length??'—'}</strong></div><div className="aw-system-row"><span>Open invitations</span><strong>{overview?.counts.invites??'—'}</strong></div><p className="aw-footnote">Database-only sensors require a separate BIM/XKT mapping and simulator configuration before they appear in the building viewer.</p></section></div></div>}
-  {tab==='sensors'&&!readingSensor&&<div className="aw-content"><div className="aw-toolbar"><input aria-label="Search sensors" placeholder="Search sensor, room or type" value={sensorSearch} onChange={e=>setSensorSearch(e.target.value)}/><button className="aw-primary" onClick={()=>{setShowNew(s=>!s);setEditing(null)}}><Plus size={15}/> Add sensor</button></div>
+  {tab==='sensors'&&!readingSensor&&!editing&&<div className="aw-content"><div className="aw-toolbar"><input aria-label="Search sensors" placeholder="Search sensor, room or type" value={sensorSearch} onChange={e=>setSensorSearch(e.target.value)}/><button className="aw-primary" onClick={()=>{setShowNew(s=>!s);setEditing(null)}}><Plus size={15}/> Add sensor</button></div>
    {showNew&&<form className="aw-panel aw-form" onSubmit={async(e:FormEvent)=>{e.preventDefault();const ok=await mutate('/api/admin/manage/sensors','POST',sensorForm,()=>{setShowNew(false);setSensorForm(baseSensor)});if(ok)await loadSensors()}}><h2>New sensor</h2><div className="aw-fields">
     <label>Sensor code<input required value={sensorForm.point_code} onChange={e=>setSensorForm({...sensorForm,point_code:e.target.value})} placeholder="TEMP-NEW-01"/></label>
     <label>Location<select required value={sensorForm.location_code} onChange={e=>setSensorForm({...sensorForm,location_code:e.target.value})}><option value="">Choose location</option>{locations.map(r=><option key={String(r.location_code)} value={String(r.location_code)}>{String(r.display_name)}</option>)}</select></label>
@@ -153,7 +154,19 @@ export function AdminWorkspace(){
     <td><strong>{String(r.point_code)}</strong></td><td>{String(r.display_name)}</td><td>{String(r.measurement_type)}</td><td>{String(r.unit)}</td><td><span className={r.model_bound?'aw-tag good':'aw-tag pending'}>{r.model_bound?'Built-in':'Pending BIM'}</span></td><td>{String(r.reading_count)}</td>
     <td className="aw-row-actions"><button onClick={()=>void showSensorReadings(String(r.point_code))}>Readings</button><button onClick={()=>startEdit(r)}>Edit</button><button disabled={Boolean(r.model_bound)||busy} title={r.model_bound?'Built-in BIM sensors are protected':'Remove database-only sensor'} onClick={async()=>{if(window.confirm('Delete '+r.point_code+'? Only unreferenced, database-only sensors can be removed.'))await mutate('/api/admin/manage/sensors/'+encodeURIComponent(String(r.point_code)),'DELETE')}}><Trash2 size={14}/></button></td>
    </tr>)}</tbody></table>{!filtered.length&&<p className="aw-empty">No matching sensors.</p>}</div></div>
-   {editing&&<div className="aw-panel aw-form"><div className="aw-panel-head"><h2>Edit {editing}</h2><button onClick={()=>setEditing(null)}>Close</button></div><div className="aw-fields"><label>Location<select value={editForm.location_code} onChange={e=>setEditForm({...editForm,location_code:e.target.value})}>{locations.map(r=><option key={String(r.location_code)} value={String(r.location_code)}>{String(r.display_name)}</option>)}</select></label><label>Type<input value={editForm.measurement_type} onChange={e=>setEditForm({...editForm,measurement_type:e.target.value})}/></label><label>Unit<input value={editForm.unit} onChange={e=>setEditForm({...editForm,unit:e.target.value})}/></label></div><div className="aw-actions"><button className="aw-primary" disabled={busy} onClick={async()=>{if(await mutate('/api/admin/manage/sensors/'+encodeURIComponent(editing),'PATCH',editForm))setEditing(null)}}><Save size={14}/> Save</button></div><p className="aw-footnote">Changing metadata does not rewrite the fixed simulator registry or relocate IFC geometry.</p></div>}
+  </div>}
+  {tab==='sensors'&&editing&&<div className="aw-content" aria-label="Edit sensor details">
+   <div className="aw-reading-toolbar"><button type="button" onClick={closeSensorEdit}>← Back to sensors</button></div>
+   <div className="aw-panel aw-form">
+    <h2>Edit sensor · {editing}</h2>
+    <div className="aw-fields">
+     <label>Location<select value={editForm.location_code} onChange={e=>setEditForm({...editForm,location_code:e.target.value})}>{locations.map(r=><option key={String(r.location_code)} value={String(r.location_code)}>{String(r.display_name)}</option>)}</select></label>
+     <label>Type<input value={editForm.measurement_type} onChange={e=>setEditForm({...editForm,measurement_type:e.target.value})}/></label>
+     <label>Unit<input value={editForm.unit} onChange={e=>setEditForm({...editForm,unit:e.target.value})}/></label>
+    </div>
+    <div className="aw-actions"><button className="aw-primary" disabled={busy} onClick={async()=>{if(await mutate('/api/admin/manage/sensors/'+encodeURIComponent(editing),'PATCH',editForm))closeSensorEdit()}}><Save size={14}/> Save changes</button><button type="button" disabled={busy} onClick={closeSensorEdit}>Cancel</button></div>
+    <p className="aw-footnote">Each save requires administrator password confirmation. Changing metadata does not rewrite the fixed simulator registry or relocate IFC geometry.</p>
+   </div>
   </div>}
   {tab==='sensors'&&readingSensor&&<div className="aw-content" aria-label="Sensor reading details">
    <div className="aw-reading-toolbar">
