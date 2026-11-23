@@ -53,3 +53,16 @@
 .aw-invite-code{display:flex;align-items:center;gap:8px;min-width:0}.aw-invite-code code{font-size:11px;overflow-wrap:anywhere;min-width:0}
 @media(max-width:900px){.aw-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.aw-grid{grid-template-columns:1fr}.aw-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.aw-header{align-items:flex-start;gap:10px}.aw-status{display:none}.aw-tabs button{padding:11px 10px}.aw-fields{grid-template-columns:1fr}.aw-stats{gap:8px}.aw-stat{padding:12px}.aw-action-grid{grid-template-columns:1fr}.aw-toolbar input{max-width:100%}}
+
+
+/* Admin-only side navigation; one document scroll, horizontal overflow only for wide data tables. */
+.aw-frame{display:grid;grid-template-columns:190px minmax(0,1fr);column-gap:20px;align-items:start}
+.aw-frame>.aw-tabs{grid-column:1;grid-row:1 / span 10;display:flex;flex-direction:column;align-items:stretch;gap:3px;position:sticky;top:84px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);margin:0;overflow:visible}
+.aw-frame>.aw-tabs button{justify-content:flex-start;text-align:left;border:0;border-radius:8px;padding:12px 13px}
+.aw-frame>.aw-tabs button.active{border:0;color:var(--teal);background:color-mix(in srgb,var(--teal) 10%,transparent)}
+.aw-frame>.aw-content,.aw-frame>.aw-notice{grid-column:2;min-width:0}
+@media(max-width:760px){
+ .aw-frame{display:block}
+ .aw-frame>.aw-tabs{position:static;flex-direction:row;overflow-x:auto;white-space:nowrap;margin-bottom:14px;padding:3px}
+ .aw-frame>.aw-tabs button{padding:10px}
+}
