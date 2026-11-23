@@ -1,6 +1,5 @@
 import {METRICS} from './sensorPresentation.js';
 import {trimSlabsToEnvelope,limitFloorHeatmapToBuilding} from './heatmapField.js';
-import roomFootprints from '../../shared/roomFootprints.json';
 import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
 import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
@@ -155,7 +154,13 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
     const buildingEnvelope=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
      .map(id=>Array.from(scene.objects[id]?.aabb||[]))
      .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
-    const clipped=limitFloorHeatmapToBuilding(trimSlabsToEnvelope(slabs,buildingEnvelope,1.1),roomFootprints.rooms);
+    const monitoredSpaces=Object.fromEntries(navigation.sensors.filter(sensor=>{
+     const b=sensor.roomAabb;return Array.isArray(b)&&b.length===6&&b.every(Number.isFinite);
+    }).map(sensor=>{
+     const b=sensor.roomAabb;
+     return [sensor.guid,{positions:[b[0],b[1],b[2],b[3],b[4],b[5]]}];
+    }));
+    const clipped=limitFloorHeatmapToBuilding(trimSlabsToEnvelope(slabs,buildingEnvelope,1.1),monitoredSpaces);
     if(clipped.length)return {floor:level.id,elevation:level.elevation,aabbs:clipped,source:'clipped-ifc-slab'};
     if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],source:'no-model-geometry'};
     const fallback=buildingEnvelope.length?Array.from(scene.getAABB(ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||'')))):Array.from(scene.getAABB(ids));
