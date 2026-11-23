@@ -65,6 +65,34 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
     return res.json({authenticated:true,username:user.username,role:user.role_name});
   });
+  // Step-up authentication for administrator writes: short-lived, session-bound.
+  app.post('/api/admin/confirm-password',requireAdmin,async(req,res)=>{
+    const session=readSession(req);
+    if(!session)return res.status(401).json({error:'Admin session expired'});
+    const now=Date.now();
+    if((session.confirmLockedUntil||0)>now)return res.status(429).json({error:'Too many attempts. Try again later.'});
+    const password=req.body?.password;
+    if(typeof password!=='string'||password.length>1024)return res.status(400).json({error:'Admin password is required.'});
+    try{
+      const result=await pool.query('SELECT password_hash FROM digital_twin.users WHERE user_id=$1 AND is_active=TRUE',[session.userId]);
+      if(!result.rowCount||!verifyPassword(password,result.rows[0].password_hash)){
+        session.confirmFailures=(session.confirmFailures||0)+1;
+        if(session.confirmFailures>=5){
+          session.confirmLockedUntil=now+15*60*1000;
+          session.confirmFailures=0;
+        }
+        return res.status(401).json({error:'Incorrect administrator password.'});
+      }
+      session.confirmFailures=0;
+      session.confirmLockedUntil=0;
+      session.elevatedUntil=now+5*60*1000;
+      res.setHeader('Cache-Control','no-store');
+      res.json({confirmed:true,validForSeconds:300});
+    }catch(e){
+      console.error('Admin password confirmation unavailable:',e.message);
+      res.status(503).json({error:'Unable to verify administrator password.'});
+    }
+  });
   app.get('/api/admin/session',async(req,res)=>{
     res.setHeader('Cache-Control','no-store');
     const session=readSession(req);
@@ -114,4 +142,12 @@ export async function requireAdmin(req,res,next) {
     catch { return res.status(403).json({error:'Invalid origin'}); }
   }
   next();
+}
+
+export function requireConfirmedAdmin(req,res,next){
+ const session=readSession(req);
+ if(!session||session.role!=='admin')return res.status(401).json({error:'Administrator session required'});
+ if(!session.elevatedUntil||session.elevatedUntil<=Date.now())
+  return res.status(428).json({error:'Confirm your administrator password before changing data.',requiresPassword:true});
+ next();
 }
