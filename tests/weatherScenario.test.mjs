@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {presetPatch,scenarioActive,observedScenario,effectiveWeatherScene,weatherSceneLabel} from '../src/services/simulationControlView.js';
+import {presetPatch,scenarioActive,observedScenario,effectiveWeatherScene,weatherSceneLabel,busyDaytimeClock} from '../src/services/simulationControlView.js';
 test('rain preset changes only weather and leaves schedule, step, ventilation and AC settings alone',()=>{
  const draft={weather_mode:'clear',calendar_mode:'workday',step_seconds:300,attendance_factor:1.5,ac_mode:'on',setpoint_c:23,ventilation:1.6};
  const request=presetPatch('rain',draft);
@@ -40,4 +40,21 @@ test('Busy Building walking mode is triggered by observed generator state, not q
  assert.equal(observedScenario('busy',applied),true);
  assert.equal(observedScenario('busy',{sequence:24,simulation:{calendar:{override:'holiday'},operation:{attendance_factor:1.5}}}),false);
  assert.equal(observedScenario('busy',{sequence:24,simulation:{calendar:{override:'workday'},operation:{attendance_factor:1}}}),false);
+});
+
+test('Busy Building starts an occupied daytime synthetic run when currently after hours',()=>{
+ const midnight='2026-11-23T00:15:00+08:00';
+ const evening='2026-11-23T21:00:00+08:00';
+ const daytime='2026-11-23T10:45:00+08:00';
+ assert.equal(busyDaytimeClock(midnight),'2026-11-23T10:00:00+08:00');
+ assert.equal(busyDaytimeClock(evening),'2026-11-23T10:00:00+08:00');
+ assert.equal(busyDaytimeClock(daytime),null);
+ assert.equal(busyDaytimeClock(''),null);
+ const afterHours=presetPatch('busy',{step_seconds:300},evening);
+ assert.equal(afterHours.start_clock,'2026-11-23T10:00:00+08:00');
+ assert.equal(afterHours.calendar_mode,'workday');
+ assert.equal(afterHours.attendance_factor,1.5);
+ assert.equal(afterHours.paused,false);
+ assert.equal(presetPatch('busy',{step_seconds:300},daytime).start_clock,undefined);
+ assert.deepEqual(Object.keys(presetPatch('rain',{step_seconds:300},evening)).sort(),['fault','paused','weather_mode']);
 });
