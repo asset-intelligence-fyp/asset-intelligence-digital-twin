@@ -160,6 +160,16 @@ class AgenticRetrievalTest(unittest.TestCase):
         self.assertEqual(saved[0]["tool_trace"][1]["tool"],"get_historical_outcomes")
         self.assertEqual(len(calls),4)
 
+    def test_retrieval_only_genuine_60_case_scoring(self):
+        args=self.args()
+        summary=module.score_retrieval_only(args)
+        self.assertEqual(summary["cases"],60)
+        self.assertFalse(summary["model_used"])
+        for metric in module.METRICS:
+            self.assertEqual(summary["by_metric"][metric]["retrieval_only"]["n"],60)
+            self.assertGreaterEqual(summary["by_metric"][metric]["retrieval_only"]["mae"],0)
+        self.assertTrue((self.out/"agentic_rag"/"summary_retrieval_only.json").exists())
+
     def test_resume_skips_only_valid_records_and_retries_errors(self):
         args=self.args(mode="structured",model="qwen3:4b",limit=2)
         fake=(self.fake_output(),{"latency_ms":8,"tokens_input":50,"tokens_output":12})
