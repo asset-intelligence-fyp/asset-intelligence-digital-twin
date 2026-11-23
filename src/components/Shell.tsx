@@ -1,19 +1,22 @@
-import { BellRing, Box, Boxes, ChartNoAxesCombined, FlaskConical, Clock3, Database, Grid2X2, Radio, ListFilter, MessageCircle, Activity, BookOpen, UserRound, LogOut, Sun, Moon } from 'lucide-react';
+import { BellRing, Box, Boxes, ChartNoAxesCombined, FlaskConical, Clock3, Database, Grid2X2, Radio, ListFilter, MessageCircle, Activity, BookOpen, UserRound, LogOut, Sun, Moon, BrainCircuit, ChevronDown, MoreHorizontal } from 'lucide-react';
 import {useEffect,useRef,useState,type ReactNode} from 'react';
 import { useTwin,type EventRecord } from '../services/twin';
 import {applyTheme} from '../theme.js';
 
-export type Page='database'|'overview'|'assets'|'analytics'|'events'|'sensors'|'simulator'|'assistant'|'status'|'guide';
-const nav: {id:Page;label:string;Icon:typeof Grid2X2}[]=[
- {id:'overview',label:'Building overview',Icon:Grid2X2},
+export type Page='monitoring'|'database'|'overview'|'assets'|'analytics'|'events'|'sensors'|'simulator'|'assistant'|'status'|'guide';
+const mainNav: {id:Page;label:string;Icon:typeof Grid2X2}[]=[
+ {id:'overview',label:'Overview',Icon:Grid2X2},
+ {id:'monitoring',label:'AI monitoring',Icon:BrainCircuit},
+ {id:'analytics',label:'Analytics',Icon:ChartNoAxesCombined},
+ {id:'events',label:'Events',Icon:BellRing},
+ {id:'simulator',label:'Simulation lab',Icon:FlaskConical},
+];
+const extraNav: {id:Page;label:string;Icon:typeof Grid2X2}[]=[
  {id:'assets',label:'Asset register',Icon:Boxes},
- {id:'analytics',label:'Building performance',Icon:ChartNoAxesCombined},
  {id:'sensors',label:'Sensor monitoring',Icon:ListFilter},
- {id:'events',label:'Event log',Icon:BellRing},
  {id:'assistant',label:'AI assistant',Icon:MessageCircle},
- {id:'simulator',label:'Simulation lab',Icon:Radio},
- {id:'guide',label:'How to use',Icon:BookOpen},
  {id:'status',label:'System status',Icon:Activity},
+ {id:'guide',label:'How to use',Icon:BookOpen},
 ];
 export function Shell({onEvent,page,setPage,children,onAdminClick,onLogout,adminAuthenticated}:{onEvent:(id:number)=>void;page:Page;setPage:(p:Page)=>void;children:ReactNode;onAdminClick:()=>void;onLogout:()=>void;adminAuthenticated:boolean}){
  const [appearance,setAppearance]=useState<'light'|'dark'>(()=>document.documentElement.dataset.theme==='light'?'light':'dark');
@@ -44,7 +47,13 @@ export function Shell({onEvent,page,setPage,children,onAdminClick,onLogout,admin
   </header>
   {toast&&<div className="alert-toast" role="status"><div><strong>{toast.level}: {toast.title}</strong><p>{toast.source} · New automatic alert</p></div><button className="small-outline" onClick={()=>{onEvent(toast.id);setToast(null)}}>Investigate</button><button className="text-link" aria-label="Dismiss alert notification" onClick={()=>setToast(null)}>×</button></div>}
   {notificationsOpen&&<aside className="notification-tray" aria-label="Alert notifications"><div className="heading-actions"><h2>Notifications</h2><button className="small-outline" onClick={()=>setNotificationsOpen(false)}>Close</button></div><p role="status">{openEvents} active, unacknowledged alerts</p>{events.slice(0,8).map(e=><button key={e.id} className="notification-item" onClick={()=>{setNotificationsOpen(false);onEvent(e.id)}}><strong>{e.title}</strong><span>{e.resolved_at?'Recovered':e.acknowledged?'Acknowledged':e.level} · {e.source}</span><small>{new Date(e.time).toLocaleString()}</small></button>)}{!events.length&&<p>Automatic alerts appear when incoming readings breach a demo rule.</p>}<button className="text-link" onClick={()=>{setNotificationsOpen(false);setPage('events')}}>Open event log</button></aside>}
-  <nav className="sidebar" aria-label="Main navigation"><div className="sidebar-top">{(adminAuthenticated?[{id:'database' as Page,label:'Database',Icon:Database},...nav]:nav).map(({id,label,Icon})=><button key={id} className={`nav-icon ${page===id?'selected':''}`} title={label} aria-label={label} aria-current={page===id?'page':undefined} onClick={()=>setPage(id)}><Icon size={19} strokeWidth={1.65}/><span>{label}</span></button>)}</div><div className="sidebar-bottom"><div className="model-sync"><span className="eyebrow">MODEL SYNC</span><i/><strong>5 locations · 18 sensors</strong><small>IFC geometry · simulated telemetry</small></div><span className="sidebar-project">TwinLabs · Asset Intelligence</span></div></nav>
+  <nav className="sidebar" aria-label="Main navigation"><div className="sidebar-top">
+   {mainNav.map(({id,label,Icon})=><button key={id} className={`nav-icon ${page===id?'selected':''}`} title={label} aria-label={label} aria-current={page===id?'page':undefined} onClick={()=>setPage(id)}><Icon size={19} strokeWidth={1.65}/><span>{label}</span></button>)}
+   <details className="sidebar-more"><summary><MoreHorizontal size={17}/> More tools <ChevronDown size={13}/></summary><div className="sidebar-more-list">
+   {extraNav.map(({id,label,Icon})=><button key={id} className={`nav-icon ${page===id?'selected':''}`} title={label} aria-label={label} aria-current={page===id?'page':undefined} onClick={()=>setPage(id)}><Icon size={18}/><span>{label}</span></button>)}
+   {adminAuthenticated&&<button className={`nav-icon ${page==='database'?'selected':''}`} title="Database" onClick={()=>setPage('database')}><Database size={18}/><span>Database</span></button>}
+   </div></details>
+  </div><div className="sidebar-bottom"><span className="sidebar-compact-note">18 indoor sensors · 5 locations</span></div></nav>
   <main className={`page-container${page==='assistant'?' assistant-main':''}`}>{children}</main>
   <footer className="statusbar"><span><i/>{`Simulated HTTP ${httpCoverage}/18 active`}</span><span>BIM: FYP whole building</span><span>{backendConnected?(storage==='postgresql'?'PostgreSQL connected':'Temporary memory · resets on restart'):'API not connected'} · 18 channels</span></footer>
  </div>;
