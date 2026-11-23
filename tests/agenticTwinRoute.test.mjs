@@ -113,3 +113,30 @@ test('Missing sensor observations return a specific error without calling Qwen',
  assert.equal(r.statusCode,400);
  assert.match(r.body.error,/No eligible reading.*sensor/i);
 });
+
+
+test('Forecast-only model selector sends Qwen3 4B to the Python bridge',async()=>{
+ let payload;
+ const f=fake(async(_url,init)=>{payload=JSON.parse(init.body);
+   return {status:200,json:async()=>({status:'exploratory_scenario',model:'qwen3:4b'})};});
+ const result=await f.request('forecast',{...base,forecast_model:'qwen3:4b'});
+ assert.equal(result.statusCode,200);
+ assert.equal(payload.config.model,'qwen3:4b');
+ assert.equal(result.body.model,'qwen3:4b');
+});
+
+test('Agentic anomaly investigation remains pinned to Qwen3 1.7B',async()=>{
+ let payload;
+ const f=fake(async(_url,init)=>{payload=JSON.parse(init.body);
+   return {status:200,json:async()=>({status:'investigation'})};});
+ const result=await f.request('investigate',base);
+ assert.equal(result.statusCode,200);
+ assert.equal(payload.config.model,'qwen3:1.7b');
+});
+
+test('Unknown forecast models and anomaly model overrides are rejected',async()=>{
+ const f=fake(async()=>{throw Error('should not invoke Python')});
+ const invalid=await f.request('forecast',{...base,forecast_model:'llama3:70b'});
+ const changedAnomaly=await f.request('investigate',{...base,forecast_model:'qwen3:4b'});
+ assert.deepEqual([invalid.statusCode,changedAnomaly.statusCode],[400,400]);
+});
