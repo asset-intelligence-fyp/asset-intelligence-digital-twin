@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CHARACTER_PROFILES,characterProfileGeometry,loftedPart} from '../src/viewer/characterGeometry.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion} from '../src/viewer/characterDesign.js';
 import {TOUR_LEVELS,makeTourPlan,occupantViewCount} from '../src/viewer/occupantTour.js';
 
 test('authored character geometries are triangulated curved assets, not rectangular prisms',()=>{
@@ -42,4 +43,46 @@ test('tour ignores out-of-level geometry and malformed bounding values',()=>{
  const p=makeTourPlan([0,40,0,50,100,60],levels,footprint);
  assert.ok(Object.values(p).flat().every(x=>x.source==='staged'));
  assert.deepEqual(makeTourPlan([0,NaN,0,50,100,60],levels,footprint),{});
+});
+
+test('four professional occupant styles are shareable, distinct and fully authored',()=>{
+ assert.equal(CHARACTER_STYLES.length,4);
+ assert.equal(new Set(CHARACTER_STYLES.map(v=>v.name)).size,4);
+ assert.equal(new Set(CHARACTER_STYLES.map(v=>v.torso)).size,4);
+ const geometry=characterProfileGeometry();
+ for(const style of CHARACTER_STYLES){
+  assert.ok(geometry[style.torso]&&geometry[style.hair]);
+  assert.ok(style.height>=.95&&style.height<=1.05);
+  assert.ok(['jacket','blouse','cardigan','longline'].includes(style.torso));
+  for(const key of ['outer','trousers','skin','hair','shoes','trim']){
+   const colour=style.palette[key];
+   assert.equal(colour.length,3);
+   assert.ok(colour.every(n=>Number.isFinite(n)&&n>=.10&&n<=.95));
+  }
+ }
+ // Smaller, architecturally-scaled head rather than the old toy-like ratio.
+ assert.ok(CHARACTER_SCALES.head[0]*2<CHARACTER_PROFILES.jacket[3].rx*2*.75);
+ assert.ok(CHARACTER_PLACEMENTS.head[1]+CHARACTER_SCALES.head[1]<1.9);
+ assert.ok(CHARACTER_PLACEMENTS.shoeL[1]-CHARACTER_SCALES.shoeL[1]>=-.01);
+});
+
+test('occupants use a restrained deterministic gait and honour stationary mode',()=>{
+ const anchor={start:[4,63.65,8],end:[4.35,63.65,8.15]};
+ const first=characterMotion(anchor,2,1300,true);
+ const repeat=characterMotion(anchor,2,1300,true);
+ assert.deepEqual(first,repeat);
+ assert.ok(first.base[0]>=4&&first.base[0]<=4.35);
+ assert.ok(first.base[2]>=8&&first.base[2]<=8.15);
+ for(let i=0;i<100;i++){
+  const pose=characterMotion(anchor,2,i*55,true);
+  assert.ok(Math.abs(pose.gait)<=8.001);
+  assert.ok(Math.abs(pose.sway)<=.701);
+  assert.ok(pose.bob>=0&&pose.bob<=.00701);
+  assert.equal(pose.base[1],63.65,'walking must remain on the IFC floor');
+ }
+ const paused=characterMotion(anchor,2,1300,false);
+ assert.deepEqual(paused.base,anchor.start);
+ assert.equal(paused.gait,0);
+ assert.equal(paused.sway,0);
+ assert.equal(paused.bob,0);
 });
