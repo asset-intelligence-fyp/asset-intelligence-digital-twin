@@ -65,10 +65,26 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
     return res.json({authenticated:true,username:user.username,role:user.role_name});
   });
-  app.get('/api/admin/session',(req,res)=>{
+  app.get('/api/admin/session',async(req,res)=>{
     res.setHeader('Cache-Control','no-store');
     const session=readSession(req);
-    res.json({authenticated:!!session,username:session?.username||null,role:session?.role||null});
+    if(!session||!pool)return res.json({authenticated:false,username:null,role:null});
+    try{
+      const result=await pool.query(
+        'SELECT r.role_name,u.is_active FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1',
+        [session.userId]
+      );
+      if(!result.rowCount||!result.rows[0].is_active){
+        sessions.delete(parseCookie(req));
+        res.setHeader('Set-Cookie',cookie(req,'',0));
+        return res.json({authenticated:false,username:null,role:null});
+      }
+      session.role=result.rows[0].role_name;
+      res.json({authenticated:true,username:session.username,role:session.role});
+    }catch(e){
+      console.error('Session validation failed:',e.message);
+      res.status(503).json({authenticated:false,username:null,role:null,error:'Session database unavailable'});
+    }
   });
   app.post('/api/admin/logout',(req,res)=>{
     sessions.delete(parseCookie(req));
