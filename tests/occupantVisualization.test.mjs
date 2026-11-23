@@ -1,18 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {CHARACTER_PROFILES,characterProfileGeometry,loftedPart} from '../src/viewer/characterGeometry.js';
-import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,characterLegPose,boundWalkSegment} from '../src/viewer/characterDesign.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,mannequinLimbPose,boundWalkSegment,WALK_TIMING} from '../src/viewer/characterDesign.js';
 import {TOUR_LEVELS,makeTourPlan,occupantViewCount} from '../src/viewer/occupantTour.js';
 
-test('authored character geometries are triangulated curved assets, not rectangular prisms',()=>{
+test('rounded mannequin geometry uses three simple body profiles',()=>{
+ assert.deepEqual(Object.keys(CHARACTER_PROFILES),['torso','arm','leg']);
  const mesh=characterProfileGeometry();
- assert.ok(Object.keys(mesh).length>=6);
+ assert.deepEqual(Object.keys(mesh),['torso','arm','leg']);
  assert.ok(Object.values(mesh).every(g=>g.positions.length===g.normals.length));
  assert.ok(Object.values(mesh).every(g=>g.indices.length>100));
- const torso=mesh.jacket;
- assert.ok(new Set(torso.positions.filter((_,i)=>i%3===0).map(n=>n.toFixed(2))).size>=8);
- assert.throws(()=>loftedPart([CHARACTER_PROFILES.jacket[0]],4));
+ assert.ok(new Set(mesh.torso.positions.filter((_,i)=>i%3===0).map(n=>n.toFixed(2))).size>=8);
+ // Capsule-like tips are narrow, preventing visibly square shoulders and feet.
+ for(const part of ['arm','leg']){
+  const rings=CHARACTER_PROFILES[part];
+  assert.ok(rings[0].rx<.025&&rings.at(-1).rx<.025);
+ }
+ assert.throws(()=>loftedPart([CHARACTER_PROFILES.torso[0]],4));
 });
+
 test('building-tour visual count spans five actual storeys without any sensor inputs',()=>{
  const levels=[{id:'Level_01',elevation:55.5},{id:'Level_02',elevation:59.7},{id:'Level_03',elevation:63.65},{id:'Level_04',elevation:67.6},{id:'Level_05',elevation:71.92}];
  const plan=makeTourPlan([0,51,0,40,82,30],levels);
@@ -45,98 +52,72 @@ test('tour ignores out-of-level geometry and malformed bounding values',()=>{
  assert.deepEqual(makeTourPlan([0,NaN,0,50,100,60],levels,footprint),{});
 });
 
-test('four professional occupant styles are shareable, distinct and fully authored',()=>{
- assert.equal(CHARACTER_STYLES.length,4);
- assert.equal(new Set(CHARACTER_STYLES.map(v=>v.name)).size,4);
- assert.equal(new Set(CHARACTER_STYLES.map(v=>v.torso)).size,4);
- const geometry=characterProfileGeometry();
+
+test('exactly four bright single-colour variants contain no hair, skin or trim',()=>{
+ assert.deepEqual(CHARACTER_STYLES.map(x=>x.name),['Blue','Teal','Coral','Violet']);
  for(const style of CHARACTER_STYLES){
-  assert.ok(geometry[style.torso]&&geometry[style.hair]);
-  assert.ok(style.height>=.95&&style.height<=1.05);
-  assert.ok(['jacket','blouse','cardigan','longline'].includes(style.torso));
-  for(const key of ['outer','trousers','skin','hair','shoes','trim']){
-   const colour=style.palette[key];
-   assert.equal(colour.length,3);
-   assert.ok(colour.every(n=>Number.isFinite(n)&&n>=.10&&n<=.95));
+  assert.equal(style.colour.length,3);
+  assert.ok(style.colour.every(v=>v>=.10&&v<=.95));
+  assert.ok(Math.max(...style.colour)-Math.min(...style.colour)>.20);
+  assert.ok(style.height>=.97&&style.height<=1.03);
+  assert.deepEqual(Object.keys(style).sort(),['colour','height','name']);
+ }
+ assert.deepEqual(Object.keys(CHARACTER_PLACEMENTS).sort(),['armL','armR','head','legL','legR','torso'].sort());
+ assert.deepEqual(Object.keys(CHARACTER_SCALES).sort(),Object.keys(CHARACTER_PLACEMENTS).sort());
+ const source=readFileSync(new URL('../src/viewer/occupantLayer.js',import.meta.url),'utf8');
+ assert.equal((source.match(/\bpart\('/g)||[]).length,6,'only six scene parts per mannequin');
+ assert.ok(!source.includes('part(style.hair'));
+ assert.ok(!source.includes("part('lapel'"));
+ assert.ok(!source.includes("part('collar'"));
+});
+
+test('simple walk stays inside its room segment, pauses and faces both directions',()=>{
+ const anchor={start:[4,63.65,8],end:[5,63.65,8]};
+ const frozen=characterMotion(anchor,0,1500,false);
+ assert.deepEqual(frozen.base,anchor.start);
+ assert.equal(frozen.legSwing,0);
+ assert.equal(frozen.armSwing,0);
+ assert.equal(frozen.bob,0);
+ const atEnd=characterMotion(anchor,0,WALK_TIMING.travelMs,true);
+ const halfTurn=characterMotion(anchor,0,WALK_TIMING.travelMs+WALK_TIMING.turnMs/2,true);
+ const reverse=characterMotion(anchor,0,WALK_TIMING.travelMs+WALK_TIMING.turnMs,true);
+ assert.deepEqual(atEnd.base,anchor.end);
+ assert.deepEqual(halfTurn.base,anchor.end);
+ assert.deepEqual(reverse.base,anchor.end);
+ assert.ok(Math.abs(halfTurn.heading-atEnd.heading-90)<1e-8);
+ assert.ok(Math.abs(reverse.heading-atEnd.heading-180)<1e-8);
+ assert.equal(halfTurn.legSwing,0);
+ assert.equal(halfTurn.armSwing,0);
+ assert.ok(characterMotion(anchor,0,WALK_TIMING.travelMs+WALK_TIMING.turnMs+500,true).base[0]<5);
+ for(let i=0;i<=200;i++){
+  const motion=characterMotion(anchor,0,i*37,true);
+  assert.ok(motion.base[0]>=4&&motion.base[0]<=5);
+  assert.equal(motion.base[1],63.65);
+  assert.ok(Math.abs(motion.legSwing)<=17.001);
+  assert.ok(Math.abs(motion.armSwing)<=12.001);
+  assert.ok(motion.bob>=0&&motion.bob<=.006001);
+ }
+ assert.deepEqual(characterMotion(anchor,0,700,true),characterMotion(anchor,0,700,true));
+});
+
+test('rounded limbs rotate from fixed shoulder and hip pivots',()=>{
+ for(const half of [.309,.386]){
+  for(const pitch of [-17,-10,0,10,17]){
+   const pivot=[.12,.9,0],pose=mannequinLimbPose(pivot,half,pitch);
+   const radians=pitch*Math.PI/180;
+   // Rotating the upper mesh tip about its centre recovers its pivot.
+   assert.ok(Math.abs(pose.center[1]+half*Math.cos(radians)-pivot[1])<1e-10);
+   assert.ok(Math.abs(pose.center[2]+half*Math.sin(radians)-pivot[2])<1e-10);
   }
  }
- // Smaller, architecturally-scaled head rather than the old toy-like ratio.
- assert.ok(CHARACTER_SCALES.head[0]*2<CHARACTER_PROFILES.jacket[3].rx*2*.75);
- assert.ok(CHARACTER_PLACEMENTS.head[1]+CHARACTER_SCALES.head[1]<1.9);
- assert.ok(CHARACTER_PLACEMENTS.shoeL[1]-CHARACTER_SCALES.shoeL[1]>=-.01);
+ const resting=mannequinLimbPose([-.118,.887,0],.386,0);
+ assert.ok(resting.center[1]-.386>.10,'rounded leg bottom must stay above floor');
 });
 
-test('occupants use a restrained deterministic gait and honour stationary mode',()=>{
- const anchor={start:[4,63.65,8],end:[4.35,63.65,8.15]};
- const first=characterMotion(anchor,2,1300,true);
- const repeat=characterMotion(anchor,2,1300,true);
- assert.deepEqual(first,repeat);
- assert.ok(first.base[0]>=4&&first.base[0]<=4.35);
- assert.ok(first.base[2]>=8&&first.base[2]<=8.15);
- for(let i=0;i<100;i++){
-  const pose=characterMotion(anchor,2,i*55,true);
-  assert.ok(Math.abs(pose.gait)<=8.001);
-  assert.ok(Math.abs(pose.sway)<=.701);
-  assert.ok(pose.bob>=0&&pose.bob<=.00701);
-  assert.equal(pose.base[1],63.65,'walking must remain on the IFC floor');
- }
- const paused=characterMotion(anchor,2,1300,false);
- assert.deepEqual(paused.base,anchor.start);
- assert.equal(paused.gait,0);
- assert.equal(paused.sway,0);
- assert.equal(paused.bob,0);
-});
-
-test('brighter office outfits remain distinct with readable, separate footwear',()=>{
- const outers=CHARACTER_STYLES.map(v=>v.palette.outer);
- assert.ok(outers.every(c=>Math.max(...c)-Math.min(...c)>.22),'muted-gray outfits lack visible colour contrast');
- assert.ok(outers.some(c=>c[2]>.68),'cobalt or iris accents must stay legible in X-ray');
- assert.ok(outers.some(c=>c[1]>.60),'teal must stay legible in X-ray');
- assert.ok(outers.some(c=>c[0]>.75),'warm coral must stay legible in X-ray');
- assert.ok(CHARACTER_SCALES.shoeL[0]*2<.228,'shoe widths must not merge across the resting stance');
- const g=characterProfileGeometry();
- assert.ok(g.thigh&&g.shin,'two independently articulated leg sections are needed');
-});
-
-test('walk turns smoothly rather than moonwalking backward or sliding during a turn',()=>{
- const anchor={start:[2,60,4],end:[3,60,4]};
- const atEnd=characterMotion(anchor,0,2650,true);
- const midway=characterMotion(anchor,0,2900,true);
- const reverse=characterMotion(anchor,0,3150,true);
- assert.ok(Math.abs(atEnd.base[0]-3)<1e-9);
- assert.ok(Math.abs(midway.base[0]-3)<1e-9);
- assert.ok(Math.abs(reverse.base[0]-3)<1e-9);
- assert.ok(midway.heading>atEnd.heading+75&&midway.heading<atEnd.heading+105);
- assert.ok(Math.abs(reverse.heading-atEnd.heading-180)<1e-9);
- assert.equal(midway.gait,0);
- assert.equal(midway.footL.lift,0);
- assert.equal(midway.footR.lift,0);
- assert.ok(characterMotion(anchor,0,3500,true).base[0]<3,'reversal should move back along the same room-safe segment');
-});
-
-test('opposing feet lift alternately and thigh/shin stay joined to each ankle',()=>{
- const anchor={start:[1,63,2],end:[2,63,2]};
- const left=characterMotion(anchor,0,331,true);
- const right=characterMotion(anchor,0,993,true);
- assert.ok(left.footL.lift>0&&left.footR.lift===0);
- assert.ok(right.footR.lift>0&&right.footL.lift===0);
- for(const motion of [left,right,characterMotion(anchor,0,1790,true),characterMotion(anchor,0,2900,true)]){
-  for(const foot of [motion.footL,motion.footR]){
-   const leg=characterLegPose(foot);
-   assert.ok(leg.knee[1]<leg.hip[1]&&leg.knee[1]>leg.ankle[1]);
-   assert.ok(Math.abs(leg.thigh.length-.359)<.002);
-   assert.ok(Math.abs(leg.shin.length-.359)<.002);
-   assert.ok(leg.shoe[1]-CHARACTER_SCALES.shoeL[1]>=0,'feet cannot sink below the model floor');
-  }
- }
-});
-
-test('walk endpoints remain within IFC triangles and limit corridor speed',()=>{
- const start=[0,60,0],end=[8,60,5];
- const result=boundWalkSegment(start,end);
- const distance=Math.hypot(result.end[0]-result.start[0],result.end[2]-result.start[2]);
- assert.ok(distance<=1.1000001);
- assert.ok(result.end[0]>=start[0]&&result.end[0]<=end[0]);
- assert.ok(result.end[2]>=start[2]&&result.end[2]<=end[2]);
+test('room-safe walking endpoints cap distance without leaving IFC triangle',()=>{
+ const long=boundWalkSegment([0,60,0],[8,60,5]);
+ const length=Math.hypot(long.end[0]-long.start[0],long.end[2]-long.start[2]);
+ assert.ok(length<=1.100001);
+ assert.ok(long.end[0]>=0&&long.end[0]<=8&&long.end[2]>=0&&long.end[2]<=5);
  assert.deepEqual(boundWalkSegment([0,60,0],[.5,60,.1]),{start:[0,60,0],end:[.5,60,.1]});
 });
