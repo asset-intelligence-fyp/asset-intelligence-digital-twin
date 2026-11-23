@@ -68,3 +68,35 @@ GitHub Actions runs Python syntax, causal data isolation tests, frontend build, 
 - Historical rule alerts are not verified maintenance incidents.
 - The current forecast is one month-ahead *point* prediction, not a full month-long time series.
 - Evaluate blind anomaly precision/recall and one-month forecast MAE/WAPE independently before accuracy claims.
+
+
+## Troubleshooting: AI shows "Local model unavailable" or "No observations"
+
+These are two independent conditions.
+
+**No observations despite 18/18 reporting:** In the initial integration, PostgreSQL timestamps were JavaScript Date objects, but the AI route filtered for strings only. The later fix normalizes database dates to ISO strings and maintains a bounded mirror of committed current-run sensor batches. Pull the latest commit, **stop the existing npm run dev process**, and restart it; hot-reloading the frontend alone does not replace the backend process.
+
+**Local model unavailable:** The "18/18" badge reports sensor transport, not Qwen. On the Mac:
+
+~~~bash
+ollama list
+curl http://127.0.0.1:11434/api/tags
+curl http://127.0.0.1:8011/health
+curl http://127.0.0.1:3001/api/assistant/health
+~~~
+
+- If the first HTTP check fails, start the Ollama application or run ollama serve in a **separate Terminal window**. Do not run a second server if Ollama is already listening.
+- If qwen3:1.7b is absent from the tags response, run ollama pull qwen3:1.7b.
+- If the bridge check on 8011 fails, inspect the Terminal running npm run dev for Python startup or port-conflict errors.
+- If the Node AI health response reports connected=false, read its error field. The interface now shows this error and offers a Recheck AI connection button.
+
+Pull the corrected branch on the test Mac:
+
+~~~bash
+git status
+git switch feature/agentic-context-forecast-demo-20261123
+git pull --ff-only origin feature/agentic-context-forecast-demo-20261123
+npm run dev
+~~~
+
+Keep one dev process running. The simulator must deliver a fresh batch after a Node restart for the in-memory stream mirror to be populated. The mirrored data is always from accepted server-side batches and contains neither injection instructions nor ground-truth fault labels.
