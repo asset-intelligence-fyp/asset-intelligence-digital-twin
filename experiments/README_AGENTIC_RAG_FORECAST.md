@@ -55,9 +55,10 @@ If your worktree has uncommitted modifications, do not force-checkout or reset; 
 ~~~bash
 python3 -m unittest discover -s experiments -p 'test_agentic_rag_forecast.py' -v
 python3 experiments/agentic_rag_forecast.py preview --mode analogue --limit-cases 1
+python3 experiments/agentic_rag_forecast.py score-retrieval
 ~~~
 
-Preview prints ONLY pre-cutoff historical and known future planning evidence. It does not call Ollama and does not open hidden January truth.
+Preview prints ONLY pre-cutoff historical and known future planning evidence; it does not call Ollama or open hidden January truth. The separate score-retrieval command intentionally opens hidden January labels ONLY to calculate genuine numerical DTW-analogue baseline accuracy (without Qwen).
 
 ## Smoke test (3 cases per arm)
 
@@ -90,6 +91,7 @@ All new results live in the gitignored research directory:
 experiments/outputs/jan2026/agentic_rag/
 
 - predictions_structured_qwen3_1_7b.jsonl (also analogue and agentic; and 4B variants)
+- summary_retrieval_only.json: genuine numerical DTW analogue-only MAE against historical baselines
 - summary_ARM_MODEL.json: accuracy, case validity, latency, tool counts and citation validity
 - scores_ARM_MODEL.csv: per-case predictions, actual held-out results and the same baselines
 - comparison_MODEL.json: original A plus the completed B/C/D arms
