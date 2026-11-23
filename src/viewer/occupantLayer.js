@@ -69,7 +69,9 @@ export function createOccupantLayer(scene,navigation,footprints,points){
     const [a,b,c]=triangle;
     const area=Math.abs((b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]))*.5;
     if(area<.14)continue;
-    const start=a.map((v,n)=>(v+b[n]+c[n])/3);
+    // Wider but still strictly convex IFC-triangle paths make the walking
+    // legible, without placing figures outside the room's supplied geometry.
+    const start=a.map((v,n)=>v*.56+b[n]*.22+c[n]*.22);
     const end=a.map((v,n)=>v*.22+b[n]*.39+c[n]*.39);
     candidates.push({start,end,area});
    }
