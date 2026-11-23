@@ -17,7 +17,7 @@ export function busyDaytimeClock(simulationTimestamp){
  const hour=Number(match[2]);
  return hour<9||hour>=17?match[1]+'T10:00:00+08:00':null;
 }
-export function presetPatch(kind,current={},simulationTimestamp=null){
+export function presetPatch(kind,current={},simulationTimestamp=''){
  switch(kind){
   case 'normal':return {weather_mode:'auto',calendar_mode:'auto',attendance_factor:1,ac_mode:'auto',setpoint_c:24,ventilation:1,step_seconds:current.step_seconds??5,paused:false,fault:{kind:'none'}};
   case 'rain':return {weather_mode:'rain',paused:false,fault:{kind:'none'}};
