@@ -15,6 +15,7 @@ import {CommandPalette} from './components/ExperiencePanel';
 import {Presentation} from './pages/Presentation';
 import {AdminLogin,useAdminSession} from './pages/AdminDatabase';
 import {AdminWorkspace} from './pages/AdminWorkspace';
+import {Announcements} from './pages/Announcements';
 import './styles.css';
 import './control-room.css';
 import './workspace.css';
@@ -42,6 +43,7 @@ function App(){
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
  return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.role==='admin'} accountAuthenticated={session.authenticated} accountRole={session.role} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
   {page==='database'&&session.role==='admin'&&<AdminWorkspace/>}
+  {page==='announcements'&&<Announcements/>}
   {page==='overview'&&<Overview investigationId={investigationId} onDismissInvestigation={()=>setInvestigationId(null)} onEvent={openEvent} externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='sensors'&&<Sensors initialCode={selectedCode}/>}
