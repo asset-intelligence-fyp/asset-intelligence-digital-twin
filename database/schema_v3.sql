@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS digital_twin.users (
  username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE,
  password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE digital_twin.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
 -- Admin credentials are verified against digital_twin.users using the stored scrypt hash.
 
 CREATE TABLE IF NOT EXISTS digital_twin.ai_results (
