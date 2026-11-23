@@ -52,8 +52,11 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
     // The heat layer supplies the floor colour. IFC slabs must not remain
     // opaque grey/black rectangles over (or under) that colour texture.
     // Keep original geometry pickable; only its presentation is subdued.
-    scene.setObjectsXRayed(slabIds,true);
-    scene.setObjectsOpacity(slabIds,.06);
+    // Hide the underlying IFC slabs entirely while the heatmap supplies
+    // floor colour. Even 6% X-ray slab opacity was rendering as visible
+    // grey/white rectangles in the user's screenshots.
+    scene.setObjectsVisible(slabIds,false);
+    scene.setObjectsXRayed(slabIds,false);
     scene.setObjectsColorized(slabIds,null);
     scene.setObjectsEdges(slabIds,false);
    }else{
