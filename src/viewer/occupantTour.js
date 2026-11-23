@@ -39,7 +39,7 @@ export function makeTourPlan(bounds,levels,roomFootprints=null){
     // Both positions are strictly convex combinations of source triangle
     // vertices, so walking remains inside the supplied IFC room footprint.
     const p=(weights)=>[0,1,2].map(axis=>a[axis]*weights[0]+b[axis]*weights[1]+c[axis]*weights[2]);
-    const start=p([.34,.33,.33]),end=p([.25,.36,.39]);
+    const start=p([.54,.23,.23]),end=p([.22,.39,.39]);
     start[1]+=.16;end[1]+=.16;
     candidates.push({start,end,area,source:'ifc-room'});
    }
