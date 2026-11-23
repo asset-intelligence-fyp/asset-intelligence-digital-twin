@@ -1,5 +1,5 @@
 import {randomBytes,createHash,scryptSync} from 'node:crypto';
-import {requireAdmin} from './adminAuth.js';
+import {requireAdmin,requireConfirmedAdmin} from './adminAuth.js';
 import {registry} from './sensorContract.js';
 import {sendInvitationEmail,emailConfigured} from './invitationEmail.js';
 
@@ -42,7 +42,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    ORDER BY r.location_code,r.point_code LIMIT 1000`);
   res.json({rows:data.rows.map(r=>({...r,model_bound:fixed.has(r.point_code)}))});
  }));
- app.post('/api/admin/manage/sensors',requireAdmin,safe(async(req,res)=>{
+ app.post('/api/admin/manage/sensors',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const b=req.body||{},point_code=clean(b.point_code,80),location_code=clean(b.location_code,80);
   const measurement_type=clean(b.measurement_type,60),unit=clean(b.unit,24);
@@ -62,7 +62,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   });
   res.status(201).json({ok:true,note:'Database sensor created. It is not in the fixed simulator or XKT model until both are updated.'});
  }));
- app.patch('/api/admin/manage/sensors/:code',requireAdmin,safe(async(req,res)=>{
+ app.patch('/api/admin/manage/sensors/:code',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const code=req.params.code,b=req.body||{};
   const allowed=['location_code','measurement_type','unit'];
@@ -86,7 +86,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(!changed)return res.status(404).json({error:'Sensor or target location not found.'});
   res.json({ok:true,note:fixed.has(code)?'Metadata updated. Built-in viewer/simulator mappings still come from code files.':'Sensor metadata updated.'});
  }));
- app.delete('/api/admin/manage/sensors/:code',requireAdmin,safe(async(req,res)=>{
+ app.delete('/api/admin/manage/sensors/:code',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const code=req.params.code;
   if(fixed.has(code))return res.status(409).json({error:'Built-in sensors cannot be removed here; this would desynchronise the fixed BIM and simulator.'});
@@ -108,7 +108,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(result==='referenced')return res.status(409).json({error:'Cannot remove a sensor with readings, AI results, alerts or maintenance records. Historical data is preserved.'});
   res.json({ok:true});
  }));
- app.patch('/api/admin/manage/locations/:code',requireAdmin,safe(async(req,res)=>{
+ app.patch('/api/admin/manage/locations/:code',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const display_name=clean(req.body?.display_name,120),code=req.params.code;
   if(!display_name)return res.status(400).json({error:'Location name is required.'});
@@ -129,7 +129,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   ]);
   res.json({users:users.rows,invites:invites.rows,audit:auditRows.rows});
  }));
- app.post('/api/admin/manage/invites',requireAdmin,safe(async(req,res)=>{
+ app.post('/api/admin/manage/invites',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const email=clean(req.body?.email,254).toLowerCase();
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return res.status(400).json({error:'Enter a valid email address.'});
@@ -148,7 +148,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
 
   res.status(201).json({...result,code,email,role:'viewer',emailSent:delivery.sent,deliveryMessage:delivery.sent?'Invitation accepted by email provider.':delivery.reason});
  }));
- app.post('/api/admin/manage/invites/:id/revoke',requireAdmin,safe(async(req,res)=>{
+ app.post('/api/admin/manage/invites/:id/revoke',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const id=Number(req.params.id);
   if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Invalid invitation ID.'});
@@ -160,7 +160,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(!rows)return res.status(404).json({error:'Invitation was already used or does not exist.'});
   res.json({ok:true});
  }));
- app.post('/api/admin/manage/users/:id/role',requireAdmin,safe(async(req,res)=>{
+ app.post('/api/admin/manage/users/:id/role',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const id=Number(req.params.id),role=clean(req.body?.role,30);
   if(!Number.isSafeInteger(id)||!['viewer','admin'].includes(role))return res.status(400).json({error:'Invalid account or role.'});
@@ -179,7 +179,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(result!=='ok')return res.status(result==='missing'?404:409).json({error:result==='self'?'You cannot change your own role.':result==='last'?'Cannot remove the last administrator.':'User not found.'});
   res.json({ok:true});
  }));
- app.post('/api/admin/manage/users/:id/active',requireAdmin,safe(async(req,res)=>{
+ app.post('/api/admin/manage/users/:id/active',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const id=Number(req.params.id),active=req.body?.is_active;
   if(!Number.isSafeInteger(id)||id<1||typeof active!=='boolean')return res.status(400).json({error:'Invalid user or activation state.'});
@@ -210,7 +210,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
     ORDER BY m.event_date DESC,m.maintenance_id DESC LIMIT 250`);
   res.json({rows:r.rows});
  }));
- app.post('/api/admin/manage/maintenance',requireAdmin,safe(async(req,res)=>{
+ app.post('/api/admin/manage/maintenance',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const b=req.body||{},location_code=clean(b.location_code,80),
    point_code=clean(b.point_code,80),event_type=clean(b.event_type,80),description=clean(b.description,1000),
@@ -227,7 +227,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(!result)return res.status(400).json({error:'The selected sensor does not belong to that location.'});
   res.status(201).json({ok:true,id:result.maintenance_id});
  }));
- app.patch('/api/admin/manage/maintenance/:id',requireAdmin,safe(async(req,res)=>{
+ app.patch('/api/admin/manage/maintenance/:id',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const id=Number(req.params.id),status=clean(req.body?.maintenance_status,30);
   if(!Number.isSafeInteger(id)||!['Scheduled','In Progress','Completed','Cancelled'].includes(status))return res.status(400).json({error:'Invalid maintenance ID or status.'});
