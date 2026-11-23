@@ -1,0 +1,14 @@
+/* Dedicated TwinLabs authentication screen; existing account forms are reused unchanged. */
+.twin-login-page{
+ min-height:100dvh;display:flex;flex-direction:column;align-items:center;
+ justify-content:center;gap:18px;padding:32px 18px;
+ background:var(--bg);color:var(--ink);
+}
+.twin-login-brand{text-align:center;display:grid;justify-items:center;gap:7px}
+.twin-login-brand h1{font-size:27px;letter-spacing:-.7px;margin:0}
+.twin-login-brand p{font-size:12px;color:var(--muted);margin:0}
+.twin-login-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:13px;background:var(--teal);color:white;font-weight:750;font-size:21px}
+.twin-login-page .admin-login{width:min(100%,470px);margin:0;padding:0;background:transparent;min-height:0;position:static}
+.twin-login-page .admin-login-card{width:100%;max-width:none;box-shadow:0 14px 44px rgba(0,0,0,.08)}
+.twin-login-footer{text-align:center;max-width:390px;font-size:11px;color:var(--muted)}
+.twin-login-loading{padding:18px;font-size:13px;color:var(--muted)}
