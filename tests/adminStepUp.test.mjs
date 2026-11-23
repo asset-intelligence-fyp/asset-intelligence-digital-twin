@@ -33,10 +33,26 @@ test('write operations require fresh administrator password even with login sess
   const invalid=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password:'incorrect'})});
   assert.equal(invalid.status,401);
   assert.equal((await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers,body:'{}'})).status,428);
-  const confirmed=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password})});
+  const action={method:'PATCH',path:'/api/admin/manage/example',body:{name:'new'}};
+  const confirmed=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password,action})});
   assert.equal(confirmed.status,200);
-  const permitted=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers,body:'{}'});
+  const {authorization}=await confirmed.json();
+  assert.match(authorization,/^[a-f0-9]{64}$/);
+  const withToken={...headers,'X-Admin-Confirmation':authorization};
+  const wrongBody=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers:withToken,body:JSON.stringify({name:'different'})});
+  assert.equal(wrongBody.status,428);
+  assert.equal(writes,0);
+  const reusedWrong=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers:withToken,body:JSON.stringify(action.body)});
+  assert.equal(reusedWrong.status,428);
+  const confirmAgain=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password,action})});
+  const tokenAgain=(await confirmAgain.json()).authorization;
+  const confirmedHeaders={...headers,'X-Admin-Confirmation':tokenAgain};
+  const permitted=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers:confirmedHeaders,body:JSON.stringify(action.body)});
   assert.equal(permitted.status,200);assert.equal(writes,1);
+  const replay=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers:confirmedHeaders,body:JSON.stringify(action.body)});
+  assert.equal(replay.status,428);assert.equal(writes,1);
+  const anotherWithoutPassword=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers,body:JSON.stringify(action.body)});
+  assert.equal(anotherWithoutPassword.status,428);
  }finally{
   server.closeAllConnections();await new Promise(resolve=>server.close(resolve));
  }
