@@ -147,7 +147,7 @@ export function heatmapVertexColours(positions,samples,metric){
  * Fallback bounds are only used when the BIM does not expose slab objects;
  * those areas are explicitly estimates, not measured geometry.
  */
-export function buildFloorHeatmapGrid(slabAabbs,elevation,{cellSize=1.7,offset=.46}={}){
+export function buildFloorHeatmapGrid(slabAabbs,elevation,{cellSize=1.7,offset=.20}={}){
  const boxes=(slabAabbs||[]).filter(b=>Array.isArray(b)&&b.length===6&&b.every(Number.isFinite)&&b[3]-b[0]>.35&&b[5]-b[2]>.35);
  if(!boxes.length||!Number.isFinite(elevation))return {positions:[],normals:[],indices:[],cellCount:0,bounds:null};
  const minX=Math.min(...boxes.map(b=>b[0])),maxX=Math.max(...boxes.map(b=>b[3]));
@@ -155,9 +155,9 @@ export function buildFloorHeatmapGrid(slabAabbs,elevation,{cellSize=1.7,offset=.
  const nx=Math.max(6,Math.min(84,Math.ceil((maxX-minX)/cellSize)));
  const nz=Math.max(6,Math.min(84,Math.ceil((maxZ-minZ)/cellSize)));
  const dx=(maxX-minX)/nx,dz=(maxZ-minZ)/nz;
- const y=elevation+offset,positions=[],normals=[],indices=[];
+ const y=elevation+offset,positions=[],normals=[],uv=[],indices=[];
  for(let iz=0;iz<=nz;iz++)for(let ix=0;ix<=nx;ix++){
-  positions.push(minX+ix*dx,y,minZ+iz*dz);normals.push(0,1,0);
+  positions.push(minX+ix*dx,y,minZ+iz*dz);normals.push(0,1,0);uv.push(ix/nx,iz/nz);
  }
  const row=nx+1;
  for(let iz=0;iz<nz;iz++)for(let ix=0;ix<nx;ix++){
@@ -167,7 +167,7 @@ export function buildFloorHeatmapGrid(slabAabbs,elevation,{cellSize=1.7,offset=.
   // Winding gives an upward normal for X/Z surfaces.
   indices.push(a,c,b,b,c,d);
  }
- return {positions,normals,indices,cellCount:indices.length/6,bounds:[minX,y,minZ,maxX,y,maxZ]};
+ return {positions,normals,uv,indices,cellCount:indices.length/6,bounds:[minX,y,minZ,maxX,y,maxZ]};
 }
 
 /**
@@ -196,4 +196,49 @@ export function wholeFloorVertexColours(positions,samples,{noDataAlpha=.45,alpha
   const [r,g,b]=heatmapColour(score);colours.push(r,g,b,alpha);
  }
  return colours;
+}
+
+/**
+ * Clip broad slab AABBs to the envelope defined by actual walls, windows
+ * and structural elements on the same storey. Some exported "IfcSlab"
+ * objects cover foundations or other exterior areas: those must not produce
+ * oversized panels outside the building.
+ */
+export function trimSlabsToEnvelope(slabs,enclosures,padding=1.0){
+ const valid=b=>Array.isArray(b)&&b.length===6&&b.every(Number.isFinite)
+  &&b[3]-b[0]>.1&&b[5]-b[2]>.1;
+ const validSlabs=(slabs||[]).filter(valid);
+ const envelope=(enclosures||[]).filter(valid);
+ if(!envelope.length)return validSlabs.map(box=>[...box]);
+ const minX=Math.min(...envelope.map(b=>b[0]))-padding;
+ const maxX=Math.max(...envelope.map(b=>b[3]))+padding;
+ const minZ=Math.min(...envelope.map(b=>b[2]))-padding;
+ const maxZ=Math.max(...envelope.map(b=>b[5]))+padding;
+ return validSlabs.map(box=>[
+  Math.max(box[0],minX),box[1],Math.max(box[2],minZ),
+  Math.min(box[3],maxX),box[4],Math.min(box[5],maxZ)
+ ]).filter(valid);
+}
+
+/**
+ * Turn the floor-local IDW field into a browser-independent RGBA bitmap.
+ * Each raster pixel is a colour of an estimated location, not a measurement.
+ * The GPU then bilinearly samples this texture across the complete slab.
+ */
+export function floorHeatmapPixels(bounds,samples,width=128,height=128){
+ if(!bounds||bounds.length!==6||width<1||height<1)throw Error('Invalid heatmap raster');
+ const [minX,,minZ,maxX,,maxZ]=bounds,bytes=new Uint8ClampedArray(width*height*4);
+ for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+  const wx=minX+(x+.5)/width*(maxX-minX);
+  // WebGL texture coordinates originate at bottom left; canvas rows at top.
+  const wz=maxZ-(y+.5)/height*(maxZ-minZ);
+  const score=interpolateWholeFloor(wx,wz,samples);
+  const [r,g,b]=score===null?[.54,.59,.64]:heatmapColour(score);
+  const offset=(y*width+x)*4;
+  bytes[offset]=Math.round(r*255);
+  bytes[offset+1]=Math.round(g*255);
+  bytes[offset+2]=Math.round(b*255);
+  bytes[offset+3]=255;
+ }
+ return bytes;
 }
