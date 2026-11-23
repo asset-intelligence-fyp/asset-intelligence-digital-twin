@@ -1,5 +1,3 @@
-import definitions from '../../shared/sensorDefinitions.json';
-
 /**
  * Heatmap scores are for a visual demo, not calibrated comfort predictions.
  * Composite condition blends only types with configured rule thresholds.
@@ -26,36 +24,35 @@ export function heatmapColour(value){
 /** 0=within demo band, 1=outside configured alert range.
  * Unthresholded metrics are labelled as intensities rather than fault risk.
  */
-export function heatmapScore(metric,value){
+export function heatmapScore(metric,value,limits={}){
  if(!Number.isFinite(value))return null;
  if(metric==='temperature'){
-  if(value<22)return .08+.92*ramp(22-value,0,6);
+  if(value<22)return .08+.92*ramp(22-value,0,22-(limits.low??16));
   if(value<=27)return 0;
-  if(value<=30)return .08+.92*ramp(value,27,30);
+  if(value<=(limits.high??30))return .08+.92*ramp(value,27,limits.high??30);
   return 1;
  }
  if(metric==='humidity'){
-  if(value<40)return .08+.92*ramp(40-value,0,15);
+  if(value<40)return .08+.92*ramp(40-value,0,40-(limits.low??25));
   if(value<=65)return 0;
-  if(value<=75)return .08+.92*ramp(value,65,75);
+  if(value<=(limits.high??75))return .08+.92*ramp(value,65,limits.high??75);
   return 1;
  }
- if(metric==='co2')return value<=800?0:ramp(value,800,1200);
+ if(metric==='co2')return value<=800?0:ramp(value,800,limits.high??1200);
  if(metric==='water_leakage'||metric==='occupancy')return value>=.5?1:0;
- if(metric==='power')return value<=3?0:ramp(value,3,8);
+ if(metric==='power')return value<=3?0:ramp(value,3,limits.high??8);
  if(metric==='light')return ramp(value,0,800);
- const def=definitions[metric];
- if(def?.high!==undefined)return ramp(value,def.high*.7,def.high);
+ if(limits.high!==undefined)return ramp(value,limits.high*.7,limits.high);
  return null;
 }
-export function heatmapSamples(points,navigationSensors,readings,metric){
+export function heatmapSamples(points,navigationSensors,readings,metric,definitions={}){
  const byGuid=new Map(navigationSensors.map(n=>[n.guid,n]));
  const samples=[];
  for(const point of points){
   if(metric==='status'?!STATUS_METRICS.has(point.sensorType):point.sensorType!==metric)continue;
   const reading=readings?.[point.code],sensor=byGuid.get(point.guid);
   if(!sensor||!reading||reading.quality==='missing'||!Number.isFinite(reading.value))continue;
-  const score=heatmapScore(point.sensorType,reading.value);
+  const score=heatmapScore(point.sensorType,reading.value,definitions[point.sensorType]);
   if(score===null)continue;
   samples.push({code:point.code,guid:point.guid,room:point.roomGuid||null,
    floor:point.floor,x:sensor.position[0],z:sensor.position[2],score});
