@@ -85,5 +85,22 @@ class TestAgenticTwin(unittest.TestCase):
         self.assertEqual(out["status"],"unavailable")
         self.assertNotIn("projected_value",out)
 
+
+    def test_qwen4b_forecast_model_is_recorded_separately(self):
+        projected={"projected_value":24.5,"lower_scenario":22.2,"upper_scenario":26.2,
+                   "direction":"stable","explanation":"Exploratory estimate",
+                   "assumptions":["Similar occupancy"]}
+        with patch.object(a,"_llm",return_value=object()) as llm, \
+             patch.object(a,"ask_json",return_value=projected), \
+             patch.object(a,"resolve_history_path",return_value=""):
+            out=a.forecast_one_month(req(),{"model":"qwen3:4b"})
+        self.assertEqual(out["model"],"qwen3:4b")
+        self.assertEqual(out["horizon_months"],1)
+        llm.assert_called_once_with({"model":"qwen3:4b"})
+
+    def test_unapproved_forecast_model_is_rejected(self):
+        with self.assertRaisesRegex(ValueError,"Only Qwen3"):
+            a._llm({"model":"unknown:model"})
+
 if __name__ == "__main__":
     unittest.main()
