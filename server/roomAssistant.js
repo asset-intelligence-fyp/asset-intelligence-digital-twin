@@ -20,7 +20,7 @@ function replyError(res,status,message) { return res.status(status).json({error:
 function validCutoff(value) {
  return typeof value==='string' && /(?:Z|[+-]\d\d:\d\d)$/.test(value) && Number.isFinite(Date.parse(value));
 }
-export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluationPath=new URL('../reports/llm_one_month_eval/summary.json',import.meta.url)}={}) {
+export function registerRoomAssistant(app,{getHistory,getSource=()=>null,getAlerts=async()=>[],fetchImpl=fetch,evaluationPath=new URL('../reports/llm_one_month_eval/summary.json',import.meta.url)}={}) {
  const allowed = (req,res,next) => {
   if (!LOOPBACK.has(req.socket?.remoteAddress)) return replyError(res,403,'Room AI is available only on this computer');
   const origin = req.headers?.origin;
@@ -51,6 +51,7 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluation
              historical_reference_available:!!h.normal_history_database_ready,
              history_status:h.history_status||'unavailable',
              prediction_supported:true, prediction_horizons_months:[1],
+             agentic_supported:!!h.agentic_supported, agentic_note:h.agentic_note,
              error:available?null:'Run ollama pull '+model});
   }catch(e){res.json({connected:false,model,prompt:'concise',retrieval:'validated',validation_mode:'hybrid_semantic',error:'Start the Python bridge and Ollama: '+e.message});}
  });
@@ -90,6 +91,42 @@ export function registerRoomAssistant(app,{getHistory,fetchImpl=fetch,evaluation
    const data=await response.json();
    res.status(response.status).json(data);
   }catch(e){replyError(res,503,'Room AI unavailable: '+e.message+'. Check your Python bridge/Ollama terminals.');}
+ });
+
+ // Separate, read-only contextual Agentic RAG + exploratory one-month forecast.
+ // Never use ground-truth fault annotations, injection settings or unrestricted SQL.
+ app.post('/api/assistant/agentic/:task',allowed,async(req,res)=>{
+  try{
+   const task=req.params.task;
+   if(!['investigate','forecast'].includes(task))return replyError(res,404,'Unknown Agentic RAG task');
+   const {room_id,sensor_id,question='',source,as_of,snapshot}=req.body||{};
+   const points=registry.filter(p=>p.assetId===room_id);
+   if(!points.length)return replyError(res,400,'Unknown monitoring location');
+   const point=points.find(p=>p.code===sensor_id);
+   if(!point)return replyError(res,400,'Select a registered sensor in this location');
+   if(task==='forecast'&&!PREDICTABLE.has(point.sensorType)&&!['power','light'].includes(point.sensorType))
+    return replyError(res,400,'One-month projections require numeric environmental sensors');
+   if(!SOURCES.has(source))return replyError(res,400,'Unknown observation source');
+   if(!validCutoff(as_of))return replyError(res,400,'Observation time requires a timezone offset');
+   if(typeof question!=='string'||question.length>900)return replyError(res,400,'Question must be at most 900 characters');
+   const cutoff=Date.parse(as_of),codes=new Set(points.map(p=>p.code));
+   const raw=source==='http'?await getHistory(points.map(p=>p.code)):snapshot;
+   if(!Array.isArray(raw)||raw.length>18000)return replyError(res,400,'Invalid sensor history');
+   const history=raw.filter(r=>r&&codes.has(r.point_code)&&typeof r.value==='number'&&Number.isFinite(r.value)&&
+      typeof r.timestamp==='string'&&Number.isFinite(Date.parse(r.timestamp))&&Date.parse(r.timestamp)<=cutoff);
+   if(!history.some(r=>r.point_code===sensor_id))return replyError(res,400,'No observations for selected sensor; start the simulator first');
+   const past=task==='investigate'&&source==='http'?await getAlerts():[];
+   const incidents=Array.isArray(past)?past.filter(a=>a&&codes.has(a.point_code)&&
+       typeof a.time==='string'&&Date.parse(a.time)<=cutoff).slice(0,30).map(a=>({
+         point_code:a.point_code,time:a.time,title:a.title,level:a.level,description:a.description,resolved_at:a.resolved_at
+       })):[];
+   const response=await fetchImpl(bridge()+(task==='forecast'?'/agentic-forecast':'/agentic-investigate'),{
+    method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(180000),
+    body:JSON.stringify({config:config(),request:{room_id:point.simulatorRoomId,sensor_id,question:question.trim(),
+      source,as_of,points,history,simulation:source==='http'?getSource():null,incidents}})
+   });
+   const data=await response.json();res.status(response.status).json(data);
+  }catch(e){replyError(res,503,'Agentic investigation unavailable: '+e.message+'. Check Python bridge and Ollama.')}
  });
  // A separate LLM-only exploratory one-month projection. The backend provides observed
  // trend evidence, never a trained model or deterministic future-value estimator.
