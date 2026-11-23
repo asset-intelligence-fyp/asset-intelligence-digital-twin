@@ -31,7 +31,8 @@
     "host:lan": "node scripts/host-lan.mjs",
     "admin:db:setup": "node scripts/setup-db-admin.mjs",
     "test:admin:db": "node --test tests/adminDatabaseAuth.test.mjs",
-    "test:invitation-email": "node --test tests/invitationEmail.test.mjs"
+    "test:invitation-email": "node --test tests/invitationEmail.test.mjs",
+    "test:admin:step-up": "node --test tests/adminStepUp.test.mjs"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
