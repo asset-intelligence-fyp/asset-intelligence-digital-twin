@@ -30,26 +30,43 @@ function cookie(req, value, maxAge) {
   const secure = process.env.NODE_ENV === 'production' || req.secure;
   return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${maxAge}${secure?'; Secure':''}`;
 }
-export function adminAuth(app) {
-  app.post('/api/admin/login',(req,res)=>{
+export function adminAuth(app,pool=null,schema='digital_twin') {
+  app.post('/api/admin/login',async(req,res)=>{
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     const record = attempts.get(ip);
     if(record && record.until > now && record.count >= MAX_ATTEMPTS) return res.status(429).json({error:'Too many login attempts. Try again later.'});
-    const name = process.env.ADMIN_USERNAME;
-    const hash = process.env.ADMIN_PASSWORD_HASH;
-    if(!name || !/^scrypt:[a-f0-9]{32}:[a-f0-9]{128}$/.test(hash||'')) return res.status(503).json({error:'Admin login is not configured on this computer. Run npm run admin:setup, then restart npm run dev.'});
-    const valid = typeof req.body?.username === 'string' && req.body.username === name && verifyPassword(req.body?.password,hash);
-    if(!valid) {
-      const prev = record?.until > now ? record.count : 0;
+    if(!pool||schema!=='digital_twin')return res.status(503).json({error:'Admin login requires the configured digital_twin PostgreSQL database.'});
+    const username=req.body?.username;
+    const password=req.body?.password;
+    if(typeof username!=='string'||username.length>120||typeof password!=='string'||password.length>1024){
+      return res.status(400).json({error:'Invalid login request'});
+    }
+    let user;
+    try{
+      const result=await pool.query(`
+        SELECT u.user_id,u.username,u.password_hash
+        FROM digital_twin.users u
+        JOIN digital_twin.roles role ON role.role_id=u.role_id
+        WHERE u.username=$1 AND role.role_name='admin'
+        LIMIT 1
+      `,[username]);
+      user=result.rows[0];
+    }catch(error){
+      console.error('Admin authentication database unavailable:',error.message);
+      return res.status(503).json({error:'Admin database unavailable. Check PostgreSQL and digital_twin schema.'});
+    }
+    const valid=Boolean(user)&&verifyPassword(password,user.password_hash);
+    if(!valid){
+      const prev=record?.until>now?record.count:0;
       attempts.set(ip,{count:prev+1,until:now+WINDOW_MS});
       return res.status(401).json({error:'Invalid credentials'});
     }
     attempts.delete(ip);
     const token=randomBytes(32).toString('hex');
-    sessions.set(token,{username:name,expires:now+SESSION_MS});
+    sessions.set(token,{username:user.username,userId:user.user_id,expires:now+SESSION_MS});
     res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
-    return res.json({authenticated:true,username:name});
+    return res.json({authenticated:true,username:user.username});
   });
   app.get('/api/admin/session',(req,res)=>{
     res.setHeader('Cache-Control','no-store');
