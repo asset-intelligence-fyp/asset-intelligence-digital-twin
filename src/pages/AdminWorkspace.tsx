@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useState,type FormEvent} from 'react';
+import {useCallback,useEffect,useRef,useState,type FormEvent} from 'react';
 import {Database,Radio,MapPin,Users,RefreshCw,Plus,Trash2,Save,Copy,ShieldCheck} from 'lucide-react';
 import './adminWorkspace.css';
 
@@ -17,8 +17,14 @@ const datasets=[
  ['ai_results','AI results'],['forecasts','Forecasts'],['alerts','Alerts'],
  ['maintenance','Maintenance'],['notifications','Notifications']
 ];
-async function request(url:string,options?:RequestInit){
+let askForAdminPassword:(()=>Promise<boolean>)|null=null;
+async function request(url:string,options?:RequestInit,canConfirm=true){
  const r=await fetch(url,{credentials:'same-origin',cache:'no-store',...options});
+ if(r.status===428&&canConfirm&&askForAdminPassword&&options?.method&&options.method!=='GET'){
+  const verified=await askForAdminPassword();
+  if(!verified)throw Error('Change cancelled.');
+  return request(url,options,false);
+ }
  const data=await r.json().catch(()=>({error:'Invalid server response'}));
  if(!r.ok)throw Error(data.error||'Request failed ('+r.status+')');
  return data;
@@ -29,6 +35,30 @@ const brief=(x:unknown)=>{const s=value(x);return s.length>110?s.slice(0,107)+'�
 const baseSensor={point_code:'',location_code:'',measurement_type:'temperature',unit:'°C'};
 type SensorForm=typeof baseSensor;
 export function AdminWorkspace(){
+ const [confirmOpen,setConfirmOpen]=useState(false);
+ const [confirmPassword,setConfirmPassword]=useState('');
+ const [confirmError,setConfirmError]=useState('');
+ const [confirmBusy,setConfirmBusy]=useState(false);
+ const confirmResolver=useRef<((value:boolean)=>void)|null>(null);
+ useEffect(()=>{
+  askForAdminPassword=()=>new Promise<boolean>(resolve=>{
+   confirmResolver.current=resolve;
+   setConfirmPassword('');setConfirmError('');setConfirmOpen(true);
+  });
+  return ()=>{askForAdminPassword=null;confirmResolver.current?.(false);confirmResolver.current=null;};
+ },[]);
+ const closeConfirm=(accepted:boolean)=>{
+  setConfirmOpen(false);setConfirmPassword('');setConfirmError('');
+  confirmResolver.current?.(accepted);confirmResolver.current=null;
+ };
+ async function submitConfirm(e:FormEvent){
+  e.preventDefault();setConfirmBusy(true);setConfirmError('');
+  try{
+   await request('/api/admin/confirm-password',send('POST',{password:confirmPassword}),false);
+   closeConfirm(true);
+  }catch(err){setConfirmError(err instanceof Error?err.message:String(err))}
+  finally{setConfirmBusy(false)}
+ }
  const [tab,setTab]=useState<Tab>('overview'),[overview,setOverview]=useState<Overview|null>(null);
  const [sensors,setSensors]=useState<Rec[]>([]),[users,setUsers]=useState<Rec[]>([]),[invites,setInvites]=useState<Rec[]>([]),[audit,setAudit]=useState<Rec[]>([]);
  const [busy,setBusy]=useState(false),[message,setMessage]=useState(''),[error,setError]=useState('');
@@ -122,5 +152,15 @@ export function AdminWorkspace(){
   {tab==='data'&&<div className="aw-content"><div className="aw-toolbar"><label className="aw-select-label">Table<select value={datasetName} onChange={e=>{setDatasetName(e.target.value);setOffset(0);setDataSearch('')}}>{datasets.map(([k,n])=><option key={k} value={k}>{n}</option>)}</select></label>{['buildings','locations','sensors'].includes(datasetName)&&<input aria-label="Search table" placeholder="Search records" value={dataSearch} onChange={e=>{setDataSearch(e.target.value);setOffset(0)}}/>}</div>
   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>{datasets.find(x=>x[0]===datasetName)?.[1]}</h2><span>{dataset?.rows.length||0} rows on page</span></div><div className="aw-table-scroll"><table><thead><tr>{Object.keys(dataset?.rows[0]||{}).map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset?.rows.map((r,i)=><tr key={i}>{Object.keys(dataset.rows[0]||{}).map(k=><td title={value(r[k])} key={k}>{brief(r[k])}</td>)}</tr>)}</tbody></table>{!dataset?.rows.length&&<p className="aw-empty">No records.</p>}</div></div>
   <div className="aw-pagination"><span>Offset {offset}</span><button disabled={offset===0||busy} onClick={()=>setOffset(Math.max(0,offset-100))}>Previous</button><button disabled={!dataset||dataset.rows.length<100||busy} onClick={()=>setOffset(offset+100)}>Next</button></div></div>}
- </div></section>;
+ </div>
+  {confirmOpen&&<div className="aw-confirm-backdrop" role="presentation">
+   <form className="aw-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="aw-confirm-title" onSubmit={e=>void submitConfirm(e)}>
+    <h2 id="aw-confirm-title">Confirm administrator password</h2>
+    <p>To protect TwinLabs data, confirm your admin password before saving changes. Confirmation remains valid for five minutes.</p>
+    <label>Admin password<input autoFocus required type="password" autoComplete="current-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)}/></label>
+    {confirmError&&<p role="alert" className="aw-confirm-error">{confirmError}</p>}
+    <div className="aw-actions"><button type="button" disabled={confirmBusy} onClick={()=>closeConfirm(false)}>Cancel</button><button className="aw-primary" disabled={confirmBusy} type="submit">{confirmBusy?'Verifying…':'Confirm & continue'}</button></div>
+   </form>
+  </div>}
+ </section>;
 }
