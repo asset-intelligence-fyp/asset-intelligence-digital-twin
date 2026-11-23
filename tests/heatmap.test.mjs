@@ -4,7 +4,8 @@ import {readFileSync} from 'node:fs';
 import {
  HEATMAP_STOPS,heatmapColour,heatmapScore,heatmapSamples,
  interpolateHeatmap,subdivideFootprint,sensorVicinity,heatmapVertexColours,
- buildFloorHeatmapGrid,interpolateWholeFloor,wholeFloorVertexColours
+ buildFloorHeatmapGrid,interpolateWholeFloor,wholeFloorVertexColours,
+ trimSlabsToEnvelope,floorHeatmapPixels
 } from '../src/viewer/heatmapField.js';
 const points=JSON.parse(readFileSync('shared/sensorRegistry.json','utf8'));
 const navigation=JSON.parse(readFileSync('shared/modelNavigation.json','utf8'));
@@ -106,8 +107,10 @@ test('full-floor grid spans actual slab bounds instead of sensor-centred circles
  assert.ok(grid.cellCount>800,'the heatmap must cover the entire large floor');
  assert.deepEqual([grid.bounds[0],grid.bounds[2],grid.bounds[3],grid.bounds[5]],[10,-50,90,-10]);
  assert.ok(grid.positions.every(Number.isFinite));
- assert.ok(grid.positions.filter((_,i)=>i%3===1).every(y=>Math.abs(y-60.16)<1e-8));
+ assert.ok(grid.positions.filter((_,i)=>i%3===1).every(y=>Math.abs(y-59.9)<1e-8));
  assert.equal(grid.indices.length,grid.cellCount*6);
+ assert.equal(grid.uv.length,grid.positions.length/3*2,'each floor vertex must have texture UVs');
+ assert.ok(grid.uv.every(v=>v>=0&&v<=1));
  // The union of two separated IFC slabs must not paint the gap as measured.
  const separate=buildFloorHeatmapGrid([[0,60,0,10,60.2,10],[20,60,0,30,60.2,10]],60);
  assert.ok(separate.cellCount>0);
@@ -146,4 +149,29 @@ test('unmonitored floor is neutral grey, not an invented healthy zone',()=>{
  const grid=buildFloorHeatmapGrid([[0,60,0,10,60.2,10]],60);
  const colors=wholeFloorVertexColours(grid.positions,[]);
  assert.ok(colors.every((v,i)=>i%4===3?v===.45:v>=.45&&v<=.56));
+});
+
+test('oversized exterior slab bounds are clipped to storey wall envelope',()=>{
+ const slabs=[[0,59.5,-100,100,60,-1],[250,59.5,-100,300,60,-1]];
+ const walls=[[38,59.7,-74,69,62.9,-44],[43,59.7,-77,64,63,-42]];
+ const trimmed=trimSlabsToEnvelope(slabs,walls,1.5);
+ assert.equal(trimmed.length,1,'discard disjoint exterior slabs');
+ assert.ok(trimmed[0][0]>=36.5&&trimmed[0][3]<=70.5);
+ assert.ok(trimmed[0][2]>=-78.5&&trimmed[0][5]<=-40.5);
+ assert.deepEqual(trimSlabsToEnvelope(slabs,[]),slabs);
+});
+
+test('browser texture pixel raster includes vivid green, yellow and red zones',()=>{
+ const floor=[0,60,0,20,60.2,8];
+ const samples=[{x:1,z:4,score:0},{x:19,z:4,score:1}];
+ const pixels=floorHeatmapPixels(floor,samples,80,24);
+ assert.equal(pixels.length,80*24*4);
+ const get=(x,y)=>Array.from(pixels.slice((y*80+x)*4,(y*80+x)*4+4));
+ const green=get(2,12),mid=get(40,12),red=get(77,12);
+ assert.ok(green[1]>green[0]*1.5,'green region should be visibly green');
+ assert.ok(mid[0]>130&&mid[1]>110,'middle should have a warm blend');
+ assert.ok(red[0]>red[1]*1.5,'red region should be visibly red');
+ assert.ok([green,mid,red].every(c=>c[3]===255),'RGBA texture source remains opaque; material controls transparency');
+ const empty=floorHeatmapPixels(floor,[],16,16);
+ assert.deepEqual(Array.from(empty.slice(0,4)),[138,150,163,255]);
 });
