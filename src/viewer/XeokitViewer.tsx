@@ -4,6 +4,7 @@ import {POINTS,useTwin} from '../services/twin';
 import sensorDefinitions from '../../shared/sensorDefinitions.json';
 import {sensorHealth} from './sensorHealth.js';
 import {useSimulationSource} from '../components/WeatherStation';
+import {observedScenario} from '../services/simulationControlView.js';
 import navigation from '../../shared/modelNavigation.json';
 import {createBuildingViewer} from './wholeBuildingViewer.js';
 import {ValueMotion} from '../components/ValueMotion';
@@ -22,7 +23,10 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
  const controller=useRef<ReturnType<typeof createBuildingViewer>|null>(null),callback=useRef(onSensorSelect);callback.current=onSensorSelect;
  const {readings,events,weather,weatherMotion,replayTime,demo}=useTwin();
  const simulationSource=useSimulationSource();
- const [showPeople,setShowPeople]=useState(false),[walkPeople,setWalkPeople]=useState(false);
+ // Preserve the original ui-fixes occupant display: the BIM normally shows
+ // available simulated people. Busy Building adds walking automatically.
+ const [showPeople,setShowPeople]=useState(true),[walkPeople,setWalkPeople]=useState(false);
+ const busyBuilding=observedScenario('busy',simulationSource);
  const [peopleMode,setPeopleMode]=useState<'sensor'|'tour'>('sensor');
  const switchPopulation=(next:'sensor'|'tour')=>{
   setPeopleMode(next);setShowPeople(true);
@@ -38,6 +42,23 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
  const activity=(code:string)=>sensorActivity(readings[code],{now:Math.max(activityTime,Date.now()),historical:replayTime!==null||demo});
  const health=(code:string)=>{const point=POINTS.find(p=>p.code===code);return point?sensorHealth(point,readings[code],replayTime!==null||demo?[]:events,sensorDefinitions,activity(code)):'unavailable'};
  const [view,setView]=useState<ViewState>(initial),[pins,setPins]=useState<Pin[]>([]),[error,setError]=useState(''),[showLabels,setShowLabels]=useState(true);
+ // Use the observed generator state, not the UI's queued preset command.
+ // Once Busy Building is confirmed, restore the sensor-linked figures and
+ // animate them. Switching away stops auto walking; the original manual
+ // People / Walking / Tour controls continue to work under BIM Options.
+ useEffect(()=>{
+  if(busyBuilding){
+   setPeopleMode('sensor');
+   setShowPeople(true);
+   setWalkPeople(true);
+   // The solid whole-building facade can conceal occupants. On entering
+   // the scenario, reveal the interior, without moving a selected floor.
+   if(view.ready&&view.floor==='all'&&view.mode==='solid')controller.current?.setMode('xray');
+  }else{
+   setWalkPeople(false);
+  }
+ },[busyBuilding,view.ready]);
+
  useEffect(()=>{
   if(!canvas.current||!nav.current)return;
   if(!canvas.current.getContext('webgl2')){setError('3D viewing needs WebGL 2. Enable browser graphics acceleration. Sensor readings remain available.');return;}
