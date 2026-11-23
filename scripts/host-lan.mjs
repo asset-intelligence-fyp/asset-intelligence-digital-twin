@@ -85,6 +85,7 @@ function run(command,args,description){
 try{
  if(!existsSync(resolve(root,'node_modules','vite')))run('npm',['ci'],'Installing project dependencies');
  run('node',['scripts/repair-alert-schema.mjs'],'Checking and repairing legacy alert schema (additive only)');
+ run('node',['scripts/repair-invitation-schema.mjs'],'Checking invitation email delivery schema');
  if(!adminExists){
   console.log('No database administrator found. Creating one securely (password shown once)...');
   run('node',['scripts/setup-db-admin.mjs'],'Initializing database-backed admin login');
