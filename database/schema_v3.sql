@@ -157,6 +157,8 @@ CREATE TABLE IF NOT EXISTS digital_twin.access_invites (
 );
 ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_status TEXT NOT NULL DEFAULT 'not_configured';
 ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS revoked_by TEXT;
 CREATE TABLE IF NOT EXISTS digital_twin.admin_audit (
  audit_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  actor TEXT NOT NULL,
