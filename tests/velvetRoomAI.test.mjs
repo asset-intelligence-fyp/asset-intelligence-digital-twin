@@ -45,7 +45,7 @@ test('Results remain grounded and do not silently turn synthetic AI outputs into
  assert.match(ui,/not a fault diagnosis/);
  assert.match(ui,/not a confirmed fault/i);
  assert.match(ui,/not calibrated confidence intervals/);
- assert.match(ui,/do not represent intermediate predictions/);
+ assert.match(ui,/does not represent intermediate predictions/);
  assert.match(ui,/forecast_model/);
  assert.match(ui,/Source|source/);
  assert.match(ui,/Historical replay/);
