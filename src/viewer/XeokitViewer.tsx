@@ -1,6 +1,8 @@
 import {useEffect,useId,useRef,useState,type CSSProperties} from 'react';
 import {ArrowLeft,ArrowRight,Box,Eye,Home,Layers,LocateFixed,Scan,Map,Plus,Minus,Palette,UsersRound,SlidersHorizontal,MoreHorizontal} from 'lucide-react';
 import {POINTS,useTwin} from '../services/twin';
+import sensorDefinitions from '../../shared/sensorDefinitions.json';
+import {sensorHealth} from './sensorHealth.js';
 import {useSimulationSource} from '../components/WeatherStation';
 import navigation from '../../shared/modelNavigation.json';
 import {createBuildingViewer} from './wholeBuildingViewer.js';
@@ -18,7 +20,7 @@ const floorLabel=(id:string)=>navigation.levels.find(l=>l.id===id)?.label||'Whol
 export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloorChange}:{selectedCode?:string;focusRequest?:number;onSensorSelect:(code:string)=>void;onFloorChange?:(floor:string)=>void}){
  const uid=useId().replace(/:/g,'');const canvas=useRef<HTMLCanvasElement>(null),nav=useRef<HTMLCanvasElement>(null),stage=useRef<HTMLDivElement>(null);
  const controller=useRef<ReturnType<typeof createBuildingViewer>|null>(null),callback=useRef(onSensorSelect);callback.current=onSensorSelect;
- const {readings,weather,weatherMotion,replayTime,demo}=useTwin();
+ const {readings,events,weather,weatherMotion,replayTime,demo}=useTwin();
  const simulationSource=useSimulationSource();
  const [showPeople,setShowPeople]=useState(false),[walkPeople,setWalkPeople]=useState(false);
  const [peopleMode,setPeopleMode]=useState<'sensor'|'tour'>('sensor');
@@ -34,6 +36,7 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
  const [activityTime,setActivityTime]=useState(Date.now),[sensorMotion,setSensorMotion]=useState(false);
  useEffect(()=>{const timer=setInterval(()=>setActivityTime(Date.now()),1000);return()=>clearInterval(timer)},[]);
  const activity=(code:string)=>sensorActivity(readings[code],{now:Math.max(activityTime,Date.now()),historical:replayTime!==null||demo});
+ const health=(code:string)=>{const point=POINTS.find(p=>p.code===code);return point?sensorHealth(point,readings[code],replayTime!==null||demo?[]:events,sensorDefinitions,activity(code)):'unavailable'};
  const [view,setView]=useState<ViewState>(initial),[pins,setPins]=useState<Pin[]>([]),[error,setError]=useState(''),[showLabels,setShowLabels]=useState(true);
  useEffect(()=>{
   if(!canvas.current||!nav.current)return;
@@ -75,7 +78,7 @@ export function XeokitViewer({selectedCode,focusRequest=0,onSensorSelect,onFloor
    </details>
   </div>
   {view.mode==='heatmap' &&<div className="bim-colour-key"><label>Colour by<select aria-label="Colour sensors by" value={metric} onChange={e=>controller.current?.setHeatmap(e.target.value,readings)}>{Object.entries(METRICS).map(([id,m])=><option value={id} key={id}>{m.label}</option>)}</select></label><div className={`bim-colour-scale ${metric==='water_leakage'?'bim-colour-leak':metric==='occupancy'?'bim-colour-binary':''}`}/><span>{metricInfo.legend}</span><small>{colourPoints.length?`${colourPoints.length} sensor locations · simulated readings`:'No sensors of this type on this floor'}</small><small>Colour uses available sensor readings and IFC room footprints; unmonitored areas stay neutral.</small></div>}
-  {showLabels&&<div className={`bim-pin-layer ${sensorMotion?'':'sensor-motion-off'}`}><svg className="bim-pin-leaders" aria-hidden="true">{pins.map(p=>{const state=activity(p.code);return <g key={p.code} className={`${p.selected?'pin-target-selected':''} sensor-${state}`} style={{'--sensor-delay':`${-p.index*.17}s`} as CSSProperties}><line x1={p.anchorX} y1={p.anchorY} x2={p.x} y2={p.y}/><circle className="sensor-anchor-core" cx={p.anchorX} cy={p.anchorY} r={p.selected?12:5}/>{state==='receiving'&&<circle className="sensor-arrival-ring" cx={p.anchorX} cy={p.anchorY} r="10"/>}{p.selected&&<circle className="pin-target-outer" cx={p.anchorX} cy={p.anchorY} r="19"/>}</g>})}</svg>{pins.map(p=>{const point=POINTS.find(x=>x.code===p.code);if(!point)return null;const state=activity(p.code),description=ACTIVITY_LABELS[state];return <button key={p.code} className={`bim-sensor-pin ${p.selected?'bim-sensor-pin-selected':''} sensor-${state}`} style={{left:p.x,top:p.y,'--sensor-delay':`${-p.index*.17}s`} as CSSProperties} aria-label={`Select sensor ${p.index}: ${sensorTitle(point)}. ${description}`} aria-pressed={p.selected} title={`${String(p.index).padStart(2,'0')} · ${sensorTitle(point)} · ${description}`} onClick={()=>onSensorSelect(p.code)}>{String(p.index).padStart(2,'0')}</button>})}</div>}
+  {showLabels&&<div className={`bim-pin-layer ${sensorMotion?'':'sensor-motion-off'}`}><svg className="bim-pin-leaders" aria-hidden="true">{pins.map(p=>{const state=activity(p.code);return <g key={p.code} className={`${p.selected?'pin-target-selected':''} sensor-${state} health-${health(p.code)}`} style={{'--sensor-delay':`${-p.index*.17}s`} as CSSProperties}><line x1={p.anchorX} y1={p.anchorY} x2={p.x} y2={p.y}/><circle className="sensor-anchor-core" cx={p.anchorX} cy={p.anchorY} r={p.selected?12:5}/>{state==='receiving'&&<circle className="sensor-arrival-ring" cx={p.anchorX} cy={p.anchorY} r="10"/>}{p.selected&&<circle className="pin-target-outer" cx={p.anchorX} cy={p.anchorY} r="19"/>}</g>})}</svg>{pins.map(p=>{const point=POINTS.find(x=>x.code===p.code);if(!point)return null;const state=activity(p.code),description=ACTIVITY_LABELS[state],condition=health(p.code);return <button key={p.code} className={`bim-sensor-pin ${p.selected?'bim-sensor-pin-selected':''} sensor-${state} health-${condition}`} style={{left:p.x,top:p.y,'--sensor-delay':`${-p.index*.17}s`} as CSSProperties} aria-label={`Select sensor ${p.index}: ${sensorTitle(point)}. ${condition==='abnormal'?'Abnormal under demo rules':condition==='normal'?'Within demo thresholds':'Data unavailable'}. ${description}`} aria-pressed={p.selected} title={`${String(p.index).padStart(2,'0')} · ${sensorTitle(point)} · ${condition==='abnormal'?'Abnormal (demo rule)':condition==='normal'?'Within demo thresholds':'No current data'} · ${description}`} onClick={()=>onSensorSelect(p.code)}>{String(p.index).padStart(2,'0')}</button>})}</div>}
 
   {!view.ready&&<div className="viewer-loading"><div className="xeokit-feedback"><strong>{error?'3D viewer unavailable':'Loading the building'}</strong><p>{error||'Preparing rooms and sensor readings…'}</p></div></div>}
   {showPeople&&<div className={`bim-occupant-note ${peopleMode==='tour'?'bim-tour-note':''}`}>
