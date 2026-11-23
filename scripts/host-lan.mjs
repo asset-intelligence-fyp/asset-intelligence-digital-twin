@@ -25,23 +25,54 @@ const db=new pg.Pool(env.DATABASE_URL?{connectionString:env.DATABASE_URL,connect
  ...(env.PGUSER?{user:env.PGUSER}:{}),...(env.PGPASSWORD?{password:env.PGPASSWORD}:{}),
  connectionTimeoutMillis:5000
 });
+// Verify the existing PostgreSQL database, then bootstrap only missing
+// digital_twin schema objects or registry rows. Never create/drop a database.
 let adminExists=false;
+const requiredTables=[
+ 'buildings','building_floors','bim_models','bim_elements','monitoring_locations',
+ 'sensor_registry','sensor_readings','simulation_runs','roles','users',
+ 'ai_results','forecast_results','alert_severity','alert_status','alerts',
+ 'notifications','maintenance_events'
+];
 try{
+ const extension=await db.query("SELECT extversion FROM pg_extension WHERE extname='timescaledb'");
+ if(!extension.rowCount)throw Error('TimescaleDB extension is missing in the selected PostgreSQL database. Install/enable it first; this launcher does not change PostgreSQL extensions.');
+ const found=await db.query(
+  "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='digital_twin'"
+ );
+ const existing=new Set(found.rows.map(row=>row.tablename));
+ const missing=requiredTables.filter(name=>!existing.has(name));
+ let count=0;
+ if(existing.has('sensor_registry')){
+  const result=await db.query('SELECT count(*)::int AS sensors FROM digital_twin.sensor_registry');
+  count=result.rows[0].sensors;
+ }
+ if(missing.length||count<18){
+  console.log('Database initialization needed. Missing tables: '+(missing.join(', ')||'none')+'; registered sensors: '+count+'/18.');
+  console.log('Running additive schema setup. Existing sensor history and administrator accounts will be preserved.');
+  run('npm',['run','db:setup:v3'],'Initializing missing digital_twin schema and seed metadata');
+ }else{
+  console.log('digital_twin schema and 18 sensor registrations already exist; skipping schema initialization.');
+ }
  const check=await db.query(`SELECT
   to_regclass('digital_twin.sensor_registry') IS NOT NULL AS sensors,
   to_regclass('digital_twin.sensor_readings') IS NOT NULL AS readings,
   to_regclass('digital_twin.users') IS NOT NULL AS users,
   to_regclass('digital_twin.roles') IS NOT NULL AS roles`);
- if(Object.values(check.rows[0]).some(v=>!v))throw Error('Missing digital_twin tables. Back up your database, then review npm run db:setup:v3; this hosting script intentionally never alters existing schema.');
+ if(Object.values(check.rows[0]).some(v=>!v))throw Error('Required digital_twin tables are still missing after setup.');
  const tables=await db.query('SELECT count(*)::int AS sensors FROM digital_twin.sensor_registry');
- if(tables.rows[0].sensors===0)throw Error('Database has no registered sensors; verify the selected database.');
+ if(tables.rows[0].sensors<18)throw Error('Fewer than 18 registered sensors after setup. Check incompatible existing sensor registry records.');
  const account=await db.query(`SELECT EXISTS(
   SELECT 1 FROM digital_twin.users u JOIN digital_twin.roles r ON r.role_id=u.role_id
   WHERE u.username='admin' AND r.role_name='admin'
  ) AS exists`);
  adminExists=account.rows[0].exists;
  console.log('PostgreSQL connection verified: digital_twin tables and '+tables.rows[0].sensors+' sensors available.');
-}catch(e){console.error('Hosting preflight failed: '+e.message);process.exitCode=1;await db.end();process.exit(1);}
+}catch(e){
+ console.error('Hosting preflight failed: '+e.message);
+ await db.end();
+ process.exit(1);
+}
 await db.end();
 
 function run(command,args,description){
