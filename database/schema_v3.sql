@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS digital_twin.users (
  username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE,
  password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- Current local admin hash/session still uses .env; users above are for future integration.
+-- Administrator authentication reads users with the admin role; passwords are salted scrypt hashes.
 
 CREATE TABLE IF NOT EXISTS digital_twin.ai_results (
  ai_result_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
