@@ -1,6 +1,7 @@
 import {randomBytes,createHash,scryptSync} from 'node:crypto';
 import {requireAdmin} from './adminAuth.js';
 import {registry} from './sensorContract.js';
+import {sendInvitationEmail,emailConfigured} from './invitationEmail.js';
 
 const fixed=new Set(registry.map(p=>p.code));
 const clean=(v,max=120)=>typeof v==='string'?v.trim().slice(0,max+1):'';
@@ -30,7 +31,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    pool.query('SELECT location_code,display_name,floor_level,building_code FROM digital_twin.monitoring_locations ORDER BY floor_level,display_name'),
    pool.query('SELECT building_code,building_name FROM digital_twin.buildings ORDER BY building_code')
   ]);
-  res.json({counts:counts.rows[0],locations:locations.rows,buildings:buildings.rows,fixedSensors:[...fixed]});
+  res.json({counts:counts.rows[0],locations:locations.rows,buildings:buildings.rows,fixedSensors:[...fixed],emailConfigured:emailConfigured()});
  }));
  app.get('/api/admin/manage/sensors',requireAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
@@ -123,7 +124,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(!enabled(pool,schema,res))return;
   const [users,invites,auditRows]=await Promise.all([
    pool.query(`SELECT u.user_id,u.username,u.email,r.role_name,u.created_at FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) ORDER BY u.created_at DESC LIMIT 250`),
-   pool.query(`SELECT invite_id,email,role_name,expires_at,used_at,created_at FROM digital_twin.access_invites ORDER BY created_at DESC LIMIT 100`),
+   pool.query(`SELECT invite_id,email,role_name,expires_at,used_at,created_at,email_status,email_sent_at FROM digital_twin.access_invites ORDER BY created_at DESC LIMIT 100`),
    pool.query('SELECT actor,action,target,created_at FROM digital_twin.admin_audit ORDER BY audit_id DESC LIMIT 15')
   ]);
   res.json({users:users.rows,invites:invites.rows,audit:auditRows.rows});
@@ -139,7 +140,10 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    await audit(c,req.admin.username,'invite.create',email);
    return r.rows[0];
   });
-  res.status(201).json({...result,code,email,role:'viewer'});
+  const delivery=await sendInvitationEmail({to:email,code,expiresAt:result.expires_at});
+  await pool.query("UPDATE digital_twin.access_invites SET email_status=$1,email_sent_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE invite_id=$3",
+   [delivery.sent?'sent':emailConfigured()?'failed':'not_configured',delivery.sent,result.invite_id]);
+  res.status(201).json({...result,code,email,role:'viewer',emailSent:delivery.sent,deliveryMessage:delivery.sent?'Invitation accepted by email provider.':delivery.reason});
  }));
  app.post('/api/admin/manage/invites/:id/revoke',requireAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
