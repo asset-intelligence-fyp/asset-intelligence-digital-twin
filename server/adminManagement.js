@@ -26,7 +26,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
     (SELECT count(*)::int FROM digital_twin.sensor_registry) sensors,
     (SELECT count(*)::int FROM digital_twin.monitoring_locations) locations,
     (SELECT count(*)::int FROM digital_twin.users) users,
-    (SELECT count(*)::int FROM digital_twin.access_invites WHERE used_at IS NULL AND expires_at>now()) invites,
+    (SELECT count(*)::int FROM digital_twin.access_invites WHERE used_at IS NULL AND revoked_at IS NULL AND expires_at>now()) invites,
     (SELECT count(*)::int FROM digital_twin.sensor_readings) readings`),
    pool.query('SELECT location_code,display_name,floor_level,building_code FROM digital_twin.monitoring_locations ORDER BY floor_level,display_name'),
    pool.query('SELECT building_code,building_name FROM digital_twin.buildings ORDER BY building_code')
@@ -126,7 +126,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(!enabled(pool,schema,res))return;
   const [users,invites,auditRows]=await Promise.all([
    pool.query(`SELECT u.user_id,u.username,u.email,u.is_active,r.role_name,u.created_at FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) ORDER BY u.created_at DESC LIMIT 250`),
-   pool.query(`SELECT invite_id,email,role_name,expires_at,used_at,created_at,email_status,email_sent_at FROM digital_twin.access_invites ORDER BY created_at DESC LIMIT 100`),
+   pool.query(`SELECT invite_id,email,role_name,expires_at,used_at,revoked_at,revoked_by,created_at,email_status,email_sent_at FROM digital_twin.access_invites ORDER BY created_at DESC LIMIT 100`),
    pool.query('SELECT actor,action,target,created_at FROM digital_twin.admin_audit ORDER BY audit_id DESC LIMIT 15')
   ]);
   res.json({users:users.rows,invites:invites.rows,audit:auditRows.rows});
@@ -217,8 +217,9 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   const id=Number(req.params.id);
   if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({error:'Invalid invitation ID.'});
   const rows=await transaction(pool,async c=>{
-   const r=await c.query('DELETE FROM digital_twin.access_invites WHERE invite_id=$1 AND used_at IS NULL RETURNING email',[id]);
-   if(r.rowCount)await audit(c,req.admin.username,'invite.revoke',r.rows[0].email);
+   const r=await c.query(`UPDATE digital_twin.access_invites SET revoked_at=now(),revoked_by=$2
+     WHERE invite_id=$1 AND used_at IS NULL AND revoked_at IS NULL RETURNING email`,[id,req.admin.username]);
+   if(r.rowCount)await audit(c,req.admin.username,'invite.revoke',r.rows[0].email,{invite_id:id});
    return r.rowCount;
   });
   if(!rows)return res.status(404).json({error:'Invitation was already used or does not exist.'});
@@ -314,7 +315,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   const digest=createHash('sha256').update(code).digest('hex');
   const result=await transaction(pool,async c=>{
    const invite=await c.query(`SELECT invite_id,email FROM digital_twin.access_invites
-    WHERE code_hash=$1 AND used_at IS NULL AND expires_at>now() FOR UPDATE`,[digest]);
+    WHERE code_hash=$1 AND used_at IS NULL AND revoked_at IS NULL AND expires_at>now() FOR UPDATE`,[digest]);
    if(!invite.rowCount)return false;
    const salt=randomBytes(16);
    const hash='scrypt:'+salt.toString('hex')+':'+scryptSync(password,salt,64).toString('hex');
@@ -325,7 +326,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    await audit(c,username,'invite.redeem',invite.rows[0].email);
    return true;
   });
-  if(!result)return res.status(400).json({error:'Invitation code invalid, expired, or already used.'});
+  if(!result)return res.status(400).json({error:'Invitation code invalid, expired, revoked, or already used.'});
   res.status(201).json({ok:true,message:'Viewer account created. You can now sign in.'});
  }));
 }
