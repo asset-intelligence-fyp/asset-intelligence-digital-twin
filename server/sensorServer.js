@@ -2,6 +2,7 @@ import {createAlertService,definitions} from './alertService.js';
 import {registerBuildingAssistant} from './buildingAssistant.js';
 import {adminAuth} from './adminAuth.js';
 import {registerAdminDatabase} from './adminDatabase.js';
+import {registerAdminManagement} from './adminManagement.js';
 import express from 'express';
 import {normalizeSimulation,registerSimulationControls} from './hybridContract.js';
 import {createHash,randomUUID} from 'node:crypto';
@@ -19,7 +20,7 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
  const ACTIVE_SCHEMA=schema;
  const alerts=createAlertService(ACTIVE_SCHEMA);
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
- adminAuth(app,pool,ACTIVE_SCHEMA);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
+ adminAuth(app,pool,ACTIVE_SCHEMA);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);registerAdminManagement(app,pool,ACTIVE_SCHEMA);
  registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
