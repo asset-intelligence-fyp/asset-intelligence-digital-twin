@@ -5,12 +5,10 @@ import {networkInterfaces} from 'node:os';
 import {existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import dotenv from 'dotenv';
-import pg from 'pg';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 process.chdir(root);
-dotenv.config();
+if(existsSync(resolve(root,'.env')))process.loadEnvFile(resolve(root,'.env'));
 const port=Number(process.env.SERVER_PORT||3001);
 const env={...process.env,TWIN_DB_SCHEMA:'digital_twin'};
 if(!Number.isInteger(port)||port<1024||port>65535)throw Error('SERVER_PORT must be between 1024 and 65535.');
@@ -19,6 +17,9 @@ if(!env.DATABASE_URL&&!env.PGDATABASE){
  console.error('No PostgreSQL database configured in .env. Copy your existing working database connection into this project first. Do not share it with teammates.');
  process.exit(1);
 }
+// Bootstrap npm dependencies before importing the PostgreSQL driver.
+if(!existsSync(resolve(root,'node_modules','pg')))run('npm',['ci'],'Installing project dependencies');
+const {default:pg}=await import('pg');
 const db=new pg.Pool(env.DATABASE_URL?{connectionString:env.DATABASE_URL,connectionTimeoutMillis:5000}:{
  host:env.PGHOST||'localhost',port:Number(env.PGPORT||5432),database:env.PGDATABASE,
  ...(env.PGUSER?{user:env.PGUSER}:{}),...(env.PGPASSWORD?{password:env.PGPASSWORD}:{}),
