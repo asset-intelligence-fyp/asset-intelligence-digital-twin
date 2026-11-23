@@ -13,7 +13,8 @@ import {Events} from './pages/Events';
 import {Simulator} from './pages/Simulator';
 import {CommandPalette} from './components/ExperiencePanel';
 import {Presentation} from './pages/Presentation';
-import {AdminDatabase,AdminLogin,useAdminSession} from './pages/AdminDatabase';
+import {AdminLogin,useAdminSession} from './pages/AdminDatabase';
+import {AdminWorkspace} from './pages/AdminWorkspace';
 import './styles.css';
 import './control-room.css';
 import './workspace.css';
@@ -27,9 +28,9 @@ function App(){
  const [adminOpen,setAdminOpen]=useState(false);
  const {session,setSession,logout}=useAdminSession();
  const [page,updatePage]=useState<Page>('overview');
- const setPage=(next:Page)=>{if(next==='database'&&!session.authenticated){setAdminOpen(true);return;}setAdminOpen(false);updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
+ const setPage=(next:Page)=>{if(next==='database'&&session.role!=='admin'){setAdminOpen(true);return;}setAdminOpen(false);updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
  const handleLogout=async()=>{try{await logout();}finally{setPage('overview');}};
- useEffect(()=>{if(page==='database'&&!session.authenticated)updatePage('overview')},[page,session.authenticated]);
+ useEffect(()=>{if(page==='database'&&session.role!=='admin')updatePage('overview')},[page,session.authenticated]);
  useEffect(()=>{if(!adminOpen)return;const handler=(event:KeyboardEvent)=>{if(event.key==='Escape')setAdminOpen(false)};document.addEventListener('keydown',handler);return()=>document.removeEventListener('keydown',handler)},[adminOpen]);
  const [assistantDraft,setAssistantDraft]=useState<{question:string;scope:string;nonce:number}|null>(null);
  const [investigationId,setInvestigationId]=useState<number|null>(null);
@@ -40,7 +41,7 @@ function App(){
  const focus=(code:string)=>{const p=POINTS.find(p=>p.code===code);if(!p)return;setSelectedCode(code);setSelectedAsset(p.assetId);setPage('overview');setCommandRequest(n=>n+1)};
  const askSensor=(code:string)=>{setAssistantDraft({scope:code,question:'Review the current readings and available trend for this sensor.',nonce:Date.now()});setPage('assistant')};
  return <><Shell onEvent={openEvent} page={page} setPage={setPage} adminAuthenticated={session.authenticated} onAdminClick={()=>setAdminOpen(true)} onLogout={()=>{void handleLogout()}}>
-  {page==='database'&&session.authenticated&&<AdminDatabase/>}
+  {page==='database'&&session.role==='admin'&&<AdminWorkspace/>}
   {page==='overview'&&<Overview investigationId={investigationId} onDismissInvestigation={()=>setInvestigationId(null)} onEvent={openEvent} externalFocusRequest={commandRequest} setPage={setPage} selectedAsset={selectedAsset} onSelectAsset={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='assets'&&<Assets selectedAsset={selectedAsset} onSelect={setSelectedAsset} selectedCode={selectedCode} onSelectCode={setSelectedCode}/>}
   {page==='sensors'&&<Sensors initialCode={selectedCode}/>}
