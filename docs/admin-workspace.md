@@ -57,3 +57,25 @@ Run `npm run test:admin:step-up` and `npm run build` after pulling. Confirm that
 **Security note:** The current HTTP LAN site is not transport-encrypted. A password prompt does not substitute for HTTPS in production. Keep your testing on a trusted private LAN and use HTTPS before handling real credentials over untrusted networks.
 
 The Grant Access card retains the fixed-size Send Invitation button, unaffected by the height of Recent Activity or email delivery status.
+
+## Admin navigation: accounts, invitations, audit, alerts and notifications
+
+The Admin sidebar now has dedicated sections for **User Accounts**, **Grant Access**, **Audit Log**, **Alerts**, and **Notifications**, instead of combining all access functions in one scrolling section.
+
+- **User Accounts:** View username, email, current role, status and creation date; promote/demote users or enable/disable access with a new password confirmation for each action.
+- **Grant Access:** Keep the existing Gmail SMTP/Resend invitation form, a fixed-height Send Invitation button, and the invitation list (status, provider acceptance, expiry, revoke). Each invitation/revocation requires its own password confirmation.
+- **Audit Log:** Filter by actor, action or target; page through the recorded history. The log shows the signed-in username, action, target, timestamp and details. New sensor edits, location renames, role changes and maintenance status edits include prior and new values; older entries may contain less detail.
+- **Alerts:** See the latest 200 real PostgreSQL alerts, severity, sensor, detector-derived data and current status; change status between New/Review/Acknowledged/Closed with password confirmation and an audit entry. This does not tune detector thresholds.
+- **Notifications:** See the latest 200 real PostgreSQL notifications and their recipient; mark read or unread. Read timestamps are persisted in a new nullable `digital_twin.notifications.read_at` column. The LAN launcher adds that column idempotently, preserving existing notifications.
+
+### Validation
+
+1. Back up the existing PostgreSQL database and pull `feature/amanda-lan-hosting`.
+2. Run `npm run build`, `npm run test:admin:step-up`, then `npm run host:lan`. The launcher performs an additive notification schema migration.
+3. Sign in as Admin and verify each separate sidebar item. Accounts should no longer appear below the invitation form, and Audit Log should no longer be confined to the Access card.
+4. In Alerts, change a test alert from New to Review: verify the password prompt, saved status and `alert.status` audit entry.
+5. In Notifications, mark a test notification read: verify the password prompt, persisted read status and audit entry. If none exist yet, the list accurately shows an empty state rather than inventing notifications.
+6. In Audit Log, check that the named actor, time, action and target appear. Test a location rename and ensure subsequent audit entries include previous and new values.
+7. Verify Grant Access still sends via configured Gmail SMTP and that its button remains a consistent size.
+
+Known limitations: The public operational Dashboard still does not enforce website-wide login; this update does not change the BIM model or static simulator. The site uses HTTP over LAN, so password confirmations require a trusted private network until HTTPS is configured. The alert detector may independently create or update alerts during subsequent simulation activity.
