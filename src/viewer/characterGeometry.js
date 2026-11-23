@@ -25,15 +25,26 @@ export function loftedPart(rings,segments=14){
   }
  };
  cap(rings[0],false);cap(rings.at(-1),true);
- const positions=[],normals=[],indices=[];
+ // Smooth the authored capsule shading without subdividing the geometry.
+ // Triangle positions are duplicated for the xeokit ReadableGeometry format;
+ // average normals at coincident vertices to remove toy-like faceted seams.
+ const normalAt=new Map();
+ const keyOf=v=>v.map(n=>n.toFixed(5)).join(',');
  for(const [a,b,c] of triangles){
   const u=b.map((x,i)=>x-a[i]),v=c.map((x,i)=>x-a[i]);
-  const normal=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
-  const len=Math.hypot(...normal)||1;
+  const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+  for(const point of [a,b,c]){
+   const key=keyOf(point),acc=normalAt.get(key)||[0,0,0];
+   normalAt.set(key,acc.map((x,i)=>x+n[i]));
+  }
+ }
+ const positions=[],normals=[],indices=[];
+ for(const triangle of triangles){
   const index=positions.length/3;
-  for(const vertex of [a,b,c]){
+  for(const vertex of triangle){
+   const n=normalAt.get(keyOf(vertex)),len=Math.hypot(...n)||1;
    positions.push(...vertex);
-   normals.push(...normal.map(x=>x/len));
+   normals.push(...n.map(x=>x/len));
   }
   indices.push(index,index+1,index+2);
  }
