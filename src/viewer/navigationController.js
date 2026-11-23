@@ -91,7 +91,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   if(!state.ready||destroyed||now-lastPins<50)return;lastPins=now;
   const canvas=scene.canvas.canvas,width=canvas.clientWidth,height=canvas.clientHeight;
   const eye=viewer.camera.eye,look=viewer.camera.look;
-  const representatives=points.filter(p=>state.mode!=='heatmap'||p.sensorType===state.metric);
+  const representatives=points.filter(p=>state.mode!=='heatmap'||state.metric==='status'||p.sensorType===state.metric);
   const projected=representatives.flatMap(point=>{
    const p=sensors.get(point.guid);if(!p)return [];
    if(!guidIndex.has(p.guid)||(state.floor!=='all'&&p.floor!==state.floor))return [];
@@ -129,6 +129,19 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    }
    slabIds=byType.get('floor')||[];
    glazingIds=byType.get('glazing')||[];
+   // Build colour planes from actual IFC slab coverage for each storey.
+   // For a storey without exported slab meshes, use its model AABB
+   // instead of rendering a tiny circular sensor vicinity.
+   const floorSurfaces=navigation.levels.filter(l=>/^Level_0[1-5]$/.test(l.id)).map(level=>{
+    const ids=floorIndex.get(level.id)||[];
+    const slabs=ids.filter(id=>/IfcSlab/.test(viewer.metaScene.metaObjects[id]?.type||''))
+     .map(id=>Array.from(scene.objects[id]?.aabb||[]))
+     .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]-box[0]>.35&&box[5]-box[2]>.35);
+    if(slabs.length)return {floor:level.id,elevation:level.elevation,aabbs:slabs,source:'ifc-slab'};
+    if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],source:'no-model-geometry'};
+    return {floor:level.id,elevation:level.elevation,aabbs:[Array.from(scene.getAABB(ids))],source:'storey-bounds'};
+   });
+   heatmap.setFloorSurfaces?.(floorSurfaces);
    const palette={wall:[.79,.84,.87],glazing:[.41,.65,.74],roof:[.42,.51,.58],floor:[.69,.72,.72],door:[.55,.63,.62],structure:[.69,.76,.80]};
    architecturalColours=Object.entries(palette).map(([type,rgb])=>({ids:byType.get(type)||[],rgb})).filter(group=>group.ids.length);
    scene.setObjectsColorized(markerIds,[.15,.85,.95]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
