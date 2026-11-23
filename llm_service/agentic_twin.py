@@ -70,8 +70,8 @@ def scrub(text, limit=400):
 
 def _llm(config):
     model = config.get("model", "qwen3:1.7b")
-    if model != "qwen3:1.7b":
-        raise ValueError("Only the configured local qwen3:1.7b model is supported")
+    if model not in ("qwen3:1.7b", "qwen3:4b"):
+        raise ValueError("Only Qwen3 1.7B and 4B are approved for local forecasting")
     return OllamaClient(base_url=os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"),
                         model=model, timeout=150, temperature=0)
 
@@ -356,6 +356,7 @@ def forecast_one_month(request, config):
              "current_context":context,
              "warning":"Future HVAC, weather and occupancy are unknown; scenario bounds are not confidence intervals."}
     output={"status":"unavailable","sensor_id":target,"unit":point.get("unit"),
+            "model":config.get("model", "qwen3:1.7b"),
             "target_time":stamp(target_dt),"as_of":stamp(cutoff),
             "horizon_months":1,"method":"qwen_one_month_contextual_scenario",
             "trained_forecast":False,"data_basis":"historical_reference" if monthly else "short_current_stream",
