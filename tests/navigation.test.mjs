@@ -188,3 +188,27 @@ test('BIM dots reflect active abnormal conditions, not acknowledgements or manua
  assert.equal(sensorHealth(humidity,normal(55),[{point_code:humidity.code,synthetic:true,automatic:false,resolved_at:null}],definitions),'normal','manual test records must not trigger BIM health');
  assert.equal(sensorHealth(humidity,{value:null,quality:'missing'},[{...acknowledged,rule:'missing'}],definitions),'abnormal','unresolved missing-reading alerts stay visible');
 });
+
+test('Heatmap preserves whole-building and floor selection instead of forcing a floor',()=>{
+ const f=fixture(true);
+ assert.equal(f.controller.snapshot().floor,'all');
+ assert.equal(f.controller.snapshot().metric,'status');
+ f.controller.setMode('heatmap');
+ assert.equal(f.controller.snapshot().floor,'all','whole-building heatmap must show sampled levels concurrently');
+ assert.equal(f.controller.snapshot().view,'orbit','do not overwrite the user camera');
+ assert.equal(f.heatUpdates.at(-1).floor,'all');
+ assert.equal(f.heatUpdates.at(-1).enabled,true);
+ f.controller.showFloor('Level_04');
+ assert.equal(f.controller.snapshot().floor,'Level_04');
+ assert.equal(f.heatUpdates.at(-1).floor,'Level_04');
+ f.controller.setHeatmap('humidity',{});
+ assert.equal(f.controller.snapshot().floor,'Level_04');
+ assert.equal(f.heatUpdates.at(-1).metric,'humidity');
+ f.controller.setMode('solid');
+ assert.equal(f.heatUpdates.at(-1).enabled,false);
+ f.controller.setMode('heatmap');
+ assert.equal(f.controller.snapshot().floor,'Level_04','switching back does not reset floor');
+ f.controller.showFloor('all');
+ assert.equal(f.heatUpdates.at(-1).floor,'all');
+ f.controller.destroy();
+});
