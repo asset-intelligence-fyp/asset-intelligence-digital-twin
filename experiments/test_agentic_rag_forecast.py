@@ -164,6 +164,7 @@ class AgenticRetrievalTest(unittest.TestCase):
         args=self.args()
         summary=module.score_retrieval_only(args)
         self.assertEqual(summary["cases"],60)
+        self.assertEqual(summary["by_metric"]["energy"]["calendar_workday"]["n"],60)
         self.assertFalse(summary["model_used"])
         for metric in module.METRICS:
             self.assertEqual(summary["by_metric"][metric]["retrieval_only"]["n"],60)
@@ -203,12 +204,14 @@ class AgenticRetrievalTest(unittest.TestCase):
         truth=base.truth_monthly()
         out=module.score_arm(args,args.mode,
                              {cid:c["request"] for cid,c in all_cases.items()},
-                             truth,{cid:c["history"] for cid,c in all_cases.items()})
+                             truth,{cid:c["history"] for cid,c in all_cases.items()},
+                             {cid:c["known"] for cid,c in all_cases.items()})
         summaries["score"]=out
         self.assertEqual(out["attempted_cases"],1)
         self.assertEqual(out["valid_cases"],1)
         self.assertEqual(out["by_metric"]["co2"]["llm"]["n"],1)
         self.assertEqual(out["by_metric"]["co2"]["retrieval_only"]["n"],1)
+        self.assertEqual(out["by_metric"]["co2"]["calendar_workday"]["n"],1)
         self.assertEqual(out["training_or_fine_tuning"],False)
         self.assertEqual(out["vector_embeddings"],False)
 
