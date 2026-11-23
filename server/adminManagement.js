@@ -172,6 +172,44 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
   if(result!=='ok')return res.status(result==='missing'?404:409).json({error:result==='self'?'You cannot change your own role.':result==='last'?'Cannot remove the last administrator.':'User not found.'});
   res.json({ok:true});
  }));
+ app.get('/api/admin/manage/maintenance',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const r=await pool.query(`SELECT m.maintenance_id,m.location_code,m.point_code,m.event_type,m.event_date,
+    m.description,m.maintenance_status,m.performed_by,m.created_at,
+    l.display_name
+    FROM digital_twin.maintenance_events m JOIN digital_twin.monitoring_locations l USING(location_code)
+    ORDER BY m.event_date DESC,m.maintenance_id DESC LIMIT 250`);
+  res.json({rows:r.rows});
+ }));
+ app.post('/api/admin/manage/maintenance',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const b=req.body||{},location_code=clean(b.location_code,80),
+   point_code=clean(b.point_code,80),event_type=clean(b.event_type,80),description=clean(b.description,1000),
+   date=clean(b.event_date,60);
+  if(!location_code||!event_type||!description||!date||!Number.isFinite(Date.parse(date)))return res.status(400).json({error:'Location, work type, date and description are required.'});
+  const result=await transaction(pool,async c=>{
+   const point=point_code?await c.query('SELECT location_code FROM digital_twin.sensor_registry WHERE point_code=$1',[point_code]):null;
+   if(point_code&&(!point?.rowCount||point.rows[0].location_code!==location_code))return null;
+   const row=await c.query(`INSERT INTO digital_twin.maintenance_events(location_code,point_code,event_type,event_date,description)
+    VALUES($1,$2,$3,$4,$5) RETURNING maintenance_id`,[location_code,point_code||null,event_type,date,description]);
+   await audit(c,req.admin.username,'maintenance.create',String(row.rows[0].maintenance_id),{location_code});
+   return row.rows[0];
+  });
+  if(!result)return res.status(400).json({error:'The selected sensor does not belong to that location.'});
+  res.status(201).json({ok:true,id:result.maintenance_id});
+ }));
+ app.patch('/api/admin/manage/maintenance/:id',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const id=Number(req.params.id),status=clean(req.body?.maintenance_status,30);
+  if(!Number.isSafeInteger(id)||!['Scheduled','In Progress','Completed','Cancelled'].includes(status))return res.status(400).json({error:'Invalid maintenance ID or status.'});
+  const rows=await transaction(pool,async c=>{
+   const updated=await c.query('UPDATE digital_twin.maintenance_events SET maintenance_status=$1 WHERE maintenance_id=$2 RETURNING maintenance_id',[status,id]);
+   if(updated.rowCount)await audit(c,req.admin.username,'maintenance.status',String(id),{status});
+   return updated.rowCount;
+  });
+  if(!rows)return res.status(404).json({error:'Maintenance record not found.'});
+  res.json({ok:true});
+ }));
  // Invitation redemption is public by design: it creates only a viewer account.
  app.post('/api/access/redeem',safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
