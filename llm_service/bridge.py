@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from llm_service.shared_llm.ollama import OllamaClient
 from llm_service.validated_room import analyse_validated, normal_history_ready, resolve_history_path
 from llm_service.prediction import forecast_room_reading
+from llm_service.agentic_twin import investigate, forecast_one_month
 
 
 def analyse(request, config):
@@ -52,13 +53,15 @@ def main():
                                  'validation_mode': 'hybrid_semantic',
                                  'retrieval': 'backend_verified_room_evidence',
                                  'normal_history_database_ready': history_ready,
+                                 'agentic_supported': True,
+                                 'agentic_note': 'Contextual read-only investigation; not the frozen E8-A research model',
                                  'history_status': 'synthetic_normal_sqlite_connected' if history_ready else 'normal_history_not_available',
                                  'history_notice': 'Comparison requires five earlier same-weekday dates per sensor; database availability alone does not establish coverage.'})
             else:
                 self.reply(404, {'error': 'Not found'})
 
         def do_POST(self):
-            if self.path not in ('/ask', '/predict'):
+            if self.path not in ('/ask', '/predict', '/agentic-investigate', '/agentic-forecast'):
                 self.reply(404, {'error': 'Not found'})
                 return
             if not lock.acquire(blocking=False):
@@ -75,7 +78,13 @@ def main():
                 data = json.loads(self.rfile.read(size))
                 if not isinstance(data, dict) or not isinstance(data.get('request'), dict):
                     raise ValueError('Malformed request')
-                if self.path == '/predict':
+                if self.path in ('/agentic-investigate', '/agentic-forecast'):
+                    config = data.get('config') or {}
+                    if self.path == '/agentic-investigate':
+                        self.reply(200, investigate(data['request'], config))
+                    else:
+                        self.reply(200, forecast_one_month(data['request'], config))
+                elif self.path == '/predict':
                     config = data.get('config') or {}
                     self.reply(200, forecast_room_reading(data['request'],
                         {**config, 'history_db': config.get('history_db') or os.environ.get('LLM_HISTORY_DB', '')},
