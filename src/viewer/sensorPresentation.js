@@ -1,5 +1,6 @@
 /** Display-only bands for synthetic telemetry. These are not calibrated building alarms. */
 export const METRICS={
+ status:{label:'Overall condition',unit:'',legend:'Green = within demo limits · yellow = caution · red = threshold concern'},
  temperature:{label:'Temperature',unit:'°C',range:[18,32],band:[22,27],legend:'18–32 °C · demo range'},
  humidity:{label:'Humidity',unit:'%RH',range:[25,85],band:[40,65],legend:'25–85 %RH · demo range'},
  co2:{label:'CO₂',unit:'ppm',range:[400,1600],band:[400,1000],legend:'400–1,600 ppm · demo range'},
