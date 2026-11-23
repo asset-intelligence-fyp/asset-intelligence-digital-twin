@@ -6,14 +6,10 @@
 .overview-clean-heading h1 {font-size:26px;letter-spacing:-.8px;font-weight:630;margin:3px 0 4px;}
 .overview-clean-heading p {font-size:11px;color:var(--muted);line-height:1.55;}
 .overview-clean-heading .small-outline {display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.overview-clean-status {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px;}
-.overview-status-tile {width:100%;min-width:0;display:flex;align-items:center;gap:15px;text-align:left;padding:15px 17px!important;color:var(--ink);transition:border-color .18s,transform .18s;}
-.overview-status-tile:hover,.overview-status-tile:focus-visible{border-color:var(--teal);transform:translateY(-1px);}
-.overview-status-tile>svg{width:34px;height:34px;padding:8px;color:var(--teal);background:color-mix(in srgb,var(--teal) 9%,transparent);border-radius:10px;flex-shrink:0;}
-.overview-status-tile>span{display:flex;flex-direction:column;gap:2px;min-width:0;}
-.overview-status-tile small{font-size:10px;color:var(--muted);font-weight:500;}
-.overview-status-tile strong{font-size:19px;font-weight:650;letter-spacing:-.3px;}
-.overview-status-tile em{font-size:10px;color:var(--muted);font-style:normal;white-space:normal;}
+.overview-heading-actions {display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
+.overview-active-alerts {display:flex;align-items:center;gap:7px;background:rgba(191,70,78,.08);border:1px solid rgba(205,100,108,.32);border-radius:9px;padding:8px 12px;color:var(--ink);font-size:11px;min-height:31px;white-space:nowrap;}
+.overview-active-alerts svg {color:#e37d83;}
+.overview-active-alerts:hover {background:rgba(191,70,78,.15);}
 .overview-room-picker {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;min-width:0;}
 .overview-room-picker>span{font:10px var(--mono);color:var(--muted);letter-spacing:.3px;}
 .overview-room-picker label{display:flex;align-items:center;gap:8px;position:relative;border:1px solid var(--border);background:var(--surface);border-radius:9px;color:var(--ink);padding:0 10px 0 2px;min-width:190px;}
@@ -163,8 +159,7 @@
 }
 @media(max-width:760px){
  .overview-clean-heading{align-items:flex-start;flex-wrap:wrap;}
- .overview-clean-status,.monitoring-kpis{grid-template-columns:1fr;}
- .overview-status-tile{padding:11px 14px!important;}
+ .monitoring-kpis{grid-template-columns:1fr;}
  .overview-clean .overview-aside{display:flex!important;flex-direction:column!important;}
  .overview-clean .model-card{min-height:500px;height:560px!important;width:100%;}
  .overview-room-picker{align-items:stretch;flex-direction:column;}
@@ -178,3 +173,27 @@
  .bim-view-more-panel{right:0;width:min(280px,86vw);}
  .overview-clean .bim-gesture-help{display:none;}
 }
+
+/* Status-coloured BIM markers are based on simulator rules, not model inference. */
+.bim-health-key {display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:9px;}
+.bim-health-key span {display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.bim-health-key i {display:block;width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+.bim-health-key-normal {background:#36c58d;box-shadow:0 0 0 2px #36c58d22;}
+.bim-health-key-abnormal {background:#f36a72;box-shadow:0 0 0 2px #f36a7222;}
+.bim-health-key-unavailable {background:#788ba0;box-shadow:0 0 0 2px #788ba022;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-normal:not(.bim-sensor-pin-selected) {background:radial-gradient(circle,#42d89f 0 4px,#15553f 5px 8px,transparent 9px)!important;opacity:1!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-abnormal:not(.bim-sensor-pin-selected) {background:radial-gradient(circle,#fa6e77 0 5px,#702734 6px 9px,transparent 10px)!important;opacity:1!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-unavailable:not(.bim-sensor-pin-selected) {background:radial-gradient(circle,#91a2b4 0 3px,#2b3d4b 4px 8px,transparent 9px)!important;opacity:.78!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-normal.bim-sensor-pin-selected {background:#166b51!important;border-color:#72f0b7!important;color:#edfff9!important;box-shadow:0 0 0 3px #3cca8e33,0 0 16px #3cca8e55!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-abnormal.bim-sensor-pin-selected {background:#9f2638!important;border-color:#ff9a9e!important;color:#fff!important;box-shadow:0 0 0 3px #f36a7244,0 0 17px #f36a7266!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-unavailable.bim-sensor-pin-selected {background:#36485c!important;border-color:#c0d0df!important;color:#fff!important;box-shadow:0 0 0 3px #8496ab25!important;}
+.clarity-stage .bim-pin-layer .health-normal .sensor-anchor-core {fill:#40d99d!important;stroke:#b0ffe2!important;filter:drop-shadow(0 0 3px #42d99b77);}
+.clarity-stage .bim-pin-layer .health-abnormal .sensor-anchor-core {fill:#f36a72!important;stroke:#ffc2c5!important;filter:drop-shadow(0 0 4px #f36a72aa);}
+.clarity-stage .bim-pin-layer .health-unavailable .sensor-anchor-core {fill:#8092a4!important;stroke:#b3c2ce!important;filter:none!important;}
+.clarity-stage .bim-pin-layer .health-normal .sensor-arrival-ring {stroke:#40d99d!important;}
+.clarity-stage .bim-pin-layer .health-abnormal .sensor-arrival-ring {stroke:#f36a72!important;}
+.clarity-stage .bim-pin-layer .health-normal line {stroke:#42bb8d!important;}
+.clarity-stage .bim-pin-layer .health-abnormal line {stroke:#ed7278!important;}
+:root[data-theme="light"] .overview-active-alerts {background:#fff5f4;}
+@media(max-width:1040px){.bim-health-key {gap:6px;font-size:8px;}}
+@media(max-width:760px){.overview-heading-actions{width:100%;justify-content:space-between;}.bim-health-key{display:none;}}
