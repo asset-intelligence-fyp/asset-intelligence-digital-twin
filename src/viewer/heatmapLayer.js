@@ -1,6 +1,7 @@
 import {Mesh,ReadableGeometry,PhongMaterial} from '@xeokit/xeokit-sdk';
 import definitions from '../../shared/sensorDefinitions.json';
-import {heatmapSamples,buildFloorHeatmapGrid} from './heatmapField.js';
+import {heatmapSamples} from './heatmapField.js';
+import {buildContainedFloorGrid} from './heatmapFootprint.js';
 import {buildHeatmapBands,bandMaterialColours} from './heatmapBands.js';
 
 const BAND_COUNT=32;
@@ -14,6 +15,8 @@ const BAND_COUNT=32;
  * colour. This is the same core rendering path as the other visible BIM
  * presentation objects, with no asynchronous texture decoding.
  *
+ * The isobands are clipped to the per-storey IFC wall/glazing enclosure;
+ * slab bounding boxes alone must never define the visible footprint.
  * No floor is drawn unless that floor has an eligible sensor reading. A
  * one-sensor floor is uniform; multiple sensors create a smooth 32-step
  * gradient along scalar-field contour boundaries, not square tiles.
@@ -44,7 +47,7 @@ export function createHeatmapLayer(scene,navigation,points){
    if(initialized)return;
    initialized=true;
    for(const entry of surfaces){
-    const grid=buildFloorHeatmapGrid(entry.aabbs,entry.elevation,{cellSize:2.0,offset:.20});
+    const grid=buildContainedFloorGrid(entry.aabbs,entry.facadeAabbs||[],entry.elevation,{cellSize:1.25,offset:.10,inset:.40});
     if(!grid.indices.length)continue;
     floors.set(entry.floor,{grid,source:entry.source,parts:[],signature:''});
    }
@@ -62,7 +65,7 @@ export function createHeatmapLayer(scene,navigation,points){
    }
    // In whole-building view, lower alpha allows the architecture and lower
    // storeys to show through. Single-floor view enhances selected floor.
-   const alpha=floor==='all'?.43:.68;
+   const alpha=floor==='all'?.34:.58;
    for(const material of palette)material.alpha=alpha;
    for(const [id,region] of floors){
     const visible=floor==='all'||floor===id;
