@@ -6,6 +6,7 @@ import {createNavigationController} from '../src/viewer/navigationController.js'
 import {xrayStyle} from '../src/viewer/renderSettings.js';
 import {FLOOR_CLIP_DIRECTIONS} from '../src/viewer/renderSettings.js';
 import {sensorDisplay,roomRepresentatives,sensorTitle} from '../src/viewer/sensorPresentation.js';
+import {sensorHealth} from '../src/viewer/sensorHealth.js';
 import {bindViewerGestures} from '../src/viewer/viewerGestures.js';
 import {storeyFor,frameBounds,frameSensor,layoutPins} from '../src/viewer/navigationMath.js';
 const navigation=JSON.parse(fs.readFileSync('shared/modelNavigation.json','utf8'));
@@ -166,4 +167,24 @@ test('IFC footprint meshes contain valid triangles and perimeter edges, with mis
  const temp=registry.find(p=>p.code==='TEMP-L03-MEET-01');
  assert.equal(data.sensors[temp.guid].roomGuid,null,'Do not fabricate a room footprint for the uncontained meeting temperature marker');
  for(const point of registry){const link=data.sensors[point.guid];assert.ok(link);if(link.roomGuid)assert.ok(data.rooms[link.roomGuid]);}
+});
+
+test('BIM dots reflect active abnormal conditions, not acknowledgements or manual test records',()=>{
+ const definitions=JSON.parse(fs.readFileSync('shared/sensorDefinitions.json','utf8'));
+ const humidity=registry.find(p=>p.sensorType==='humidity');
+ const leak=registry.find(p=>p.sensorType==='water_leakage');
+ const co2=registry.find(p=>p.sensorType==='co2');
+ const normal=(value)=>({value,quality:'simulated'});
+ assert.equal(sensorHealth(humidity,normal(55),[],definitions),'normal');
+ assert.equal(sensorHealth(humidity,normal(78),[],definitions),'abnormal');
+ assert.equal(sensorHealth(co2,normal(1250),[],definitions),'abnormal');
+ assert.equal(sensorHealth(leak,normal(1),[],definitions),'abnormal');
+ assert.equal(sensorHealth(leak,normal(0),[],definitions),'normal');
+ assert.equal(sensorHealth(humidity,null,[],definitions),'unavailable');
+ assert.equal(sensorHealth(humidity,normal(55),[],definitions,'stale'),'unavailable');
+ const acknowledged={point_code:humidity.code,automatic:true,synthetic:true,acknowledged:true,resolved_at:null};
+ assert.equal(sensorHealth(humidity,normal(55),[acknowledged],definitions),'abnormal','acknowledgement must not indicate recovery');
+ assert.equal(sensorHealth(humidity,normal(55),[{...acknowledged,resolved_at:'2026-11-23T10:00:00Z'}],definitions),'normal');
+ assert.equal(sensorHealth(humidity,normal(55),[{point_code:humidity.code,synthetic:true,automatic:false,resolved_at:null}],definitions),'normal','manual test records must not trigger BIM health');
+ assert.equal(sensorHealth(humidity,{value:null,quality:'missing'},[{...acknowledged,rule:'missing'}],definitions),'abnormal','unresolved missing-reading alerts stay visible');
 });
