@@ -44,12 +44,16 @@ LAN traffic uses ordinary HTTP. Use a trusted private network only, avoid weak p
 
 This code has not yet been tested against your live laptop/database. Validate in an isolated test database before applying live changes.
 
-## Confirmation for sensitive changes
+## Confirmation for every administrator change
 
-Read-only administration views do not require extra prompts. Changes through Admin management APIs (sensor create/edit/delete; location rename; maintenance create/status; invitation create/revoke; user role/activation) require the logged-in administrator to re-enter their **existing Admin login password**. A successful verification authorizes management writes for **five minutes in that server-side session**. The backend returns HTTP 428 when confirmation has expired; the UI shows a password modal and retries the pending operation after successful verification.
+All read-only Admin operations remain available without repeated prompts. **Every individual change** (sensor create/edit/delete, location rename, maintenance creation/status, grant/revoke invitation, user role change, account enable/disable) requires entry of the currently signed-in Administrator's password, with no grace period between changes.
 
-The password is verified against the stored scrypt hash and is never stored in the frontend or logged. Five incorrect attempts lock password confirmation temporarily for fifteen minutes. This is a step-up check, not a substitute for network encryption: the LAN site currently runs on HTTP, so **do not use it for sensitive production credentials until HTTPS is configured**.
+The backend verifies the password against the account's scrypt password hash. After successful verification, it issues a **60-second, one-use confirmation token** bound to exactly the requested HTTP method, URL path, and JSON body. The token is consumed upon the next matching change attempt; it cannot be reused for a second change or a different payload. Five wrong password confirmations trigger a temporary 15-minute lockout.
 
-For validation, run `npm run test:admin:step-up` then `npm run build`. Test renaming a disposable location to verify that the password prompt appears, wrong passwords are rejected, and a correct password permits saving. Check the audit log afterwards.
+Every successful administrative database mutation already writes to `digital_twin.admin_audit` within its database transaction, capturing the signed-in account username (`actor`), action, target, optional details, and database-generated timestamp. The **Access → Recent activity** list shows that username alongside the action, target and time.
 
-Grant Access cards have been adjusted so the Send Invitation button stays a normal, fixed-height control regardless of Recent Activity content and email delivery status.
+Run `npm run test:admin:step-up` and `npm run build` after pulling. Confirm that a second edit prompts for a password again, and that the audit history lists the correct signed-in username. Changes through `/api/admin/manage/*` are protected server-side, not merely by a modal.
+
+**Security note:** The current HTTP LAN site is not transport-encrypted. A password prompt does not substitute for HTTPS in production. Keep your testing on a trusted private LAN and use HTTPS before handling real credentials over untrusted networks.
+
+The Grant Access card retains the fixed-size Send Invitation button, unaffected by the height of Recent Activity or email delivery status.
