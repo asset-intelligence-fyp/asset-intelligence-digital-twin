@@ -220,3 +220,7 @@
  .bi-chart svg{height:155px}
 }
 @media(prefers-reduced-motion:reduce){.bi-workspace button{transition:none}}
+
+/* The full-page report supplies its own title; preserve the compact popup title. */
+.assistant-intelligence-page>.assistant-head{display:none}
+.assistant-archive-return{padding:10px clamp(18px,4vw,60px);border-bottom:1px solid var(--border)}
