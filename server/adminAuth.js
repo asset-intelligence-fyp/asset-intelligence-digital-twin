@@ -1,6 +1,7 @@
 import {randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
 
 const sessions = new Map();
+let authenticationPool=null;
 const attempts = new Map();
 const SESSION_MS = 8 * 60 * 60 * 1000;
 const MAX_ATTEMPTS = 8;
@@ -31,6 +32,7 @@ function cookie(req, value, maxAge) {
   return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${maxAge}${secure?'; Secure':''}`;
 }
 export function adminAuth(app,pool=null,schema='digital_twin') {
+  authenticationPool=pool;
   app.post('/api/admin/login',async(req,res)=>{
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
@@ -74,9 +76,19 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     res.json({authenticated:false});
   });
 }
-export function requireAdmin(req,res,next) {
+export async function requireAdmin(req,res,next) {
   const admin=readSession(req);
   if(!admin||admin.role!=='admin') return res.status(401).json({error:'Administrator login required'});
+  // Revalidate privileges against PostgreSQL on each protected request.
+  // Demoted accounts and deleted users lose admin access immediately.
+  try{
+    if(!authenticationPool)return res.status(503).json({error:'Authentication database unavailable'});
+    const check=await authenticationPool.query(
+      "SELECT 1 FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1 AND r.role_name='admin'",
+      [admin.userId]
+    );
+    if(!check.rowCount)return res.status(403).json({error:'Administrator access revoked; sign in again'});
+  }catch(e){console.error('Permission check failed:',e.message);return res.status(503).json({error:'Permission verification unavailable'});}
   req.admin=admin;
   // Same-origin checks for authenticated API requests.
   const origin=req.get('origin');
