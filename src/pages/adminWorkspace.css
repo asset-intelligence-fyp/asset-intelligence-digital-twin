@@ -109,3 +109,13 @@
  .aw-frame>.aw-tabs button:nth-child(5),.aw-frame>.aw-tabs button:nth-child(7),
  .aw-frame>.aw-tabs button:nth-child(10){margin-top:0;border-top:0;padding-top:10px}
 }
+
+/* Dedicated reading-detail screen replaces bottom-of-registry expansion. */
+.aw-reading-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.aw-reading-summary{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.aw-reading-summary h2{font-size:19px;margin:5px 0 0;overflow-wrap:anywhere}
+.aw-reading-summary .aw-footnote{margin:7px 0 0}
+.aw-reading-meta{display:grid;gap:4px;text-align:right;flex-shrink:0}
+.aw-reading-meta strong{font-size:23px;font-variant-numeric:tabular-nums}
+.aw-reading-meta span{font-size:11px;color:var(--muted)}
+@media(max-width:560px){.aw-reading-summary{align-items:flex-start;flex-direction:column}.aw-reading-meta{text-align:left}}
