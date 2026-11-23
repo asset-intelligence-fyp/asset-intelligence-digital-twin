@@ -123,7 +123,7 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
  app.get('/api/admin/manage/users',requireAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const [users,invites,auditRows]=await Promise.all([
-   pool.query(`SELECT u.user_id,u.username,u.email,r.role_name,u.created_at FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) ORDER BY u.created_at DESC LIMIT 250`),
+   pool.query(`SELECT u.user_id,u.username,u.email,u.is_active,r.role_name,u.created_at FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) ORDER BY u.created_at DESC LIMIT 250`),
    pool.query(`SELECT invite_id,email,role_name,expires_at,used_at,created_at,email_status,email_sent_at FROM digital_twin.access_invites ORDER BY created_at DESC LIMIT 100`),
    pool.query('SELECT actor,action,target,created_at FROM digital_twin.admin_audit ORDER BY audit_id DESC LIMIT 15')
   ]);
@@ -177,6 +177,28 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    return 'ok';
   });
   if(result!=='ok')return res.status(result==='missing'?404:409).json({error:result==='self'?'You cannot change your own role.':result==='last'?'Cannot remove the last administrator.':'User not found.'});
+  res.json({ok:true});
+ }));
+ app.post('/api/admin/manage/users/:id/active',requireAdmin,safe(async(req,res)=>{
+  if(!enabled(pool,schema,res))return;
+  const id=Number(req.params.id),active=req.body?.is_active;
+  if(!Number.isSafeInteger(id)||id<1||typeof active!=='boolean')return res.status(400).json({error:'Invalid user or activation state.'});
+  const status=await transaction(pool,async c=>{
+   const user=await c.query('SELECT user_id,username,is_active FROM digital_twin.users WHERE user_id=$1 FOR UPDATE',[id]);
+   if(!user.rowCount)return 'missing';
+   if(user.rows[0].user_id===req.admin.userId&&!active)return 'self';
+   if(!active){
+    const admins=await c.query(`SELECT count(*)::int AS total FROM digital_twin.users u
+      JOIN digital_twin.roles r USING(role_id) WHERE r.role_name='admin' AND u.is_active=TRUE`);
+    const isAdmin=await c.query(`SELECT 1 FROM digital_twin.users u
+      JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1 AND r.role_name='admin'`,[id]);
+    if(isAdmin.rowCount&&admins.rows[0].total<=1)return 'last';
+   }
+   await c.query('UPDATE digital_twin.users SET is_active=$1 WHERE user_id=$2',[active,id]);
+   await audit(c,req.admin.username,active?'user.activate':'user.disable',user.rows[0].username);
+   return 'updated';
+  });
+  if(status!=='updated')return res.status(status==='missing'?404:409).json({error:status==='self'?'You cannot disable your own account.':status==='last'?'Cannot disable the last active administrator.':'User not found.'});
   res.json({ok:true});
  }));
  app.get('/api/admin/manage/maintenance',requireAdmin,safe(async(req,res)=>{
