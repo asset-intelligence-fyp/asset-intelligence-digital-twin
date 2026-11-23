@@ -31,13 +31,13 @@ export function heatmapScore(metric,value){
  if(metric==='temperature'){
   if(value<22)return .08+.92*ramp(22-value,0,6);
   if(value<=27)return 0;
-  if(value<=30)return .08+.92*ramp(value,27,3);
+  if(value<=30)return .08+.92*ramp(value,27,30);
   return 1;
  }
  if(metric==='humidity'){
   if(value<40)return .08+.92*ramp(40-value,0,15);
   if(value<=65)return 0;
-  if(value<=75)return .08+.92*ramp(value,65,10);
+  if(value<=75)return .08+.92*ramp(value,65,75);
   return 1;
  }
  if(metric==='co2')return value<=800?0:ramp(value,800,1200);
@@ -135,7 +135,7 @@ export function heatmapVertexColours(positions,samples,metric){
   const isBinary=metric==='occupancy'||metric==='water_leakage';
   // Alpha fades only, not a fabricated safe (green) value at unsupported
   // locations. Even binary overlays remain categorical at sensors.
-  rgba.push(r,g,b,clamp((isBinary?.65:.78)*result.coverage,0,.80));
+  rgba.push(r,g,b,clamp((isBinary ? .65 : .78)*result.coverage,0,.80));
  }
  return rgba;
 }
