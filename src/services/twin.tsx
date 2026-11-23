@@ -79,7 +79,13 @@ export function TwinProvider({children}:{children:ReactNode}){
  const seenEvents=useRef(new Set<string>());
  const [bootstrapVersion,setBootstrapVersion]=useState(0);
  const pendingTraces=useRef(new Map<string,{codes:Set<string>;size:number}>());
- const browserId=useRef(crypto.randomUUID());
+ // Client identifier for benchmark telemetry only; not an authentication token.
+ // crypto.randomUUID is unavailable on plain-HTTP LAN origins in some browsers.
+ const browserId=useRef(
+  typeof crypto!=='undefined'&&typeof crypto.randomUUID==='function'
+   ? crypto.randomUUID()
+   : `lan-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+ );
  useEffect(()=>{
   if(mode!=='http'||document.visibilityState!=='visible')return;
   const ready=[...pendingTraces.current].filter(([id,v])=>v.codes.size===v.size&&[...v.codes].every(code=>readings[code]?.trace?.trace_id===id)).map(([id])=>id);
