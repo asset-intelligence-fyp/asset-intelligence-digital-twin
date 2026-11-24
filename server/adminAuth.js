@@ -34,6 +34,10 @@ function cookie(req, value, maxAge) {
   const secure = req.secure || req.headers['x-forwarded-proto']==='https';
   return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${secure?'; Secure':''}`;
 }
+// Clear sessions issued by older versions with the narrower /api/admin cookie path.
+function sessionCookies(req,token,maxAge){
+ return [cookie(req,'',0).replace('Path=/;', 'Path=/api/admin;'),cookie(req,token,maxAge)];
+}
 export function adminAuth(app,pool=null,schema='digital_twin') {
   authenticationPool=pool;
   app.post('/api/admin/login',async(req,res)=>{
@@ -57,7 +61,7 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
       attempts.delete(ip);
       const token=randomBytes(32).toString('hex');
       sessions.set(token,{username:name,userId:null,role:'admin',legacy:true,expires:now+SESSION_MS});
-      res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
+      res.setHeader('Set-Cookie',sessionCookies(req,token,8*60*60));
       return res.json({authenticated:true,username:name,role:'admin',legacy:true});
     }
     const username=req.body?.username,password=req.body?.password;
@@ -83,7 +87,7 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     attempts.delete(ip);
     const token=randomBytes(32).toString('hex');
     sessions.set(token,{username:user.username,userId:user.user_id,role:user.role_name,expires:now+SESSION_MS});
-    res.setHeader('Set-Cookie',cookie(req,token,8*60*60));
+    res.setHeader('Set-Cookie',sessionCookies(req,token,8*60*60));
     return res.json({authenticated:true,username:user.username,role:user.role_name});
   });
   // Every management write requires a fresh password. Authorization is one-use,
@@ -138,7 +142,7 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
       );
       if(!result.rowCount||!result.rows[0].is_active){
         sessions.delete(parseCookie(req));
-        res.setHeader('Set-Cookie',cookie(req,'',0));
+        res.setHeader('Set-Cookie',sessionCookies(req,'',0));
         return res.json({authenticated:false,username:null,role:null});
       }
       session.role=result.rows[0].role_name;
@@ -150,7 +154,7 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
   });
   app.post('/api/admin/logout',(req,res)=>{
     sessions.delete(parseCookie(req));
-    res.setHeader('Set-Cookie',cookie(req,'',0));
+    res.setHeader('Set-Cookie',sessionCookies(req,'',0));
     res.json({authenticated:false});
   });
 }
