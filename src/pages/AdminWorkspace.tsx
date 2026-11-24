@@ -308,17 +308,19 @@ export function AdminWorkspace(){
     <div className="aw-actions"><button className="aw-primary" disabled={busy} type="submit"><Save size={14}/>{editingAnnouncement===null?'Save draft':'Save changes'}</button></div>
     <p className="aw-footnote">Publish saved drafts to make them visible to website users. Every change requires your admin password.</p>
    </form>
-   <section className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Announcements</h2><span>{announcements.length} records</span></div>
-    <div className="aw-table-scroll aw-announcement-scroll"><table><thead><tr><th>Title</th><th>Actions</th><th>Status</th><th>Updated by</th><th>Updated</th><th>Message</th></tr></thead><tbody>
+   <section className="aw-panel aw-table-shell aw-announcement-panel"><div className="aw-panel-head"><h2>Announcements</h2><span>{announcements.length} records</span></div>
+    <div className="aw-table-scroll aw-announcement-scroll"><table><colgroup><col className="aw-announce-title"/><col className="aw-announce-message"/><col className="aw-announce-status"/><col className="aw-announce-owner"/><col className="aw-announce-date"/><col className="aw-announce-actions"/></colgroup><thead><tr><th>Title</th><th>Message</th><th>Status</th><th>Updated by</th><th>Updated</th><th>Actions</th></tr></thead><tbody>
      {announcements.filter(a=>announcementStatusFilter==='all'||a.status===announcementStatusFilter).map(a=><tr key={String(a.announcement_id)}>
-      <td><strong>{value(a.title)}</strong></td><td className="aw-row-actions"><button type="button" disabled={busy} onClick={()=>{setEditingAnnouncement(Number(a.announcement_id));setAnnouncementForm({title:String(a.title),body:String(a.body),status:String(a.status)});window.scrollTo({top:0,behavior:'instant'})}}>Edit</button>
-      {a.status!=='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'published'})}>Publish</button>}
-      {a.status==='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'archived'})}>Archive</button>}</td>
+      <td title={value(a.title)}><strong>{value(a.title)}</strong></td>
+      <td title={value(a.body)}><span className="aw-announce-excerpt">{value(a.body)}</span></td>
       <td><span className={a.status==='published'?'aw-tag good':'aw-tag'}>{value(a.status)}</span></td>
-      <td>{value(a.updated_by)}</td><td>{new Date(String(a.updated_at)).toLocaleString()}</td><td title={value(a.body)}>{brief(a.body)}</td>
+      <td>{value(a.updated_by)}</td>
+      <td>{new Date(String(a.updated_at)).toLocaleString('en-MY',{day:'2-digit',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true})}</td>
+      <td><div className="aw-announcement-actions"><button type="button" disabled={busy} onClick={()=>{setEditingAnnouncement(Number(a.announcement_id));setAnnouncementForm({title:String(a.title),body:String(a.body),status:String(a.status)});window.scrollTo({top:0,behavior:'instant'})}}>Edit</button>
+      {a.status!=='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'published'})}>Publish</button>}
+      {a.status==='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'archived'})}>Archive</button>}</div></td>
      </tr>)}</tbody></table>{!announcements.length&&<p className="aw-empty">No announcements yet.</p>}</div>
-   </section>
-  </div>}
+   </section>  </div>}
   {tab==='data'&&<div className="aw-content"><div className="aw-toolbar"><label className="aw-select-label">Table<select value={datasetName} onChange={e=>{setDatasetName(e.target.value);setOffset(0);setDataSearch('')}}>{datasets.map(([k,n])=><option key={k} value={k}>{n}</option>)}</select></label>{['buildings','locations','sensors'].includes(datasetName)&&<input aria-label="Search table" placeholder="Search records" value={dataSearch} onChange={e=>{setDataSearch(e.target.value);setOffset(0)}}/>}</div>
   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>{datasets.find(x=>x[0]===datasetName)?.[1]}</h2><span>{dataset?.rows.length||0} rows on page</span></div><div className="aw-table-scroll"><table><thead><tr>{Object.keys(dataset?.rows[0]||{}).map(k=><th key={k}>{k.replaceAll('_',' ')}</th>)}</tr></thead><tbody>{dataset?.rows.map((r,i)=><tr key={i}>{Object.keys(dataset.rows[0]||{}).map(k=><td title={value(r[k])} key={k}>{brief(r[k])}</td>)}</tr>)}</tbody></table>{!dataset?.rows.length&&<p className="aw-empty">No records.</p>}</div></div>
   <div className="aw-pagination"><span>Offset {offset}</span><button disabled={offset===0||busy} onClick={()=>setOffset(Math.max(0,offset-100))}>Previous</button><button disabled={!dataset||dataset.rows.length<100||busy} onClick={()=>setOffset(offset+100)}>Next</button></div></div>}
