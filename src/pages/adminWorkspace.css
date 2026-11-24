@@ -119,3 +119,12 @@
 .aw-reading-meta strong{font-size:23px;font-variant-numeric:tabular-nums}
 .aw-reading-meta span{font-size:11px;color:var(--muted)}
 @media(max-width:560px){.aw-reading-summary{align-items:flex-start;flex-direction:column}.aw-reading-meta{text-align:left}}
+
+/* Audit log: readable summaries by default, raw stored JSON available on demand. */
+.aw-audit-details{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:165px;max-width:320px}
+.aw-audit-details>span{white-space:normal;overflow-wrap:anywhere;line-height:1.45}
+.aw-audit-details details{width:100%;white-space:normal}
+.aw-audit-details summary{display:inline-block;cursor:pointer;color:var(--teal);font-size:11px}
+.aw-audit-details summary:hover{text-decoration:underline}
+.aw-audit-details pre{box-sizing:border-box;max-width:100%;margin:7px 0 2px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;line-height:1.45}
+.aw-table-scroll td:has(.aw-audit-details){white-space:normal;overflow:visible;vertical-align:top}
