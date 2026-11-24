@@ -1,5 +1,4 @@
 import {AlertEvidence} from '../components/AlertEvidence';
-import {E8AMonitoringPanel} from '../components/E8AMonitoringPanel';
 import type {ReactNode} from 'react';import {useEffect,useState} from 'react';
 import {ArrowUpRight,Gauge,Radio,Thermometer,Activity,Droplets,Sun,Users,Zap,AlertTriangle,TrendingUp,ChevronDown,CloudSun} from 'lucide-react';
 import {ASSETS,POINTS,displayTime,readingLabel,useTwin,type AssetId} from '../services/twin';
@@ -30,7 +29,6 @@ export function Overview({investigationId,onDismissInvestigation,onEvent,externa
   <div className={'overview-alert-summary '+(activeAlerts.length?'attention':'normal')}><AlertTriangle size={18}/><div><strong>{activeAlerts.length?activeAlerts.length+' active alert'+(activeAlerts.length===1?'':'s'):'No active alerts'}</strong><small>{activeAlerts.length?critical+' critical · '+(activeAlerts.length-critical)+' other':'No current unacknowledged events'}</small></div></div>
   <div className="overview-alert-list">{activeAlerts.length?activeAlerts.slice(0,3).map(e=>{const point=POINTS.find(p=>p.code===e.point_code);return <button className="overview-alert-entry" key={e.id} onClick={()=>onEvent(e.id)}><span className={'overview-alert-dot severity-'+e.level.toLowerCase()}/><span><strong>{e.title}</strong><small>{point?.locationLabel||e.source} · {e.automatic?'Automatic rule':e.synthetic?'Test event':'Stored event'}</small></span><ArrowUpRight size={14}/></button>}):<p className="overview-insights-empty">Automatic simulator alerts appear here when monitored readings breach configured rules.</p>}</div>
   {activeAlerts.length>3&&<button className="text-link" onClick={()=>setPage('events')}>+{activeAlerts.length-3} more alerts</button>}
-  <E8AMonitoringPanel compact onViewAll={()=>setPage('monitoring')} onFocus={focusSensor}/>
   <div className="overview-forecast-teaser"><div><TrendingUp size={15}/><strong>Experimental forecasting</strong></div><p>One-month Qwen projections are available on demand. There are no automated forecast-risk alerts yet.</p><button className="small-outline" onClick={()=>setPage('assistant')}>Open projections <ArrowUpRight size={12}/></button></div>
  </section>
  <section className="surface zone-detail">{noSensors?<div className="empty-state"><h2>{viewFloor.replaceAll('_',' ')}</h2><p>No configured sensors on this level.</p></div>:<><div className="zone-detail-top"><div><Eyebrow>SELECTED LOCATION</Eyebrow><h2>{points[0]?roomTitle(points[0]):selectedAsset}</h2><p className="room-floor-label">{points[0]?.floor.replace('Level_0','Level ').replaceAll('_',' ')}</p></div><Pill tone="teal">Monitoring</Pill></div>
