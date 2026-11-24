@@ -217,3 +217,69 @@
 :root[data-theme="light"] .simulator-feedback[data-feedback="error"]{background:#fff0f0;color:#8c2424;border-color:#e7afaf}
 :root[data-theme="light"] .weather-override{background:#e6f5f8;color:#0c6577;border-color:#a1d4dc}
 @media(prefers-reduced-motion:reduce){.feedback-spin{animation:none}}
+
+
+/* Analytics page: white surfaces and near-black typography in light mode. */
+/* Keep these rules scoped to Analytics + light appearance, preserving the
+   existing dark theme and the coloured data-series lines in charts. */
+:root[data-theme="light"] .analytics-page {
+ color:#121c24;
+}
+:root[data-theme="light"] .analytics-page .surface,
+:root[data-theme="light"] .analytics-page .kpi-card,
+:root[data-theme="light"] .analytics-page .chart-panel,
+:root[data-theme="light"] .analytics-page .air-quality {
+ background:#ffffff!important;
+ border-color:#d0dce5!important;
+ color:#121c24!important;
+}
+:root[data-theme="light"] .analytics-page .page-heading h1,
+:root[data-theme="light"] .analytics-page .chart-heading h3,
+:root[data-theme="light"] .analytics-page .air-quality-title h3,
+:root[data-theme="light"] .analytics-page .kpi-card .eyebrow,
+:root[data-theme="light"] .analytics-page .analytics-observation-row strong,
+:root[data-theme="light"] .analytics-page .analytics-observation-row strong[style] {
+ color:#101820!important;
+}
+:root[data-theme="light"] .analytics-page .page-heading p,
+:root[data-theme="light"] .analytics-page .chart-heading span,
+:root[data-theme="light"] .analytics-page .air-quality-title p,
+:root[data-theme="light"] .analytics-page .air-quality .subtle,
+:root[data-theme="light"] .analytics-page .analytics-observation-head,
+:root[data-theme="light"] .analytics-page .analytics-observation-row,
+:root[data-theme="light"] .analytics-page .analytics-observation-row small {
+ color:#263746!important;
+}
+:root[data-theme="light"] .analytics-page .kpi-value,
+:root[data-theme="light"] .analytics-page .kpi-value small,
+:root[data-theme="light"] .analytics-page .kpi-delta {
+ color:#101820!important;
+}
+:root[data-theme="light"] .analytics-page .twin-chart-labels,
+:root[data-theme="light"] .analytics-page .twin-chart-labels strong,
+:root[data-theme="light"] .analytics-page .twin-chart-labels strong small,
+:root[data-theme="light"] .analytics-page .twin-chart-legend,
+:root[data-theme="light"] .analytics-page .chart-time-axis,
+:root[data-theme="light"] .analytics-page .chart-time-axis small,
+:root[data-theme="light"] .analytics-page .chart-skeleton {
+ color:#182b39!important;
+}
+:root[data-theme="light"] .analytics-page .chart-grid-line {
+ color:#9db0be;
+ opacity:.55;
+}
+:root[data-theme="light"] .analytics-page .analytics-observation-head,
+:root[data-theme="light"] .analytics-page .analytics-observation-row {
+ border-color:#dce6ed!important;
+}
+:root[data-theme="light"] .analytics-page .segmented {
+ background:#fff!important;
+ border-color:#cbdbe5!important;
+}
+:root[data-theme="light"] .analytics-page .segmented button {
+ color:#192d3b!important;
+}
+:root[data-theme="light"] .analytics-page .segmented button.active {
+ background:#e1eff5!important;
+ color:#101820!important;
+}
