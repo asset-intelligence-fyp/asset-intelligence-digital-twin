@@ -33,7 +33,10 @@ export function createBuildingViewer({canvas,navCanvas,navigation,onSelect,onLoa
   occupants.setBounds(bounds);
   control.load();
   exterior.init(bounds);
-  landscape.init(bounds);
+  // Scene bounds begin at the foundation; the visible site belongs beside
+  // the Level 01 entrance rather than four metres below it.
+  const entryElevation=navigation.levels.find(level=>level.id==='Level_01')?.elevation;
+  landscape.init(bounds,entryElevation);
   guides.init(bounds);
   const state=control.snapshot(),site=state.mode==='solid'&&state.floor==='all';
   landscape.setVisible(site);
