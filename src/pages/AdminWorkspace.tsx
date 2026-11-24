@@ -274,18 +274,19 @@ export function AdminWorkspace(){
   </div>}
   {tab==='alerts'&&<div className="aw-content">
    <div className="aw-toolbar"><div className="aw-select-label">Status <select aria-label="Filter alerts" value={alertFilter} onChange={e=>setAlertFilter(e.target.value)}>{['all','New','Review','Acknowledged','Closed'].map(v=><option key={v} value={v}>{v==='all'?'All statuses':v}</option>)}</select></div><span className="aw-status">{adminAlerts.length} recent alerts · last 200</span></div>
-   <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Alerts</h2></div>
-    <div className="aw-table-scroll"><table><thead><tr><th>Triggered</th><th>Sensor</th><th>Severity</th><th>Alert</th><th>Message</th><th>Status</th><th>Acknowledged by</th><th>Acknowledged at</th><th>Admin actions</th></tr></thead>
+   <div className="aw-panel aw-table-shell aw-alerts-panel"><div className="aw-panel-head"><h2>Alerts</h2></div>
+    <div className="aw-table-scroll aw-alerts-scroll"><table><colgroup><col className="aw-alert-date"/><col className="aw-alert-sensor"/><col className="aw-alert-severity"/><col className="aw-alert-message"/><col className="aw-alert-status"/><col className="aw-alert-ack"/><col className="aw-alert-actions"/></colgroup><thead><tr><th>Triggered</th><th>Sensor</th><th>Severity</th><th>Message</th><th>Status</th><th>Acknowledgement</th><th>Actions</th></tr></thead>
     <tbody>{adminAlerts.filter(a=>alertFilter==='all'||a.status_name===alertFilter).map(a=><tr key={String(a.alert_id)}>
-     <td>{new Date(String(a.triggered_at)).toLocaleString()}</td>
-     <td>{value(a.point_code)}</td><td><span className="aw-tag">{value(a.severity_name)}</span></td>
-     <td>{value(a.alert_type)}</td><td title={value(a.message)}>{brief(a.message)}</td>
+     <td>{new Date(String(a.triggered_at)).toLocaleString('en-MY',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}</td>
+     <td title={value(a.point_code)}>{value(a.point_code)}</td>
+     <td><span className="aw-tag">{value(a.severity_name)}</span></td>
+     <td title={value(a.message)}><span className="aw-alert-excerpt">{value(a.message)}</span></td>
      <td><span className="aw-tag">{value(a.status_name)}</span></td>
-     <td>{value(a.acknowledged_by)}</td><td>{a.acknowledged_at?new Date(String(a.acknowledged_at)).toLocaleString():'—'}</td>
-     <td><div className="aw-row-actions">
+     <td>{a.acknowledged_by?<div className="aw-alert-acknowledgement"><strong>{value(a.acknowledged_by)}</strong>{a.acknowledged_at&&<small>{new Date(String(a.acknowledged_at)).toLocaleString('en-MY',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}</small>}</div>:<span className="aw-alert-muted">Not acknowledged</span>}</td>
+     <td><div className="aw-alert-actions-cell">
       {a.status_name==='Acknowledged'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/alerts/'+a.alert_id+'/status','PATCH',{status:'Review'})}>Review</button>}
       {a.status_name!=='Closed'&&<button type="button" disabled={busy} onClick={()=>{if(window.confirm('Close alert '+a.alert_id+'? This records an administrator closure.'))void mutate('/api/admin/manage/alerts/'+a.alert_id+'/status','PATCH',{status:'Closed'})}}>Close</button>}
-      {a.status_name==='Closed'&&<span className="aw-status">Closed</span>}
+      {a.status_name==='Closed'&&<span className="aw-alert-muted">Closed</span>}
      </div></td>
     </tr>)}</tbody></table>{!adminAlerts.length&&<p className="aw-empty">No alerts recorded.</p>}</div></div>
    <p className="aw-footnote">Users acknowledge alerts from Events. This page monitors alert status, who acknowledged it and when. Administrators can Review or Close; each change requires password confirmation and is recorded in the Audit Log. Acknowledgement does not mean the fault is resolved.</p>
