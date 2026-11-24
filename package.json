@@ -34,7 +34,7 @@
     "test:invitation-email": "node --test tests/invitationEmail.test.mjs",
     "test:admin:step-up": "node --test tests/adminStepUp.test.mjs",
     "admin:db:check": "node scripts/check-admin.mjs",
-    "test:e8a": "node --test tests/e8aMonitoring.test.mjs && python3 -m unittest discover -s tests -p 'test_e8a_website.py' -v"
+    "test:e8a": "node --test tests/e8aMonitoring.test.mjs && python3 -m unittest discover -s tests -p 'test_e8a*.py' -v"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
