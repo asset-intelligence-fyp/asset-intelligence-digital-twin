@@ -120,6 +120,8 @@ for(const sig of ['SIGINT','SIGTERM'])process.on(sig,()=>shutdown(0));
 const python=env.PYTHON||(process.platform==='win32'?'py':'python3');
 const pythonArgs=process.platform==='win32'&&!env.PYTHON?['-3']:[];
 if(env.HOST_START_AI!=='false')launch('Qwen3 bridge',python,[...pythonArgs,'llm_service/bridge.py'],{optional:true});
+if(env.HOST_START_AI!=='false'&&env.E8A_MONITOR_ENABLED!=='false')
+ launch('E8-A agentic monitoring bridge',python,[...pythonArgs,'llm_service/e8a_bridge.py'],{optional:true});
 launch('TwinLabs Website + Backend',process.execPath,['server/sensorServer.js']);
 if(env.SIMULATOR_AUTOSTART!=='false')launch('TwinLabs Simulator',process.execPath,['scripts/run-simulator.mjs'],{optional:true});
 console.log('\nTwinLabs shared website starting.');
