@@ -36,6 +36,56 @@ async function request(url:string,options?:RequestInit,canConfirm=true){
 const send=(method:string,payload?:unknown)=>({method,headers:{'Content-Type':'application/json'},body:payload===undefined?undefined:JSON.stringify(payload)});
 const value=(x:unknown)=>x===null||x===undefined?'—':typeof x==='object'?JSON.stringify(x):String(x);
 const brief=(x:unknown)=>{const s=value(x);return s.length>110?s.slice(0,107)+'…':s;};
+
+const auditActionLabels:Record<string,string>={
+ 'invite.create':'Invitation Created','invite.redeem':'Invitation Accepted','invite.revoke':'Invitation Revoked',
+ 'user.role':'User Role Changed','user.activate':'Account Enabled','user.disable':'Account Disabled',
+ 'sensor.create':'Sensor Added','sensor.update':'Sensor Updated','sensor.delete':'Sensor Deleted',
+ 'alert.status':'Alert Status Changed','alert.acknowledge':'Alert Acknowledged',
+ 'announcement.create':'Announcement Created','announcement.update':'Announcement Updated',
+ 'maintenance.create':'Maintenance Created','maintenance.status':'Maintenance Status Changed',
+ 'notification.read':'Notification Read','notification.unread':'Notification Marked Unread'
+};
+const auditLabel=(action:unknown)=>{
+ const name=String(action||'');
+ return auditActionLabels[name]||name.split('.').map(part=>part.replaceAll('_',' ')).join(' · ')||'Unknown action';
+};
+const auditData=(input:unknown):Record<string,unknown>=>{
+ if(input&&typeof input==='object'&&!Array.isArray(input))return input as Record<string,unknown>;
+ if(typeof input==='string'){try{const obj:unknown=JSON.parse(input);if(obj&&typeof obj==='object'&&!Array.isArray(obj))return obj as Record<string,unknown>}catch{/* Older entries may not be JSON. */}}
+ return {};
+};
+const auditPretty=(input:unknown)=>{
+ if(typeof input==='string'){try{return JSON.stringify(JSON.parse(input),null,2)}catch{return input}}
+ return JSON.stringify(input??{},null,2);
+};
+const auditSummary=(action:unknown,input:unknown)=>{
+ const a=String(action||''),d=auditData(input);
+ const previous=d.previous,newValue=d.new;
+ const fmt=(x:unknown)=>typeof x==='object'&&x!==null?JSON.stringify(x):String(x);
+ const changes=previous!==undefined&&newValue!==undefined
+  ?(typeof previous==='object'&&previous!==null&&typeof newValue==='object'&&newValue!==null
+   ?Object.keys(newValue as Record<string,unknown>).map(k=>k+': '+fmt((previous as Record<string,unknown>)[k])+' → '+fmt((newValue as Record<string,unknown>)[k])).join('; ')
+   :fmt(previous)+' → '+fmt(newValue))
+  :'';
+ if(changes)return changes;
+ if(a==='invite.create')return 'Invitation created';
+ if(a==='invite.redeem')return 'Invited account registered';
+ if(a==='invite.revoke')return d.invite_id!==undefined?'Invitation #'+fmt(d.invite_id)+' revoked':'Invitation revoked';
+ if(a==='sensor.create')return d.location_code?'Sensor registered at '+fmt(d.location_code):'Sensor registered';
+ if(a==='sensor.delete')return 'Sensor record deleted';
+ if(a==='announcement.create')return d.title?'Draft created: '+fmt(d.title):'Announcement created';
+ if(a==='announcement.update')return d.title?'Updated: '+fmt(d.title):'Announcement updated';
+ if(a==='maintenance.create')return d.location_code?'Maintenance recorded at '+fmt(d.location_code):'Maintenance record created';
+ if(a==='alert.acknowledge')return 'Alert acknowledged by the signed-in user';
+ if(a==='user.activate')return 'Account enabled';
+ if(a==='user.disable')return 'Account disabled';
+ if(a==='notification.read')return 'Marked as read';
+ if(a==='notification.unread')return 'Marked as unread';
+ const entries=Object.entries(d).filter(([key])=>key!=='previous'&&key!=='new');
+ return entries.length?entries.map(([key,v])=>key.replaceAll('_',' ')+': '+fmt(v)).join('; '):'No additional details recorded';
+};
+
 const baseSensor={point_code:'',location_code:'',measurement_type:'temperature',unit:'°C'};
 type SensorForm=typeof baseSensor;
 export function AdminWorkspace(){
@@ -223,7 +273,7 @@ export function AdminWorkspace(){
    <div className="aw-toolbar"><input aria-label="Search audit records" value={auditSearch} placeholder="Search user, action or target" onChange={e=>{setAuditSearch(e.target.value);setAuditOffset(0)}}/><span className="aw-status">Administrator activity · newest first</span></div>
    <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Audit Log</h2><span>{auditRows.length} records</span></div>
     <div className="aw-table-scroll"><table><thead><tr><th>Time</th><th>Performed by</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
-    <tbody>{auditRows.map(a=><tr key={String(a.audit_id)}><td>{new Date(String(a.created_at)).toLocaleString()}</td><td><strong>{value(a.actor)}</strong></td><td>{value(a.action)}</td><td>{value(a.target)}</td><td title={value(a.detail)}>{brief(a.detail)}</td></tr>)}</tbody></table>{!auditRows.length&&<p className="aw-empty">No audit records for this filter.</p>}</div></div>
+    <tbody>{auditRows.map(a=><tr key={String(a.audit_id)}><td>{new Date(String(a.created_at)).toLocaleString()}</td><td><strong>{value(a.actor)}</strong></td><td title={value(a.action)}>{auditLabel(a.action)}</td><td>{value(a.target)}</td><td><div className="aw-audit-details"><span title={auditSummary(a.action,a.detail)}>{auditSummary(a.action,a.detail)}</span><details><summary>View raw</summary><pre>{auditPretty(a.detail)}</pre></details></div></td></tr>)}</tbody></table>{!auditRows.length&&<p className="aw-empty">No audit records for this filter.</p>}</div></div>
    <div className="aw-pagination"><button disabled={auditOffset===0||busy} onClick={()=>setAuditOffset(Math.max(0,auditOffset-50))}>Previous</button><span>{auditOffset+1}–{auditOffset+auditRows.length}</span><button disabled={auditRows.length<50||busy} onClick={()=>setAuditOffset(auditOffset+50)}>Next</button></div>
   </div>}
   {tab==='alerts'&&<div className="aw-content">
