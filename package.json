@@ -12,7 +12,7 @@
     "start": "node server/sensorServer.js",
     "db:setup": "node scripts/setup-twin18.mjs",
     "simulator": "node scripts/run-simulator.mjs",
-    "test": "node --test tests/siteLandscape.test.mjs tests/heatmap.test.mjs tests/twin18.test.mjs tests/navigation.test.mjs tests/occupantVisualization.test.mjs tests/experience.test.mjs tests/datasetStream.test.mjs tests/latencyMetrics.test.mjs tests/hybridStream.test.mjs tests/weatherScenario.test.mjs tests/buildingAssistant.test.mjs tests/alerts.test.mjs tests/adminAuth.test.mjs tests/adminDatabaseAuth.test.mjs tests/adminStepUp.test.mjs tests/invitationEmail.test.mjs",
+    "test": "node --test tests/e8aMonitoring.test.mjs tests/siteLandscape.test.mjs tests/heatmap.test.mjs tests/twin18.test.mjs tests/navigation.test.mjs tests/occupantVisualization.test.mjs tests/experience.test.mjs tests/datasetStream.test.mjs tests/latencyMetrics.test.mjs tests/hybridStream.test.mjs tests/weatherScenario.test.mjs tests/buildingAssistant.test.mjs tests/alerts.test.mjs tests/adminAuth.test.mjs tests/adminDatabaseAuth.test.mjs tests/adminStepUp.test.mjs tests/invitationEmail.test.mjs",
     "model:convert": "node scripts/convert-whole-building.mjs && python3 scripts/export-navigation.py && python3 scripts/export-room-footprints.py",
     "demo": "TWIN_STORAGE=memory concurrently -k -n API,WEB,SIM \"npm:dev:api\" \"npm:dev:web\" \"npm:simulator\"",
     "model:verify": "node scripts/verify-model.mjs",
@@ -33,7 +33,8 @@
     "test:admin:db": "node --test tests/adminDatabaseAuth.test.mjs",
     "test:invitation-email": "node --test tests/invitationEmail.test.mjs",
     "test:admin:step-up": "node --test tests/adminStepUp.test.mjs",
-    "admin:db:check": "node scripts/check-admin.mjs"
+    "admin:db:check": "node scripts/check-admin.mjs",
+    "test:e8a": "node --test tests/e8aMonitoring.test.mjs && python3 -m unittest discover -s tests -p 'test_e8a_website.py' -v"
   },
   "dependencies": {
     "@xeokit/xeokit-sdk": "^2.6.114",
