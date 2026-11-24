@@ -116,10 +116,11 @@ export function createSiteLandscapeLayer(scene){
    const layout=makeSiteLayout(Array.from(bounds||[]),{groundElevation});
    if(!layout)return;
    const [west,north,east,south]=layout.bounds;
-   // Separate grass underlay blocks leave the ground-floor building shell
-   // empty; a single raised rectangular base would pass through the entrance.
+   // Four exterior turf strips retain the entrance clearance. A fifth,
+   // slightly lower grass-coloured infill fills the visually empty rectangle
+   // around the irregular IFC shell without altering the raised walkways.
    for(const block of buildGrassBaseBlocks(layout)){
-    make(box,grassEdge,block.position,block.scale);
+    make(box,block.lowered?turfColours[0]:grassEdge,block.position,block.scale);
    }
    for(const [i,data] of buildGrassFacets(layout).entries()){
     if(data.indices.length)make(useGeometry(data),turfColours[i]);
