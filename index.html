@@ -12,6 +12,8 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Xeokit XKT decoder requires browser-global Pako before the app loads. -->
+    <script src="/pako.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
