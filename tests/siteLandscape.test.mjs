@@ -148,23 +148,37 @@ test('raised turf never intersects the IFC building footprint',()=>{
  assert.ok(crossing.length>0,'turf can approach the exterior wall safely');
 });
 
-test('raised grass underlay is partitioned around the building entrance',()=>{
+test('raised grass has a recessed centre filler without moving the paths or entrance',()=>{
  const site=makeSiteLayout([-14,51,-9,67,83,38],{groundElevation:55.5});
  const blocks=buildGrassBaseBlocks(site);
- assert.equal(blocks.length,4);
+ const outer=blocks.filter(block=>!block.lowered);
+ const centre=blocks.find(block=>block.lowered);
+ assert.equal(outer.length,4,'four original raised exterior strips remain');
+ assert.equal(blocks.length,5,'the missing rectangle is filled');
+ assert.ok(centre,'a central recessed grass filler is present');
  const [bx0,bz0,bx1,bz1]=site.building;
- for(const block of blocks){
+ for(const block of outer){
   const [x0,z0,x1,z1]=block.footprint;
   assert.ok(x1<=bx0-.20+1e-8||x0>=bx1+.20-1e-8||
     z1<=bz0-.20+1e-8||z0>=bz1+.20-1e-8,
-   'ground base must not pass underneath the building');
+   'raised exterior ground must not pass under the building');
   assert.ok(Math.abs(block.position[1]+block.scale[1]/2-site.grassY)<1e-8,
-   'underlay top should align with grass, not obstruct paths');
+   'exterior grass base stays at the approved elevation');
  }
- const area=blocks.reduce((sum,b)=>sum+b.scale[0]*b.scale[2],0);
+ assert.deepEqual(centre.footprint,[bx0-.20,bz0-.20,bx1+.20,bz1+.20],
+  'the filler matches the exact rectangular cutout');
+ const centreTop=centre.position[1]+centre.scale[1]/2;
+ assert.ok(Math.abs(centreTop-(site.grassY-.08))<1e-8,
+  'central infill sits 8cm below the surrounding grass');
+ assert.ok(centreTop<site.grassY&&centreTop<site.walkwayY,
+  'the filler cannot overlap the raised paving');
+ assert.ok(Math.abs(site.walkwayY-site.grassY-.22)<1e-8,
+  'the original walkway elevation is unchanged');
+ const area=blocks.reduce((sum,block)=>sum+block.scale[0]*block.scale[2],0);
  const [west,north,east,south]=site.bounds;
- const expected=(east-west)*(south-north)-
-  (bx1-bx0+.4)*(bz1-bz0+.4);
- assert.ok(Math.abs(area-expected)<1e-7,
-  'four strips must cover all exterior turf without overlaps or site gaps');
+ assert.ok(Math.abs(area-(east-west)*(south-north))<1e-7,
+  'the base now fills the entire rectangular site without gaps or overlapping footprints');
+ const layer=readFileSync(new URL('../src/viewer/siteLandscapeLayer.js',import.meta.url),'utf8');
+ assert.ok(layer.includes('block.lowered?turfColours[0]:grassEdge'),
+  'the central filler should be green turf rather than a dark base slab');
 });
