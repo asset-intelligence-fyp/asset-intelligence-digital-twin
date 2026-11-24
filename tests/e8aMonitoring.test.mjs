@@ -55,7 +55,7 @@ test('E8-A automatic monitor evaluates sequentially and preserves both result ch
   throw Error('Unexpected fetch '+url);
  };
  const monitor=createE8AMonitor({
-  getHistory:async codes=>{queries++;return codes?.length?rows:rows;},
+  getHistory:async codes=>{queries++;return rows.filter(r=>r.timestamp<=stamp);},
   getSource:()=>({replay_id:'run-1'}),fetchImpl:onCall,now:()=>cutoff+30_000
  });
  // First sensor in registry order is selected on the first available cycle.
