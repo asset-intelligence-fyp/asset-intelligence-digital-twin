@@ -23,6 +23,7 @@ import './workspace.css';
 import './pulse.css';
 import './presentation-refresh.css';
 import './clean-dashboard.css';
+import './e8a-monitoring.css';
 import {applyTheme,getSavedTheme} from './theme.js';
 applyTheme(getSavedTheme());
 function App(){
