@@ -220,3 +220,158 @@
  .clarity-stage .bim-colour-key{width:209px;max-width:calc(100% - 22px);padding:10px 11px;}
  .clarity-stage .bim-colour-key select{width:120px;}
 }
+
+
+/* Overview spacing and theme contrast — Week 12 polish
+   A single consistent outer gutter and a stretched viewer remove the blank
+   region that previously appeared below the 3D canvas when the right column
+   contained more content. The WebGL scene, controls and data are untouched. */
+.overview-clean {
+ --overview-card-gap:16px;
+}
+.overview-clean .overview-clean-heading {
+ margin-bottom:var(--overview-card-gap);
+}
+.overview-clean .overview-room-picker {
+ margin-bottom:var(--overview-card-gap);
+}
+.overview-clean .overview-workbench {
+ align-items:stretch!important;
+ gap:var(--overview-card-gap)!important;
+}
+.overview-clean .model-card {
+ height:100%!important;
+ min-height:clamp(640px,76vh,880px);
+ align-self:stretch;
+}
+.overview-clean .overview-aside {
+ gap:var(--overview-card-gap)!important;
+ align-self:stretch;
+}
+.overview-clean .overview-insights {
+ padding:18px!important;
+ gap:14px;
+}
+.overview-clean .overview-alert-list {gap:8px;}
+.overview-clean .overview-alert-entry {padding:11px;min-height:62px;}
+.overview-clean .overview-forecast-teaser {padding-top:14px;gap:9px;}
+.overview-clean .zone-detail {padding:18px!important;}
+.overview-clean .zone-detail-top {margin-bottom:14px;}
+.overview-clean .zone-stat-grid {gap:10px;margin-bottom:14px;}
+.overview-clean .zone-stat {padding:10px 11px;}
+.overview-clean .dashboard-trends {margin-top:var(--overview-card-gap);}
+.overview-clean .overview-collapsible-section {margin-top:var(--overview-card-gap);}
+
+/* The metric figures had inherited very pale colours from the legacy dark
+   stylesheet even when their cards were light. Make figures readable in
+   BOTH themes, without overriding status/alert severity indicators. */
+:root[data-theme="light"] .overview-clean .zone-stat>span,
+:root[data-theme="light"] .overview-clean .zone-stat>span small {
+ color:#1b394d!important;
+}
+:root[data-theme="light"] .overview-clean .zone-stat .eyebrow {
+ color:#4c687a!important;
+}
+:root[data-theme="light"] .overview-clean .room-floor-label,
+:root[data-theme="light"] .overview-clean .overview-alert-entry small,
+:root[data-theme="light"] .overview-clean .overview-forecast-teaser p {
+ color:#496476!important;
+}
+
+/* Dark mode: keep the dark application shell, but use dark navy/near-black
+   type ON PALE overview cards. Black text directly on a dark panel would
+   be unreadable. Scope these colours to the light card surfaces only. */
+:root[data-theme="dark"] .overview-clean .overview-aside {
+ --ink:#152f42;
+ --muted:#456174;
+ --border:#bfcfdb;
+ --surface:#f5f9fc;
+ --teal:#087d93;
+ color:#152f42;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside>.surface {
+ background:#f5f9fc!important;
+ border-color:#bfcfdb!important;
+ color:#152f42!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside h2,
+:root[data-theme="dark"] .overview-clean .overview-aside h3,
+:root[data-theme="dark"] .overview-clean .overview-aside strong,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-forecast-teaser>div,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-sensor-options>summary {
+ color:#152f42!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .eyebrow,
+:root[data-theme="dark"] .overview-clean .overview-aside small,
+:root[data-theme="dark"] .overview-clean .overview-aside .room-floor-label,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-forecast-teaser p,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-entry small {
+ color:#426074!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-entry,
+:root[data-theme="dark"] .overview-clean .overview-aside .small-outline {
+ background:#fff!important;
+ border-color:#c8d9e4!important;
+ color:#1f4258!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-entry:hover,
+:root[data-theme="dark"] .overview-clean .overview-aside .small-outline:hover {
+ background:#e8f3f8!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-summary.attention {
+ background:#fff1f0!important;
+ border-color:#e5aba9!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-summary.normal {
+ background:#eaf7f3!important;
+ border-color:#a8d9cc!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat {
+ background:#e9f2f8!important;
+ border-color:#c8d9e4!important;
+ color:#152f42!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat>span,
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat>span small {
+ color:#102c41!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat .eyebrow {
+ color:#3c5e73!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .pill-teal,
+:root[data-theme="dark"] .overview-clean .overview-aside .reporting-note {
+ background:#e0f3f5!important;
+ border-color:#9acdd5!important;
+ color:#145d6d!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .twin-zone-sensor {
+ background:transparent!important;
+ color:#24495f!important;
+ border-bottom-color:#cadae5!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .twin-zone-sensor code {
+ color:#154b64!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .twin-zone-sensor[aria-pressed="true"] {
+ background:#d9ecf4!important;
+ color:#153f53!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail,
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail summary,
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail code,
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail p {
+ color:#345568!important;
+}
+
+/* Once the columns stack, the viewer must return to a bounded height and
+   not stretch to the combined height of the monitoring cards. */
+@media(max-width:1150px){
+ .overview-clean .overview-workbench {align-items:start!important;}
+ .overview-clean .model-card {height:620px!important;min-height:560px;}
+ .overview-clean .overview-aside {align-self:auto;}
+}
+@media(max-width:760px){
+ .overview-clean .model-card {height:560px!important;min-height:500px;}
+ .overview-clean .overview-insights,.overview-clean .zone-detail {padding:14px!important;}
+ .overview-clean .zone-stat-grid {gap:8px;}
+}
