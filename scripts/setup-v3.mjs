@@ -29,8 +29,7 @@ try{
   for(const p of locations){
    await client.query(`INSERT INTO ${SCHEMA}.monitoring_locations
     (location_code,display_name,floor_level,building_code) VALUES($1,$2,$3,'SNOWDON')
-    ON CONFLICT(location_code) DO UPDATE SET display_name=EXCLUDED.display_name,
-     floor_level=EXCLUDED.floor_level,building_code=EXCLUDED.building_code`,
+    ON CONFLICT(location_code) DO NOTHING`,
     [p.assetId,p.locationLabel,p.floor]);
   }
   await client.query(`INSERT INTO ${SCHEMA}.bim_models(building_code,model_name,file_reference)
@@ -41,14 +40,7 @@ try{
      (point_code,simulator_room_id,ifc_sensor_id,ifc_global_id,location_code,
       floor_level,measurement_type,unit,mapping_status)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     ON CONFLICT(point_code) DO UPDATE SET
-      simulator_room_id=EXCLUDED.simulator_room_id,
-      ifc_sensor_id=EXCLUDED.ifc_sensor_id,
-      ifc_global_id=EXCLUDED.ifc_global_id,
-      location_code=EXCLUDED.location_code,
-      floor_level=EXCLUDED.floor_level,
-      measurement_type=EXCLUDED.measurement_type,
-      unit=EXCLUDED.unit,mapping_status=EXCLUDED.mapping_status`,
+     ON CONFLICT(point_code) DO NOTHING`,
     [p.code,p.simulatorRoomId,p.ifcSensorId,p.guid,p.assetId,p.floor,p.sensorType,p.unit,p.mappingStatus]);
   }
   await client.query('COMMIT');
