@@ -20,16 +20,19 @@ export function pathDistance(x,z,paths){
   closest=Math.min(closest,segmentDistance(x,z,path.points[i-1],path.points[i])-path.width/2);
  return closest;
 }
-export function makeSiteLayout(bounds){
+export function makeSiteLayout(bounds,{groundElevation}={}){
  if(!bounds||bounds.length!==6||!bounds.every(Number.isFinite))return null;
  const [x0,y0,z0,x1,,z1]=bounds,w=x1-x0,d=z1-z0;
  if(w<=.5||d<=.5)return null;
  const reach=Math.max(12,Math.max(w,d)*.20);
  const cx=(x0+x1)/2,cz=(z0+z1)/2;
  const west=x0-reach*1.47,east=x1+reach*1.47,north=z0-reach*1.47,south=z1+reach*1.47;
- // The grass is a deliberately thin site model below the IFC basement.
- // Top of the pavers is 220 mm above this plane, with visible stone sides.
- const grassY=y0-.88,walkwayY=grassY+.22;
+ // Anchor the conceptual landscape to the building's real ground/entry
+ // floor (Level_01), NOT the minimum IFC Y (which includes its basement
+ // and foundation). Keep the paving 220 mm above the turf.
+ // If a model has no explicit ground level, preserve the old fallback.
+ const grassY=Number.isFinite(groundElevation)?groundElevation-.30:y0-.88;
+ const walkwayY=grassY+.22;
  const width=clamp(reach*.18,2.25,3.35);
  const paths=[
   {name:'front promenade',width,points:[[west+reach*.12,z1+reach*.50],[east-reach*.12,z1+reach*.50]]},
@@ -76,6 +79,51 @@ function appendTriangle(mesh,a,b,c){
 }
 const geometry=()=>({primitive:'triangles',positions:[],normals:[],indices:[]});
 const addQuad=(mesh,a,b,c,d)=>{appendTriangle(mesh,a,b,c);appendTriangle(mesh,a,c,d)};
+
+/** A hole around the IFC building footprint prevents raised landscape
+ * triangles from intersecting the ground-floor walls or slab. Each triangle
+ * is split into four non-overlapping regions outside the rectangular shell.
+ * This retains clean straight edges at the facade, even with coarse turf.
+ */
+function clipTerrain(polygon,axis,bound,keepLess){
+ const output=[];
+ if(!polygon.length)return output;
+ const inside=p=>keepLess?p[axis]<=bound+1e-8:p[axis]>=bound-1e-8;
+ let prior=polygon.at(-1),oldInside=inside(prior);
+ for(const current of polygon){
+  const newInside=inside(current);
+  if(oldInside!==newInside){
+   const denominator=current[axis]-prior[axis];
+   if(Math.abs(denominator)>1e-10){
+    const t=Math.max(0,Math.min(1,(bound-prior[axis])/denominator));
+    output.push(prior.map((x,i)=>x+(current[i]-x)*t));
+   }
+  }
+  if(newInside)output.push(current);
+  prior=current;oldInside=newInside;
+ }
+ return output;
+}
+export function grassOutsideBuilding(triangle,building,margin=.20){
+ const [x0,z0,x1,z1]=building;
+ const left=x0-margin,right=x1+margin,near=z0-margin,far=z1+margin;
+ const middle=clipTerrain(clipTerrain(triangle,0,left,false),0,right,true);
+ const parts=[
+  clipTerrain(triangle,0,left,true),
+  clipTerrain(triangle,0,right,false),
+  clipTerrain(middle,2,near,true),
+  clipTerrain(middle,2,far,false)
+ ];
+ const faces=[];
+ for(const part of parts){
+  for(let j=1;j<part.length-1;j++){
+   const [a,b,c]=[part[0],part[j],part[j+1]];
+   const area=(b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]);
+   if(Math.abs(area)>1e-7)faces.push([a,b,c]);
+  }
+ }
+ return faces;
+}
 export function buildGrassFacets(layout,{columns=19,rows=15}={}){
  const [x0,z0,x1,z1]=layout.bounds,dx=(x1-x0)/columns,dz=(z1-z0)/rows;
  const points=[];
@@ -92,8 +140,10 @@ export function buildGrassFacets(layout,{columns=19,rows=15}={}){
  const parts=Array.from({length:5},geometry);
  for(let j=0;j<rows;j++)for(let i=0;i<columns;i++){
   const a=points[j][i],b=points[j][i+1],c=points[j+1][i+1],d=points[j+1][i];
-  appendTriangle(parts[Math.floor(noise(i,j,7)*5)],a,c,b);
-  appendTriangle(parts[Math.floor(noise(i,j,8)*5)],a,d,c);
+  for(const triangle of grassOutsideBuilding([a,c,b],layout.building))
+   appendTriangle(parts[Math.floor(noise(i,j,7)*5)],...triangle);
+  for(const triangle of grassOutsideBuilding([a,d,c],layout.building))
+   appendTriangle(parts[Math.floor(noise(i,j,8)*5)],...triangle);
  }
  return parts;
 }
