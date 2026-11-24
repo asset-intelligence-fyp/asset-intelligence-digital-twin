@@ -30,10 +30,12 @@ test('write operations require fresh administrator password even with login sess
   const headers={Cookie:cookie,'Content-Type':'application/json'};
   const blocked=await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers,body:'{}'});
   assert.equal(blocked.status,428);assert.equal(writes,0);
-  const invalid=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password:'incorrect'})});
+  const action={method:'PATCH',path:'/api/admin/manage/example',body:{name:'new'}};
+  // A valid action with the wrong password must be denied as an auth failure.
+  // A missing action is correctly rejected as a malformed request (HTTP 400).
+  const invalid=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password:'incorrect',action})});
   assert.equal(invalid.status,401);
   assert.equal((await fetch(base+'/api/admin/manage/example',{method:'PATCH',headers,body:'{}'})).status,428);
-  const action={method:'PATCH',path:'/api/admin/manage/example',body:{name:'new'}};
   const confirmed=await fetch(base+'/api/admin/confirm-password',{method:'POST',headers,body:JSON.stringify({password,action})});
   assert.equal(confirmed.status,200);
   const {authorization}=await confirmed.json();
