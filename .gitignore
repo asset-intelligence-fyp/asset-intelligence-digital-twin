@@ -55,3 +55,6 @@ storage/llm_one_month_checkpoints/
 
 # Generated local fault-injection datasets
 tools/level03_simulator/outputs/
+
+# Auto-copied from installed Xeokit SDK at build time
+public/pako.js
