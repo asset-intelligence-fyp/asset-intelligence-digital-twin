@@ -1,6 +1,6 @@
 import {createAlertService,definitions} from './alertService.js';
 import {registerBuildingAssistant} from './buildingAssistant.js';
-import {adminAuth} from './adminAuth.js';
+import {adminAuth,requireSignedIn} from './adminAuth.js';
 import {registerAdminDatabase} from './adminDatabase.js';
 import {registerAdminManagement} from './adminManagement.js';
 import express from 'express';
@@ -132,10 +132,28 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   }catch(e){res.status(503).json({error:'Database not ready; run npm run db:setup',detail:e.message})}
  });
  app.get('/api/alerts',async(_req,res)=>{try{res.setHeader('Cache-Control','no-store');res.json({events:await alerts.list(pool)})}catch{res.status(503).json({error:'Alert storage unavailable; rerun database setup'})}});
- app.patch('/api/anomalies/:id/status',async(req,res)=>{
+ app.patch('/api/anomalies/:id/status',requireSignedIn,async(req,res)=>{
   const id=Number(req.params.id),status=req.body?.status;
-  if(!Number.isSafeInteger(id)||id<1||!['Review','Acknowledged'].includes(status))return res.status(400).json({error:'Invalid alert ID or status'});
-  try{const event=await alerts.acknowledge(pool,id,status);if(!event)return res.status(404).json({error:'Alert not found'});control('alert',event);res.json(event)}catch{res.status(503).json({error:'Unable to save acknowledgement'})}
+  if(!Number.isSafeInteger(id)||id<1||status!=='Acknowledged')return res.status(400).json({error:'Only Acknowledged is allowed here. Administrator review and closure use the admin workspace.'});
+  if(!pool||ACTIVE_SCHEMA!=='digital_twin')return res.status(503).json({error:'Persistent alert storage is required to record acknowledgements.'});
+  const client=await pool.connect().catch(()=>null);
+  if(!client)return res.status(503).json({error:'Alert database unavailable'});
+  try{
+   await client.query('BEGIN');
+   const before=await client.query(`SELECT a.alert_id,s.status_name FROM digital_twin.alerts a JOIN digital_twin.alert_status s USING(alert_status_id) WHERE a.alert_id=$1 AND a.detector='threshold_v1' FOR UPDATE OF a`,[id]);
+   if(!before.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Alert not found'})}
+   const previous=before.rows[0].status_name;
+   if(previous==='Closed'){await client.query('ROLLBACK');return res.status(409).json({error:'This alert is already closed.'})}
+   if(previous!=='Acknowledged'){
+    await client.query(`UPDATE digital_twin.alerts SET alert_status_id=(SELECT alert_status_id FROM digital_twin.alert_status WHERE status_name='Acknowledged') WHERE alert_id=$1`,[id]);
+    await client.query('INSERT INTO digital_twin.admin_audit(actor,action,target,detail) VALUES($1,$2,$3,$4::jsonb)',[req.account.username,'alert.acknowledge',String(id),JSON.stringify({previous,new:'Acknowledged'})]);
+   }
+   await client.query('COMMIT');
+   const event=(await alerts.list(pool)).find(item=>item.id===id);
+   if(event){control('alert',event);return res.json(event)}
+   return res.status(404).json({error:'Alert not found'});
+  }catch(e){await client.query('ROLLBACK').catch(()=>{});console.error('Alert acknowledgement failed:',e);res.status(503).json({error:'Unable to save acknowledgement'})}
+  finally{client.release()}
  });
  const e8a=registerE8AMonitoring(app,{
   getHistory:codes=>historyFor(codes),
