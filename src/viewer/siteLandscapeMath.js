@@ -67,7 +67,11 @@ export function makeSiteLayout(bounds){
 }
 function appendTriangle(mesh,a,b,c){
  const offset=mesh.positions.length/3;
- for(const v of [a,b,c]){mesh.positions.push(...v);mesh.normals.push(0,1,0)}
+ const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];
+ const v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+ const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+ const magnitude=Math.hypot(...n)||1,normal=n.map(x=>x/magnitude);
+ for(const p of [a,b,c]){mesh.positions.push(...p);mesh.normals.push(...normal)}
  mesh.indices.push(offset,offset+1,offset+2);
 }
 const geometry=()=>({primitive:'triangles',positions:[],normals:[],indices:[]});
