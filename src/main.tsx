@@ -1,4 +1,4 @@
-import React, {useEffect,useState} from 'react';
+import React, {useEffect,useLayoutEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Shell,type Page} from './components/Shell';
 import {TwinProvider,useTwin,POINTS} from './services/twin';
@@ -26,11 +26,13 @@ import './clean-dashboard.css';
 import './e8a-monitoring.css';
 import './login-page.css';
 import {applyTheme,getSavedTheme} from './theme.js';
-applyTheme(getSavedTheme());
+// Authentication is consistently light, regardless of per-host saved theme.
+applyTheme('light');
 function App(){
  const {selectedRoom:selectedAsset,setSelectedRoom:setSelectedAsset}=useTwin();
  const [commandRequest,setCommandRequest]=useState(0);
  const {session,setSession,logout,sessionLoading}=useAdminSession();
+ useLayoutEffect(()=>{applyTheme(session.authenticated?getSavedTheme():'light');},[session.authenticated]);
  const [page,updatePage]=useState<Page>('overview');
  const setPage=(next:Page)=>{if(next==='database'&&session.role!=='admin')return;updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
  const handleLogout=async()=>{try{await logout();}finally{setPage('overview');}};
