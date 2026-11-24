@@ -33,7 +33,7 @@ function App(){
  const [page,updatePage]=useState<Page>('overview');
  const setPage=(next:Page)=>{if(next==='database'&&session.role!=='admin'){if(!session.authenticated)setAdminOpen(true);return;}setAdminOpen(false);updatePage(next);window.scrollTo({top:0,behavior:'instant'});};
  const handleLogout=async()=>{try{await logout();}finally{setPage('overview');}};
- useEffect(()=>{if(page==='database'&&session.role!=='admin')updatePage('overview')},[page,session.authenticated]);
+ useEffect(()=>{if(page==='database'&&session.role!=='admin')updatePage('overview')},[page,session.role]);
  useEffect(()=>{if(!adminOpen)return;const handler=(event:KeyboardEvent)=>{if(event.key==='Escape')setAdminOpen(false)};document.addEventListener('keydown',handler);return()=>document.removeEventListener('keydown',handler)},[adminOpen]);
  const [assistantDraft,setAssistantDraft]=useState<{question:string;scope:string;nonce:number}|null>(null);
  const [investigationId,setInvestigationId]=useState<number|null>(null);
