@@ -32,7 +32,7 @@ function actionFingerprint(method,path,body){
 }
 function cookie(req, value, maxAge) {
   const secure = req.secure || req.headers['x-forwarded-proto']==='https';
-  return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/api/admin; Max-Age=${maxAge}${secure?'; Secure':''}`;
+  return `${cookieName}=${value}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}${secure?'; Secure':''}`;
 }
 export function adminAuth(app,pool=null,schema='digital_twin') {
   authenticationPool=pool;
