@@ -8,6 +8,7 @@ No test keys, ground truth, or future measurements can reach LangGraph.
 """
 from __future__ import annotations
 import math
+import os
 import tempfile
 import time
 from datetime import datetime, timezone
@@ -113,7 +114,7 @@ def analyse_e8a_website(request, model='qwen3:1.7b', max_rounds=2):
         finally:
             con.close()
         retriever = TemporalRetriever(target, at, task='detect', db_path=db)
-        llm = OllamaJSON(model=model)
+        llm = OllamaJSON(model=model, host=os.environ.get('OLLAMA_URL') or os.environ.get('OLLAMA_HOST') or 'http://127.0.0.1:11434')
         decision = run_e8a_detection(retriever, llm, max_rounds=max_rounds)
     return {
         'workflow': 'E8-A', 'model': model, 'source': 'synthetic_http_telemetry',
