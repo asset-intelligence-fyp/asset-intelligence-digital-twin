@@ -309,13 +309,13 @@ export function AdminWorkspace(){
     <p className="aw-footnote">Publish saved drafts to make them visible to website users. Every change requires your admin password.</p>
    </form>
    <section className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Announcements</h2><span>{announcements.length} records</span></div>
-    <div className="aw-table-scroll"><table><thead><tr><th>Title</th><th>Message</th><th>Status</th><th>Updated by</th><th>Updated</th><th>Actions</th></tr></thead><tbody>
+    <div className="aw-table-scroll aw-announcement-scroll"><table><thead><tr><th>Title</th><th>Actions</th><th>Status</th><th>Updated by</th><th>Updated</th><th>Message</th></tr></thead><tbody>
      {announcements.filter(a=>announcementStatusFilter==='all'||a.status===announcementStatusFilter).map(a=><tr key={String(a.announcement_id)}>
-      <td><strong>{value(a.title)}</strong></td><td title={value(a.body)}>{brief(a.body)}</td><td><span className={a.status==='published'?'aw-tag good':'aw-tag'}>{value(a.status)}</span></td>
-      <td>{value(a.updated_by)}</td><td>{new Date(String(a.updated_at)).toLocaleString()}</td>
-      <td className="aw-row-actions"><button type="button" disabled={busy} onClick={()=>{setEditingAnnouncement(Number(a.announcement_id));setAnnouncementForm({title:String(a.title),body:String(a.body),status:String(a.status)});window.scrollTo({top:0,behavior:'instant'})}}>Edit</button>
+      <td><strong>{value(a.title)}</strong></td><td className="aw-row-actions"><button type="button" disabled={busy} onClick={()=>{setEditingAnnouncement(Number(a.announcement_id));setAnnouncementForm({title:String(a.title),body:String(a.body),status:String(a.status)});window.scrollTo({top:0,behavior:'instant'})}}>Edit</button>
       {a.status!=='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'published'})}>Publish</button>}
       {a.status==='published'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/announcements/'+a.announcement_id,'PATCH',{title:a.title,body:a.body,status:'archived'})}>Archive</button>}</td>
+      <td><span className={a.status==='published'?'aw-tag good':'aw-tag'}>{value(a.status)}</span></td>
+      <td>{value(a.updated_by)}</td><td>{new Date(String(a.updated_at)).toLocaleString()}</td><td title={value(a.body)}>{brief(a.body)}</td>
      </tr>)}</tbody></table>{!announcements.length&&<p className="aw-empty">No announcements yet.</p>}</div>
    </section>
   </div>}
