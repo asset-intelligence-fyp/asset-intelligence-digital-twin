@@ -68,6 +68,25 @@ export function makeSiteLayout(bounds,{groundElevation}={}){
  return {bounds:[west,north,east,south],building:[x0,z0,x1,z1],
   grassY,walkwayY,paths,trees,reach,width};
 }
+/** Decorative underlay cut into four non-overlapping landscape strips.
+ * The old single green base box would cover the Level 01 entrance when
+ * raised, even if its visible grass facets were clipped.
+ */
+export function buildGrassBaseBlocks(layout,{margin=.20,depth=.30}={}){
+ const [west,north,east,south]=layout.bounds;
+ const [x0,z0,x1,z1]=layout.building;
+ const left=x0-margin,right=x1+margin,front=z0-margin,back=z1+margin;
+ const regions=[
+  [west,north,left,south],
+  [right,north,east,south],
+  [left,north,right,front],
+  [left,back,right,south]
+ ];
+ return regions.filter(([a,b,c,d])=>c-a>.01&&d-b>.01).map(([a,b,c,d])=>({
+  position:[(a+c)/2,layout.grassY-depth/2,(b+d)/2],
+  scale:[c-a,depth,d-b],footprint:[a,b,c,d]
+ }));
+}
 function appendTriangle(mesh,a,b,c){
  const offset=mesh.positions.length/3;
  const u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]];
