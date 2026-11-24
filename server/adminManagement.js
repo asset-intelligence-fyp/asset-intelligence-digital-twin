@@ -130,21 +130,28 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
  app.get('/api/admin/manage/alerts',requireAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const r=await pool.query(`SELECT a.alert_id,a.point_code,a.alert_type,a.message,a.triggered_at,a.resolved_at,
-    a.detector,s.severity_name,t.status_name
+    a.detector,s.severity_name,t.status_name,ack.actor AS acknowledged_by,ack.created_at AS acknowledged_at
     FROM digital_twin.alerts a JOIN digital_twin.alert_severity s ON s.alert_severity_id=a.alert_severity_id
     JOIN digital_twin.alert_status t ON t.alert_status_id=a.alert_status_id
+    LEFT JOIN LATERAL (
+     SELECT au.actor,au.created_at FROM digital_twin.admin_audit au
+     WHERE au.action='alert.acknowledge' AND au.target=a.alert_id::text
+     ORDER BY au.audit_id DESC LIMIT 1
+    ) ack ON true
     ORDER BY a.triggered_at DESC,a.alert_id DESC LIMIT 200`);
   res.json({rows:r.rows});
  }));
  app.patch('/api/admin/manage/alerts/:id/status',requireAdmin,requireConfirmedAdmin,safe(async(req,res)=>{
   if(!enabled(pool,schema,res))return;
   const id=Number(req.params.id),status=clean(req.body?.status,32);
-  if(!Number.isSafeInteger(id)||id<1||!['New','Review','Acknowledged','Closed'].includes(status))
+  if(!Number.isSafeInteger(id)||id<1||!['Review','Closed'].includes(status))
    return res.status(400).json({error:'Invalid alert or status.'});
   const changed=await transaction(pool,async c=>{
    const prior=await c.query(`SELECT a.alert_id,t.status_name FROM digital_twin.alerts a
      JOIN digital_twin.alert_status t ON t.alert_status_id=a.alert_status_id WHERE a.alert_id=$1 FOR UPDATE OF a`,[id]);
    if(!prior.rowCount)return false;
+   if(prior.rows[0].status_name==='Closed')return 'closed';
+   if(status==='Review'&&prior.rows[0].status_name==='New')return 'unacknowledged';
    await c.query(`UPDATE digital_twin.alerts SET
      alert_status_id=(SELECT alert_status_id FROM digital_twin.alert_status WHERE status_name=$1),
      resolved_at=CASE WHEN $1='Closed' THEN COALESCE(resolved_at,now()) ELSE NULL END
@@ -153,6 +160,8 @@ export function registerAdminManagement(app,pool,schema='digital_twin'){
    return true;
   });
   if(!changed)return res.status(404).json({error:'Alert not found.'});
+  if(changed==='closed')return res.status(409).json({error:'Alert is already closed.'});
+  if(changed==='unacknowledged')return res.status(409).json({error:'Wait for a user to acknowledge this alert before review.'});
   res.json({ok:true});
  }));
  // Announcements are authored by administrators but read publicly on the LAN.
