@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  makeSiteLayout,segmentDistance,pathDistance,buildGrassFacets,
- buildPavedPaths,buildFacetedFrustum
+ buildPavedPaths,buildFacetedFrustum,grassOutsideBuilding
 } from '../src/viewer/siteLandscapeMath.js';
 
 const MODEL_BOUNDS=[-14,0,-9,67,21,38];
@@ -29,7 +29,9 @@ test('conceptual landscaping stays outside the IFC building and avoids footpaths
 test('faceted site grass has a bounded palette of triangulated nonflat facets',()=>{
  const parts=buildGrassFacets(layout,{columns:19,rows:15});
  assert.equal(parts.length,5);
- assert.equal(parts.reduce((sum,p)=>sum+p.indices.length/3,0),19*15*2);
+ const triangleCount=parts.reduce((sum,p)=>sum+p.indices.length/3,0);
+ assert.ok(triangleCount>0,'landscape must still cover the exterior site');
+ assert.ok(triangleCount<19*15*4,'facade clipping should not excessively triangulate the scene');
  for(const part of parts){
   assert.equal(part.primitive,'triangles');
   assert.equal(part.positions.length,part.normals.length);
@@ -102,4 +104,46 @@ test('landscaping stays display-only and preserves existing BIM visibility contr
  assert.ok(viewer.includes("state.mode==='solid'&&state.floor==='all'"));
  assert.ok(viewer.includes('landscape.setVisible(site)'));
  assert.ok(viewer.includes('landscape.destroy()'));
+});
+
+test('site elevation follows Level 01 entrance, not basement foundation',()=>{
+ const model=[-14,51,-9,67,83,38],entryLevel=55.5;
+ const site=makeSiteLayout(model,{groundElevation:entryLevel});
+ assert.equal(site.grassY,55.2,'grass should sit just below the Level 01 entrance');
+ assert.ok(Math.abs(site.walkwayY-55.42)<1e-9,
+  'raised pathways keep the same 22cm height above the lawn');
+ const fallback=makeSiteLayout(model);
+ assert.ok(Math.abs(fallback.grassY-50.12)<1e-9,
+  'older models without known ground levels retain legacy positioning');
+ const grass=buildGrassFacets(site),paving=buildPavedPaths(site);
+ const maxTurf=Math.max(...grass.flatMap(p=>p.positions.filter((_,i)=>i%3===1)));
+ const minPavers=Math.min(...paving.stone.flatMap(p=>p.positions.filter((_,i)=>i%3===1)));
+ assert.ok(minPavers-maxTurf>.18,
+  'moving landscaping upward must not create grass/paver intersections');
+ const viewer=readFileSync(new URL('../src/viewer/wholeBuildingViewer.js',import.meta.url),'utf8');
+ assert.ok(viewer.includes("level.id==='Level_01'"));
+ assert.ok(viewer.includes('landscape.init(bounds,entryElevation)'));
+});
+
+test('raised turf never intersects the IFC building footprint',()=>{
+ const model=[-14,51,-9,67,83,38];
+ const site=makeSiteLayout(model,{groundElevation:55.5});
+ const [bx0,bz0,bx1,bz1]=site.building;
+ const parts=buildGrassFacets(site);
+ for(const mesh of parts){
+  for(let i=0;i<mesh.positions.length;i+=3){
+   const x=mesh.positions[i],z=mesh.positions[i+2];
+   assert.ok(x<=bx0-.20+1e-6||x>=bx1+.20-1e-6||
+    z<=bz0-.20+1e-6||z>=bz1+.20-1e-6,
+    'landscape mesh must leave clearance from the building walls');
+  }
+ }
+ const inside=grassOutsideBuilding([
+  [bx0+1,55.2,bz0+1],[bx0+2,55.2,bz0+1],[bx0+1,55.2,bz0+2]
+ ],site.building);
+ assert.equal(inside.length,0,'entirely internal turf faces are removed');
+ const crossing=grassOutsideBuilding([
+  [bx0-.8,55.2,bz0+1],[bx0+1,55.2,bz0+.5],[bx0+1,55.2,bz0+2]
+ ],site.building);
+ assert.ok(crossing.length>0,'turf can approach the exterior wall safely');
 });
