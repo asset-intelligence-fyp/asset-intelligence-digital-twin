@@ -70,7 +70,7 @@ class ExactE8AWorkflowTests(unittest.TestCase):
         self.assertFalse(result["review_audit"]["repair_attempted"])
         self.assertEqual(result["source_observation_count"], 37)
         self.assertEqual(result["as_of"], "2026-11-24T01:20:00Z")
-        self.assertIn("Synthetic", " ".join(result["limitations"]).capitalize())
+        self.assertIn("synthetic", " ".join(result["limitations"]).lower())
 
 
 if __name__ == "__main__":
