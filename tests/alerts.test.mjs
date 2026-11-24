@@ -17,18 +17,18 @@ async function lifecycle(url){
  let list=await events(url);assert.equal(list.length,1);const id=list[0].id;
  assert.equal(list[0].level,'Critical');assert.equal(list[0].automatic,true);assert.equal(list[0].point_code,leak.code);assert.equal(list[0].source,leak.assetId);assert.equal(list[0].evidence.length,6);assert.equal(list[0].evidence[0].value,0);assert.equal(list[0].reading_snapshot.value,1);
  const evidence=structuredClone(list[0].evidence);
- const ack=await fetch(url+`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'Acknowledged'})});assert.equal(ack.status,200);assert.equal((await ack.json()).acknowledged,true);
- await send(url,row(1,6));await send(url,row(1,6));list=await events(url);assert.equal(list.length,1);assert.deepEqual(list[0].evidence,evidence);assert.equal(list[0].acknowledged,true);
+ const ack=await fetch(url+`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'Acknowledged'})});assert.equal(ack.status,401);assert.equal((await ack.json()).error,'Sign in to acknowledge alerts.');
+ await send(url,row(1,6));await send(url,row(1,6));list=await events(url);assert.equal(list.length,1);assert.deepEqual(list[0].evidence,evidence);assert.equal(list[0].acknowledged,false);
  await send(url,row(0,7));list=await events(url);assert.ok(list[0].resolved_at);
  // Old deliveries cannot reopen an already recovered incident.
  await send(url,row(1,5));assert.equal((await events(url)).length,1);
  await send(url,row(1,8));list=await events(url);assert.equal(list.length,2);assert.equal(list[0].acknowledged,false);
  assert.equal((await(await fetch(url+'/api/bootstrap')).json()).data.Alerts.length,2);
- assert.equal((await fetch(url+'/api/anomalies/99999/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'Acknowledged'})})).status,404);
- assert.equal((await fetch(url+`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'bad'})})).status,400);
+ assert.equal((await fetch(url+'/api/anomalies/99999/status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'Acknowledged'})})).status,401);
+ assert.equal((await fetch(url+`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'bad'})})).status,401);
 }
-test('Memory alerts: SSE, retained preceding readings, acknowledgement, deduplication, recovery and recurrence',()=>server(null,'twin18',lifecycle));
-for(const schema of ['twin18','digital_twin'])test(`${schema}: atomic persistent alerts, safe rerun, restart, and acknowledgement`,async()=>{
+test('Memory alerts: SSE, retained readings, rejects unauthenticated acknowledgement, deduplication and recovery',()=>server(null,'twin18',lifecycle));
+for(const schema of ['twin18','digital_twin'])test(`${schema}: atomic persistent alerts, safe rerun, restart and authenticated acknowledgement requirement`,async()=>{
  const db=new PGlite();const ddl=fs.readFileSync(schema==='twin18'?'database/twin18.sql':'database/schema_v3.sql','utf8');await db.exec(ddl);await db.exec(ddl);
  if(schema==='digital_twin'){
   await db.query("INSERT INTO digital_twin.buildings VALUES('SNOWDON','Test','Office',NULL)");
@@ -39,7 +39,7 @@ for(const schema of ['twin18','digital_twin'])test(`${schema}: atomic persistent
  const pool={query:(...a)=>db.query(...a),connect:async()=>({query:(...a)=>db.query(...a),release(){}})};
  try{await server(pool,schema,lifecycle);
  await server(pool,schema,async url=>{
-  assert.equal((await events(url)).length,2);assert.equal((await events(url))[1].acknowledged,true);
+  assert.equal((await events(url)).length,2);assert.equal((await events(url))[1].acknowledged,false);
   const assistant=await fetch(url+'/api/assistant/building',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:'Explain the current leak reading and earlier incidents',scope:leak.code,use_model:false})});
   assert.equal(assistant.status,200);const answer=await assistant.json();
   assert.equal(answer.facts.filter(f=>f.incident).length,2);assert.match(answer.answer,/Previous incidents/);assert.ok(answer.facts.some(f=>f.incident&&f.resolved));
