@@ -146,3 +146,25 @@
  .aw-announcement-scroll td,.aw-announcement-scroll th{padding:10px 6px;font-size:11px}
  .aw-announcement-actions button{padding:5px 6px;font-size:10px}
 }
+
+/* Compact Alerts table: never require sideways scrolling to reach admin actions. */
+.aw-alerts-panel{min-width:0}
+.aw-alerts-scroll{width:100%;max-width:100%;overflow-x:hidden}
+.aw-alerts-scroll table{width:100%;min-width:0;table-layout:fixed}
+.aw-alerts-scroll .aw-alert-date{width:16%}
+.aw-alerts-scroll .aw-alert-sensor{width:14%}
+.aw-alerts-scroll .aw-alert-severity{width:9%}
+.aw-alerts-scroll .aw-alert-message{width:24%}
+.aw-alerts-scroll .aw-alert-status{width:10%}
+.aw-alerts-scroll .aw-alert-ack{width:17%}
+.aw-alerts-scroll .aw-alert-actions{width:10%}
+.aw-alerts-scroll th,.aw-alerts-scroll td{box-sizing:border-box;min-width:0;max-width:none;padding:10px 7px;white-space:normal;overflow-wrap:anywhere;overflow:hidden;text-overflow:clip;vertical-align:middle}
+.aw-alerts-scroll .aw-tag{display:inline-block;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
+.aw-alert-excerpt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.45}
+.aw-alert-acknowledgement{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.aw-alert-acknowledgement strong{font-family:inherit!important;font-size:11px;max-width:100%;overflow-wrap:anywhere}
+.aw-alert-acknowledgement small,.aw-alert-muted{font-size:10px;color:var(--muted);line-height:1.5}
+.aw-alert-actions-cell{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.aw-alert-actions-cell button{padding:6px 7px;font-size:11px;line-height:1.25;border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:7px;cursor:pointer;max-width:100%}
+.aw-alert-actions-cell button:hover{border-color:var(--teal);color:var(--teal)}
+@media(max-width:1050px){.aw-alerts-scroll th,.aw-alerts-scroll td{padding:9px 5px;font-size:11px}.aw-alert-actions-cell button{padding:5px;font-size:10px}}
