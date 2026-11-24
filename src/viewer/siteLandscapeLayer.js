@@ -109,9 +109,11 @@ export function createSiteLandscapeLayer(scene){
   for(const dx of [-.65,.65])makeSeat([x+dx,y+.27,z],[.11,.51,.35],benchSupport);
  }
  return {
-  init(bounds){
+  init(bounds,groundElevation){
    if(ready)return;
-   const layout=makeSiteLayout(Array.from(bounds||[]));
+   // The IFC model includes a foundation and basement below Level 01.
+   // Lift the entire landscaping assembly to the entrance level together.
+   const layout=makeSiteLayout(Array.from(bounds||[]),{groundElevation});
    if(!layout)return;
    const [west,north,east,south]=layout.bounds;
    const groundWidth=east-west,groundDepth=south-north;
