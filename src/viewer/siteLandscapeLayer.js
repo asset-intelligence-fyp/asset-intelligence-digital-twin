@@ -1,5 +1,5 @@
 import {Mesh,ReadableGeometry,PhongMaterial,buildBoxGeometry,buildSphereGeometry} from '@xeokit/xeokit-sdk';
-import {makeSiteLayout,buildGrassFacets,buildPavedPaths,buildFacetedFrustum} from './siteLandscapeMath.js';
+import {makeSiteLayout,buildGrassFacets,buildGrassBaseBlocks,buildPavedPaths,buildFacetedFrustum} from './siteLandscapeMath.js';
 
 /**
  * Lightweight conceptual low-poly landscaping around the FYP BIM asset.
@@ -116,11 +116,11 @@ export function createSiteLandscapeLayer(scene){
    const layout=makeSiteLayout(Array.from(bounds||[]),{groundElevation});
    if(!layout)return;
    const [west,north,east,south]=layout.bounds;
-   const groundWidth=east-west,groundDepth=south-north;
-   const centerX=(west+east)/2,centerZ=(north+south)/2;
-   // A thin, darker side rim gives the terrain a deliberate modelled edge.
-   make(box,grassEdge,[centerX,layout.grassY-.15,centerZ],
-    [groundWidth,.30,groundDepth]);
+   // Separate grass underlay blocks leave the ground-floor building shell
+   // empty; a single raised rectangular base would pass through the entrance.
+   for(const block of buildGrassBaseBlocks(layout)){
+    make(box,grassEdge,block.position,block.scale);
+   }
    for(const [i,data] of buildGrassFacets(layout).entries()){
     if(data.indices.length)make(useGeometry(data),turfColours[i]);
    }
