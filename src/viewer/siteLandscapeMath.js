@@ -68,11 +68,15 @@ export function makeSiteLayout(bounds,{groundElevation}={}){
  return {bounds:[west,north,east,south],building:[x0,z0,x1,z1],
   grassY,walkwayY,paths,trees,reach,width};
 }
-/** Decorative underlay cut into four non-overlapping landscape strips.
- * The old single green base box would cover the Level 01 entrance when
- * raised, even if its visible grass facets were clipped.
+/** Decorative base with four exterior strips and one recessed infill.
+ *
+ * The IFC whole-building bounding rectangle is larger than the true shell.
+ * Clipping the grass to that rectangle leaves a conspicuous empty patch
+ * around the irregular building. A lower, non-pickable centre infill restores
+ * a continuous green background without bringing the main grass facets
+ * through the Level 01 entrance. The paving height is unchanged.
  */
-export function buildGrassBaseBlocks(layout,{margin=.20,depth=.30}={}){
+export function buildGrassBaseBlocks(layout,{margin=.20,depth=.30,centerDrop=.08}={}){
  const [west,north,east,south]=layout.bounds;
  const [x0,z0,x1,z1]=layout.building;
  const left=x0-margin,right=x1+margin,front=z0-margin,back=z1+margin;
@@ -82,10 +86,20 @@ export function buildGrassBaseBlocks(layout,{margin=.20,depth=.30}={}){
   [left,north,right,front],
   [left,back,right,south]
  ];
- return regions.filter(([a,b,c,d])=>c-a>.01&&d-b>.01).map(([a,b,c,d])=>({
+ const blocks=regions.filter(([a,b,c,d])=>c-a>.01&&d-b>.01).map(([a,b,c,d])=>({
   position:[(a+c)/2,layout.grassY-depth/2,(b+d)/2],
-  scale:[c-a,depth,d-b],footprint:[a,b,c,d]
+  scale:[c-a,depth,d-b],footprint:[a,b,c,d],lowered:false
  }));
+ // The infill is below the surrounding turf (and the raised walkways).
+ // Only exposed areas around the real IFC shell should be visible.
+ if(right-left>.01&&back-front>.01){
+  blocks.push({
+   position:[(left+right)/2,layout.grassY-depth/2-centerDrop,(front+back)/2],
+   scale:[right-left,depth,back-front],
+   footprint:[left,front,right,back],lowered:true
+  });
+ }
+ return blocks;
 }
 function appendTriangle(mesh,a,b,c){
  const offset=mesh.positions.length/3;
