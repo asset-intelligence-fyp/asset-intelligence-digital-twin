@@ -1,4 +1,5 @@
 import {registry} from './sensorContract.js';
+import {scopedE8A,e8aEvidenceFacts,e8aNarrative} from './e8aAssistant.js';
 const local=req=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
 const metrics={temperature:/temperature|\btemp\b|hot|cold/i,humidity:/humidity|\brh\b|damp/i,co2:/co.?2|carbon|ventilat/i,light:/light|lux|solar/i,power:/power|energy|electric/i,water_leakage:/leak|water|dry/i,occupancy:/occup|people|attendance/i};
 const byCode=new Map(registry.map(p=>[p.code,p]));
@@ -134,7 +135,7 @@ export async function explainWithModel(facts,context,{fetchImpl=fetch}={}){
  }
  throw Object.assign(Error('Qwen responded, but both answers failed checks: '+feedback.join(', ')+'. Stored evidence is still available.'),{code:'MODEL_RESPONSE_REJECTED',issues:feedback});
 }
-export function registerBuildingAssistant(app,{getHistory,getSource,getAlerts=async()=>[],fetchImpl=fetch}){
+export function registerBuildingAssistant(app,{getHistory,getSource,getAlerts=async()=>[],getE8A=()=>null,fetchImpl=fetch}){
  app.get('/api/assistant/building/health',async(req,res)=>{
   if(!local(req))return res.sendStatus(403);
   try{const url=new URL(process.env.OLLAMA_URL||'http://127.0.0.1:11434');if(url.protocol!=='http:'||!['127.0.0.1','localhost'].includes(url.hostname))throw Error();const r=await fetchImpl(url.origin+'/api/tags',{signal:AbortSignal.timeout(3000)});if(!r.ok)throw Error();const tags=await r.json();res.json({connected:tags.models?.some(m=>m.name==='qwen3:1.7b'||m.model==='qwen3:1.7b')===true,evidence_lookup_available:true})}catch{res.json({connected:false,evidence_lookup_available:true})}
@@ -152,7 +153,19 @@ export function registerBuildingAssistant(app,{getHistory,getSource,getAlerts=as
    try{alertRows=await getAlerts()}catch{incident_lookup_available=false}
    const snapshot=buildingFacts(rows,getSource(),{scope,window_minutes:b.window_minutes||60,alerts:alertRows});
    if(!incident_lookup_available)snapshot.facts.find(f=>f.incident_coverage).text='Alert retrieval is unavailable. Earlier incidents could not be checked.';
+   // E8-A runs autonomously in a separate bridge. The chatbot reads its
+   // finished screening and verified channel, not a made-up LLM diagnosis.
+   // Never mix results from another simulation run or a future cutoff.
+   const e8aState=getE8A();
+   const e8aRows=scopedE8A(e8aState,{
+    scope,asOf:snapshot.as_of,replayId:getSource()?.replay_id??null
+   });
+   const e8aFacts=e8aEvidenceFacts(e8aRows);
+   snapshot.facts.push(...e8aFacts);
    const facts=selectEvidence(snapshot,question);
+   for(const fact of e8aFacts.slice(0,5)){
+    if(!facts.some(f=>f.id===fact.id))facts.push(fact);
+   }
    let answer=groundedAnswer(snapshot,facts,question),model_used=false,model_note='Backend evidence summary; Qwen was not requested.',model_failure=null,model_attempts=0;
    if(!incident_lookup_available)answer=answer.replace(/### Previous incidents\n[\s\S]*?(?=\n\n###|$)/,'### Previous incidents\nAlert retrieval is unavailable. Earlier incidents could not be checked.');
    if(b.use_model!==false&&snapshot.as_of){
@@ -164,9 +177,16 @@ export function registerBuildingAssistant(app,{getHistory,getSource,getAlerts=as
      model_used=true;model_note='Qwen explanation with checked evidence references. Measurements, trends and incident status come from stored records; explanations still need operator review.';
     }catch(e){model_failure={code:e.code||'MODEL_ERROR',message:e.message};model_note=e.message+' Showing the stored-evidence summary.';}
    }
-   const limitations=['All observations are synthetic; general explanations are hypotheses, not confirmed building faults.','Trends cover the available observations in the selected window, capped at the latest 18,000 stored readings for this simulation run. Gaps and missing values do not prove continuous normal operation.','Up to eight scoped incidents are shown from the latest 500 rule alerts. Earlier incidents may be outside retrieval coverage. Different simulation runs are labelled separately.','Recovery records indicate an alert condition ended; they do not confirm a physical repair.'];
+   if(/anomal|abnormal|fault|detect|screen|investigat|unusual|risk|warning|E8.?A|monitor/i.test(question)){
+    answer+='\n\n### E8-A agentic anomaly monitoring\n'+e8aNarrative(e8aState,e8aRows);
+   }
+   const limitations=['E8-A is a causal sensor anomaly assessment, not a forecast of future faults; an evidence-grounded status is not ground truth.','All observations are synthetic; general explanations are hypotheses, not confirmed building faults.','Trends cover the available observations in the selected window, capped at the latest 18,000 stored readings for this simulation run. Gaps and missing values do not prove continuous normal operation.','Up to eight scoped incidents are shown from the latest 500 rule alerts. Earlier incidents may be outside retrieval coverage. Different simulation runs are labelled separately.','Recovery records indicate an alert condition ended; they do not confirm a physical repair.'];
    if(!incident_lookup_available)limitations.unshift('Incident retrieval failed; alert history is unavailable for this answer.');
-   res.setHeader('Cache-Control','no-store');res.json({...snapshot,facts,model_used,model_note,model_failure,model_attempts,answer,limitations,incident_lookup_available,model:'qwen3:1.7b'});
+   res.setHeader('Cache-Control','no-store');res.json({...snapshot,facts,model_used,model_note,model_failure,model_attempts,answer,limitations,incident_lookup_available,
+    e8a:{connected:!!e8aState?.connected,results:e8aRows.slice(0,8).map(r=>({
+     point_code:r.point_code,as_of:r.as_of,screening_status:r.screening_status,
+     verified_status:r.verified_status,evidence_status:r.evidence_status,assessment:r.assessment
+    }))},model:'qwen3:1.7b'});
   }catch(e){res.status(503).json({error:'Unable to retrieve building evidence: '+e.message})}
  });
 }
