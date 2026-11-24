@@ -25,8 +25,10 @@ test('database administrator logs in, receives a session and can log out',async(
  const pool={query:async(query,params)=>{
   assert.match(query,/digital_twin\.users/);
   assert.match(query,/JOIN digital_twin[.]roles/);
-  if(query.includes('u.is_active'))return {rows:users.filter(x=>x.user_id===params[0]).map(()=>({role_name:'admin',is_active:true}))};
-  return {rows:users.filter(x=>x.username===params[0])};
+  const rows=query.includes('u.is_active')
+   ?users.filter(x=>x.user_id===params[0]).map(()=>({role_name:'admin',is_active:true}))
+   :users.filter(x=>x.username===params[0]);
+  return {rows,rowCount:rows.length};
  }};
  await serve(pool,async base=>{
   const incorrect=await login(base,'admin','incorrect');
