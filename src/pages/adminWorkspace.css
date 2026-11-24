@@ -125,9 +125,24 @@
 .aw-audit-details>span{white-space:normal;overflow-wrap:anywhere;line-height:1.45}
 .aw-table-scroll td:has(.aw-audit-details){white-space:normal;overflow:visible;vertical-align:top}
 
-/* Keep announcement actions close to their title at laptop widths. */
-.aw-announcement-scroll table{min-width:800px}
-.aw-announcement-scroll td:nth-child(1),.aw-announcement-scroll th:nth-child(1){min-width:220px;max-width:270px;white-space:normal;overflow-wrap:anywhere}
-.aw-announcement-scroll td:nth-child(2),.aw-announcement-scroll th:nth-child(2){min-width:150px;max-width:180px;white-space:nowrap}
-.aw-announcement-scroll td:nth-child(2) button{margin-right:6px}
-.aw-announcement-scroll td:nth-child(6){max-width:250px}
+/* Announcements: all six columns fit the panel, with Actions on the right. */
+.aw-announcement-panel{min-width:0}
+.aw-announcement-scroll{width:100%;max-width:100%;overflow-x:hidden}
+.aw-announcement-scroll table{width:100%;min-width:0;table-layout:fixed}
+.aw-announcement-scroll .aw-announce-title{width:20%}
+.aw-announcement-scroll .aw-announce-message{width:25%}
+.aw-announcement-scroll .aw-announce-status{width:9%}
+.aw-announcement-scroll .aw-announce-owner{width:10%}
+.aw-announcement-scroll .aw-announce-date{width:17%}
+.aw-announcement-scroll .aw-announce-actions{width:19%}
+.aw-announcement-scroll td,.aw-announcement-scroll th{box-sizing:border-box;padding:11px 9px;min-width:0;max-width:none;overflow:hidden;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;vertical-align:middle}
+.aw-announcement-scroll td:first-child strong{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+.aw-announce-excerpt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+.aw-announcement-scroll .aw-tag{display:inline-block;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
+.aw-announcement-actions{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:5px}
+.aw-announcement-actions button{border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:7px;padding:6px 8px;font-size:11px;cursor:pointer}
+.aw-announcement-actions button:hover{border-color:var(--teal);color:var(--teal)}
+@media(max-width:1050px){
+ .aw-announcement-scroll td,.aw-announcement-scroll th{padding:10px 6px;font-size:11px}
+ .aw-announcement-actions button{padding:5px 6px;font-size:10px}
+}
