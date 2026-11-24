@@ -282,7 +282,7 @@ export function AdminWorkspace(){
      <td><span className="aw-tag">{value(a.severity_name)}</span></td>
      <td title={value(a.message)}><span className="aw-alert-excerpt">{value(a.message)}</span></td>
      <td><span className="aw-tag">{value(a.status_name)}</span></td>
-     <td>{a.acknowledged_by?<div className="aw-alert-acknowledgement"><strong>{value(a.acknowledged_by)}</strong>{a.acknowledged_at&&<small>{new Date(String(a.acknowledged_at)).toLocaleString('en-MY',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}</small>}</div>:<span className="aw-alert-muted">Not acknowledged</span>}</td>
+     <td>{a.acknowledged_by?<div className="aw-alert-acknowledgement"><strong>{value(a.acknowledged_by)}</strong>{a.acknowledged_at!=null&&<small>{new Date(String(a.acknowledged_at)).toLocaleString('en-MY',{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true})}</small>}</div>:<span className="aw-alert-muted">Not acknowledged</span>}</td>
      <td><div className="aw-alert-actions-cell">
       {a.status_name==='Acknowledged'&&<button type="button" disabled={busy} onClick={()=>void mutate('/api/admin/manage/alerts/'+a.alert_id+'/status','PATCH',{status:'Review'})}>Review</button>}
       {a.status_name!=='Closed'&&<button type="button" disabled={busy} onClick={()=>{if(window.confirm('Close alert '+a.alert_id+'? This records an administrator closure.'))void mutate('/api/admin/manage/alerts/'+a.alert_id+'/status','PATCH',{status:'Closed'})}}>Close</button>}
