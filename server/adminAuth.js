@@ -154,6 +154,29 @@ export function adminAuth(app,pool=null,schema='digital_twin') {
     res.json({authenticated:false});
   });
 }
+// All signed-in account roles may acknowledge an alert, but only active users.
+export async function requireSignedIn(req,res,next) {
+ const account=readSession(req);
+ if(!account)return res.status(401).json({error:'Sign in to acknowledge alerts.'});
+ if(!account.legacy){
+  try{
+   if(!authenticationPool)return res.status(503).json({error:'Authentication database unavailable'});
+   const check=await authenticationPool.query(
+    'SELECT u.username,r.role_name FROM digital_twin.users u JOIN digital_twin.roles r USING(role_id) WHERE u.user_id=$1 AND u.is_active=TRUE',
+    [account.userId]
+   );
+   if(!check.rowCount)return res.status(403).json({error:'Account disabled or access revoked. Sign in again.'});
+   account.role=check.rows[0].role_name;
+  }catch(e){console.error('Account permission check failed:',e.message);return res.status(503).json({error:'Unable to verify account permissions'});}
+ }
+ const origin=req.get('origin'),host=req.get('host');
+ if(origin&&host){
+  try{if(new URL(origin).host!==host)return res.status(403).json({error:'Invalid origin'});}
+  catch{return res.status(403).json({error:'Invalid origin'});}
+ }
+ req.account=account;
+ next();
+}
 export async function requireAdmin(req,res,next) {
   const admin=readSession(req);
   if(!admin||admin.role!=='admin') return res.status(401).json({error:'Administrator login required'});
