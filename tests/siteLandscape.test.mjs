@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  makeSiteLayout,segmentDistance,pathDistance,buildGrassFacets,
- buildPavedPaths,buildFacetedFrustum,grassOutsideBuilding
+ buildPavedPaths,buildFacetedFrustum,grassOutsideBuilding,buildGrassBaseBlocks
 } from '../src/viewer/siteLandscapeMath.js';
 
 const MODEL_BOUNDS=[-14,0,-9,67,21,38];
@@ -146,4 +146,25 @@ test('raised turf never intersects the IFC building footprint',()=>{
   [bx0-.8,55.2,bz0+1],[bx0+1,55.2,bz0+.5],[bx0+1,55.2,bz0+2]
  ],site.building);
  assert.ok(crossing.length>0,'turf can approach the exterior wall safely');
+});
+
+test('raised grass underlay is partitioned around the building entrance',()=>{
+ const site=makeSiteLayout([-14,51,-9,67,83,38],{groundElevation:55.5});
+ const blocks=buildGrassBaseBlocks(site);
+ assert.equal(blocks.length,4);
+ const [bx0,bz0,bx1,bz1]=site.building;
+ for(const block of blocks){
+  const [x0,z0,x1,z1]=block.footprint;
+  assert.ok(x1<=bx0-.20+1e-8||x0>=bx1+.20-1e-8||
+    z1<=bz0-.20+1e-8||z0>=bz1+.20-1e-8,
+   'ground base must not pass underneath the building');
+  assert.ok(Math.abs(block.position[1]+block.scale[1]/2-site.grassY)<1e-8,
+   'underlay top should align with grass, not obstruct paths');
+ }
+ const area=blocks.reduce((sum,b)=>sum+b.scale[0]*b.scale[2],0);
+ const [west,north,east,south]=site.bounds;
+ const expected=(east-west)*(south-north)-
+  (bx1-bx0+.4)*(bz1-bz0+.4);
+ assert.ok(Math.abs(area-expected)<1e-7,
+  'four strips must cover all exterior turf without overlaps or site gaps');
 });
