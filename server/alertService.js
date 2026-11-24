@@ -12,7 +12,7 @@ export function classifyReading(row){
 }
 export const alertColumns=`a.*,v.severity_name,s.status_name`;
 export function toEvent(a){
- const p=points.get(a.point_code);return {id:Number(a.alert_id),point_code:a.point_code,title:`${p?.label||a.point_code} · ${{leak:'Leak detected',high:'High reading',low:'Low reading',missing:'Missing reading'}[a.alert_type]||a.alert_type}`,level:a.severity_name==='Critical'?'Critical':'Warning',description:a.message,source:p?.assetId,zone:p?.floor,time:a.triggered_at,acknowledged:['Acknowledged','Closed'].includes(a.status_name),synthetic:true,automatic:a.detector==='threshold_v1',detector:a.detector,resolved_at:a.resolved_at,rule:a.alert_type,reading_snapshot:a.evidence?.at(-1),evidence:a.evidence||[],replay_id:a.replay_id};
+ const p=points.get(a.point_code);return {id:Number(a.alert_id),point_code:a.point_code,title:`${p?.label||a.point_code} · ${{leak:'Leak detected',high:'High reading',low:'Low reading',missing:'Missing reading'}[a.alert_type]||a.alert_type}`,level:a.severity_name==='Critical'?'Critical':'Warning',description:a.message,source:p?.assetId,zone:p?.floor,time:a.triggered_at,status_name:a.status_name,acknowledged:['Acknowledged','Closed'].includes(a.status_name),synthetic:true,automatic:a.detector==='threshold_v1',detector:a.detector,resolved_at:a.resolved_at,rule:a.alert_type,reading_snapshot:a.evidence?.at(-1),evidence:a.evidence||[],replay_id:a.replay_id};
 }
 export function createAlertService(schema){
  if(!['twin18','digital_twin'].includes(schema))throw Error('Invalid schema');
