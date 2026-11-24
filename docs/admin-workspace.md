@@ -102,3 +102,18 @@ TwinLabs now renders the existing PostgreSQL-backed **Sign in / Redeem invitatio
 **Important limitation:** this UI change is *not* website-wide API protection. The existing telemetry, BIM and other public backend routes remain accessible on the LAN without a login; backend authentication must be enforced on those routes for a production access-controlled deployment. Admin management endpoints retain the existing PostgreSQL authorization and per-write password confirmation.
 
 If Admin still shows **Notifications** instead of **Announcements**, stop the host, pull `design/clean-dashboard-preserve-features`, run `npm run build`, restart `npm run host:lan` and reload the page. Check the output of `git branch --show-current` and `git log -1 --oneline` if the old UI persists. Verify the announcements storage migration appears in host startup logs, and sign in as Admin to create and publish a test announcement.
+
+## Invitation-only login before the dashboard
+
+The normal TwinLabs website now opens on a standalone Sign In screen if no valid PostgreSQL-backed session exists. The existing one-time seven-day invitation flow remains the only Viewer account registration route: Admin → Grant Access → send invitation → recipient redeems code to create username and password → signs in. After login, Admin opens Administration and Viewer opens Overview. Logging out returns to the sign-in screen. Existing sessions are checked via `/api/admin/session` on page reload.
+
+This is a UI authentication gate, **not yet a blanket authorization policy across all building/sensor/model HTTP endpoints**. Some legacy telemetry and other APIs remain accessible to LAN clients without a session; these should be covered by server-side authorization before a production/private-network deployment. HTTP over LAN also does not encrypt passwords or sessions: use HTTPS before using real accounts on an untrusted network.
+
+## Alert acknowledgement workflow
+
+- Viewer or Admin, while signed in, can acknowledge a New automatic alert from the Events page. Acknowledgement is a one-way operation, not resolution. The API requires a current active account session, rejects unauthenticated requests and prevents reopening reviewed/closed/recovered alerts.
+- The user and time of an acknowledgement are recorded in `digital_twin.admin_audit` under `alert.acknowledge`; Admin → Alerts shows **Acknowledged by** and **Acknowledged at** from that audit record.
+- Admin → Alerts shows status as read-only text and provides **Review** and **Close** actions. Review requires an acknowledgement. Closure can also be performed by an Admin directly when necessary. Both use existing one-action password confirmation and Admin Audit Log.
+- Alert generation and automatic recovery remain simulation-driven and separate from acknowledgement.
+
+Check the flow on a local test database: sign in as an invited Viewer, acknowledge a New alert under Events; verify it updates the Admin monitoring table, and that a Viewer cannot access Admin status updates. An Admin then sets Review and Close. Database changes affect shared PostgreSQL data, so avoid changing live incident records while testing.
