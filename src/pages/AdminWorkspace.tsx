@@ -55,10 +55,6 @@ const auditData=(input:unknown):Record<string,unknown>=>{
  if(typeof input==='string'){try{const obj:unknown=JSON.parse(input);if(obj&&typeof obj==='object'&&!Array.isArray(obj))return obj as Record<string,unknown>}catch{/* Older entries may not be JSON. */}}
  return {};
 };
-const auditPretty=(input:unknown)=>{
- if(typeof input==='string'){try{return JSON.stringify(JSON.parse(input),null,2)}catch{return input}}
- return JSON.stringify(input??{},null,2);
-};
 const auditSummary=(action:unknown,input:unknown)=>{
  const a=String(action||''),d=auditData(input);
  const previous=d.previous,newValue=d.new;
@@ -273,7 +269,7 @@ export function AdminWorkspace(){
    <div className="aw-toolbar"><input aria-label="Search audit records" value={auditSearch} placeholder="Search user, action or target" onChange={e=>{setAuditSearch(e.target.value);setAuditOffset(0)}}/><span className="aw-status">Administrator activity · newest first</span></div>
    <div className="aw-panel aw-table-shell"><div className="aw-panel-head"><h2>Audit Log</h2><span>{auditRows.length} records</span></div>
     <div className="aw-table-scroll"><table><thead><tr><th>Time</th><th>Performed by</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
-    <tbody>{auditRows.map(a=><tr key={String(a.audit_id)}><td>{new Date(String(a.created_at)).toLocaleString()}</td><td><strong>{value(a.actor)}</strong></td><td title={value(a.action)}>{auditLabel(a.action)}</td><td>{value(a.target)}</td><td><div className="aw-audit-details"><span title={auditSummary(a.action,a.detail)}>{auditSummary(a.action,a.detail)}</span><details><summary>View raw</summary><pre>{auditPretty(a.detail)}</pre></details></div></td></tr>)}</tbody></table>{!auditRows.length&&<p className="aw-empty">No audit records for this filter.</p>}</div></div>
+    <tbody>{auditRows.map(a=><tr key={String(a.audit_id)}><td>{new Date(String(a.created_at)).toLocaleString()}</td><td><strong>{value(a.actor)}</strong></td><td title={value(a.action)}>{auditLabel(a.action)}</td><td>{value(a.target)}</td><td><div className="aw-audit-details"><span title={auditSummary(a.action,a.detail)}>{auditSummary(a.action,a.detail)}</span></div></td></tr>)}</tbody></table>{!auditRows.length&&<p className="aw-empty">No audit records for this filter.</p>}</div></div>
    <div className="aw-pagination"><button disabled={auditOffset===0||busy} onClick={()=>setAuditOffset(Math.max(0,auditOffset-50))}>Previous</button><span>{auditOffset+1}–{auditOffset+auditRows.length}</span><button disabled={auditRows.length<50||busy} onClick={()=>setAuditOffset(auditOffset+50)}>Next</button></div>
   </div>}
   {tab==='alerts'&&<div className="aw-content">
