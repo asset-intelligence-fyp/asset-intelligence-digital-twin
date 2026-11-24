@@ -140,10 +140,11 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   if(!client)return res.status(503).json({error:'Alert database unavailable'});
   try{
    await client.query('BEGIN');
-   const before=await client.query(`SELECT a.alert_id,s.status_name FROM digital_twin.alerts a JOIN digital_twin.alert_status s USING(alert_status_id) WHERE a.alert_id=$1 AND a.detector='threshold_v1' FOR UPDATE OF a`,[id]);
+   const before=await client.query(`SELECT a.alert_id,a.resolved_at,s.status_name FROM digital_twin.alerts a JOIN digital_twin.alert_status s USING(alert_status_id) WHERE a.alert_id=$1 AND a.detector='threshold_v1' FOR UPDATE OF a`,[id]);
    if(!before.rowCount){await client.query('ROLLBACK');return res.status(404).json({error:'Alert not found'})}
    const previous=before.rows[0].status_name;
-   if(previous==='Closed'){await client.query('ROLLBACK');return res.status(409).json({error:'This alert is already closed.'})}
+   if(previous==='Closed'||before.rows[0].resolved_at){await client.query('ROLLBACK');return res.status(409).json({error:'This alert is closed or the condition has recovered.'})}
+   if(previous==='Review'){await client.query('ROLLBACK');return res.status(409).json({error:'This alert is already under administrator review.'})}
    if(previous!=='Acknowledged'){
     await client.query(`UPDATE digital_twin.alerts SET alert_status_id=(SELECT alert_status_id FROM digital_twin.alert_status WHERE status_name='Acknowledged') WHERE alert_id=$1`,[id]);
     await client.query('INSERT INTO digital_twin.admin_audit(actor,action,target,detail) VALUES($1,$2,$3,$4::jsonb)',[req.account.username,'alert.acknowledge',String(id),JSON.stringify({previous,new:'Acknowledged'})]);
