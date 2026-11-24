@@ -1,45 +1,105 @@
 import {Mesh,ReadableGeometry,PhongMaterial} from '@xeokit/xeokit-sdk';
-import footprints from '../../shared/roomFootprints.json';
-import {sensorDisplay} from './sensorPresentation.js';
+import definitions from '../../shared/sensorDefinitions.json';
+import {heatmapSamples} from './heatmapField.js';
+import {buildContainedFloorGrid} from './heatmapFootprint.js';
+import {buildHeatmapBands,bandMaterialColours} from './heatmapBands.js';
 
-/** Evidence-coloured IFC floor footprints. Never interpolate an unmeasured heat field. */
+const BAND_COUNT=32;
+
+/**
+ * Reliable, floor-wide colour overlay made from small contiguous isobands.
+ *
+ * The previous two approaches (runtime vertex RGBA and PNG diffuse textures)
+ * produced only white/grey plates on the target WebGL renderer. Each band
+ * instead uses a plain xeokit PhongMaterial with a fixed diffuse/emissive RGB
+ * colour. This is the same core rendering path as the other visible BIM
+ * presentation objects, with no asynchronous texture decoding.
+ *
+ * The isobands are clipped to the per-storey IFC wall/glazing enclosure;
+ * slab bounding boxes alone must never define the visible footprint.
+ * No floor is drawn unless that floor has an eligible sensor reading. A
+ * one-sensor floor is uniform; multiple sensors create a smooth 32-step
+ * gradient along scalar-field contour boundaries, not square tiles.
+ */
 export function createHeatmapLayer(scene,navigation,points){
- const regions=new Map(),levelById=new Map(navigation.levels.map(l=>[l.id,l]));
- const navSensors=new Map(navigation.sensors.map(s=>[s.guid,s]));
- const owned=[];
- const geometryFor=(point)=>{
-  const roomGuid=footprints.sensors[point.guid]?.roomGuid,room=footprints.rooms[roomGuid];
-  if(room?.positions?.length&&room?.indices?.length){
-   const positions=room.positions.map((v,i)=>i%3===1?v+.24:v);
-   return {key:roomGuid,geometry:new ReadableGeometry(scene,{primitive:'triangles',positions,indices:room.indices,normals:positions.map((_,i)=>i%3===1?1:0)}),position:[0,0,0],scale:[1,1,1],source:'room'};
+ const palette=bandMaterialColours(BAND_COUNT).map(rgb=>new PhongMaterial(scene,{
+  diffuse:rgb,
+  ambient:rgb.map(v=>v*.75),
+  emissive:rgb.map(v=>v*.28),
+  specular:[0,0,0],
+  shininess:0,
+  alpha:.45,
+  alphaMode:'blend',
+  backfaces:true
+ }));
+ const floors=new Map();
+ let initialized=false;
+ const clearFloor=region=>{
+  for(const part of region.parts){
+   part.mesh.destroy();
+   part.geometry.destroy();
   }
-  const marker=navSensors.get(point.guid),level=levelById.get(point.floor);
-  if(!marker||!level)return null;
-  const positions=[0,0,0],normals=[0,1,0],indices=[];
-  for(let i=0;i<=48;i++){const a=i/48*Math.PI*2;positions.push(Math.cos(a),0,Math.sin(a));normals.push(0,1,0);if(i<48)indices.push(0,i+2,i+1)}
-  return {key:'sensor:'+point.guid,geometry:new ReadableGeometry(scene,{primitive:'triangles',positions,normals,indices}),position:[marker.position[0],level.elevation+.34,marker.position[2]],scale:[3.8,1,3.8],source:'sensor vicinity'};
- };
- const get=(point)=>{
-  const key=footprints.sensors[point.guid]?.roomGuid||'sensor:'+point.guid;
-  if(regions.has(key))return regions.get(key);
-  const definition=geometryFor(point);if(!definition)return null;
-  const material=new PhongMaterial(scene,{diffuse:[.18,.7,.75],ambient:[.07,.19,.2],emissive:[.18,.7,.75],alpha:.72,alphaMode:'blend',backfaces:true,shininess:0});
-  const mesh=new Mesh(scene,{geometry:definition.geometry,material,position:definition.position,scale:definition.scale,pickable:false,collidable:false,clippable:false,isObject:false,visible:false});
-  const entry={key,mesh,material,geometry:definition.geometry,source:definition.source};
-  regions.set(key,entry);owned.push(entry);return entry;
+  region.parts=[];
+  region.signature='';
  };
  return {
-  update({metric,readings,floor,enabled}){
-   for(const region of regions.values())region.mesh.visible=false;
-   if(!enabled)return;
-   for(const point of points.filter(p=>p.sensorType===metric&&(floor==='all'||p.floor===floor))){
-    const display=sensorDisplay(point,readings[point.code]);if(!display.available)continue;
-    const region=get(point);if(!region)continue;
-    region.material.diffuse=display.rgb;
-    region.material.emissive=display.rgb.map(v=>Math.min(1,v*.85+.05));
-    region.mesh.visible=true;
+  setFloorSurfaces(surfaces){
+   if(initialized)return;
+   initialized=true;
+   for(const entry of surfaces){
+    const grid=buildContainedFloorGrid(entry.aabbs,entry.facadeAabbs||[],entry.elevation,{cellSize:1.25,offset:.10,inset:.40});
+    if(!grid.indices.length)continue;
+    floors.set(entry.floor,{grid,source:entry.source,parts:[],signature:''});
    }
   },
-  destroy(){for(const entry of owned){entry.mesh.destroy();entry.material.destroy();entry.geometry.destroy()}regions.clear()}
+  update({metric='status',readings={},floor='all',enabled=false}){
+   if(!enabled){
+    for(const region of floors.values())for(const part of region.parts)part.mesh.visible=false;
+    return;
+   }
+   const samples=heatmapSamples(points,navigation.sensors,readings,metric,definitions);
+   const byFloor=new Map();
+   for(const sample of samples){
+    if(!byFloor.has(sample.floor))byFloor.set(sample.floor,[]);
+    byFloor.get(sample.floor).push(sample);
+   }
+   // In whole-building view, lower alpha allows the architecture and lower
+   // storeys to show through. Single-floor view enhances selected floor.
+   const alpha=floor==='all'?.34:.58;
+   for(const material of palette)material.alpha=alpha;
+   for(const [id,region] of floors){
+    const visible=floor==='all'||floor===id;
+    const inputs=byFloor.get(id)||[];
+    if(!visible||!inputs.length){
+     for(const part of region.parts)part.mesh.visible=false;
+     continue;
+    }
+    const signature=metric+'|'+inputs.map(p=>p.code+':'+p.score.toFixed(5)).join(',');
+    if(region.signature!==signature){
+     clearFloor(region);
+     const bands=buildHeatmapBands(region.grid,inputs,BAND_COUNT);
+     for(const band of bands){
+      const geometry=new ReadableGeometry(scene,{
+       primitive:'triangles',positions:band.positions,
+       normals:band.normals,indices:band.indices,compressGeometry:false
+      });
+      const mesh=new Mesh(scene,{
+       geometry,material:palette[band.index],
+       visible:true,pickable:false,collidable:false,clippable:false,
+       isObject:false,occluder:false,edges:false
+      });
+      region.parts.push({mesh,geometry});
+     }
+     region.signature=signature;
+    }else{
+     for(const part of region.parts)part.mesh.visible=true;
+    }
+   }
+  },
+  destroy(){
+   for(const region of floors.values())clearFloor(region);
+   for(const material of palette)material.destroy();
+   floors.clear();
+  }
  };
 }

@@ -6,6 +6,7 @@ import {createNavigationController} from '../src/viewer/navigationController.js'
 import {xrayStyle} from '../src/viewer/renderSettings.js';
 import {FLOOR_CLIP_DIRECTIONS} from '../src/viewer/renderSettings.js';
 import {sensorDisplay,roomRepresentatives,sensorTitle} from '../src/viewer/sensorPresentation.js';
+import {sensorHealth} from '../src/viewer/sensorHealth.js';
 import {bindViewerGestures} from '../src/viewer/viewerGestures.js';
 import {storeyFor,frameBounds,frameSensor,layoutPins} from '../src/viewer/navigationMath.js';
 const navigation=JSON.parse(fs.readFileSync('shared/modelNavigation.json','utf8'));
@@ -14,7 +15,7 @@ const frames=new Map();let nextFrame=1;
 globalThis.requestAnimationFrame=fn=>{const id=nextFrame++;frames.set(id,fn);return id};
 globalThis.cancelAnimationFrame=id=>frames.delete(id);
 function fixture(reducedMotion=false,roomFocus){
- const objects={},metaObjects={},flightCalls=[],callbacks=[],updates=[],heatUpdates=[];
+ const objects={},metaObjects={},flightCalls=[],callbacks=[],updates=[],heatUpdates=[],floorSurfaces=[];
  const camera={eye:[100,90,100],look:[50,65,20],projection:'perspective',ortho:{scale:100},panDelta:null,pan(delta){this.panDelta=delta}};
  const levels=navigation.levels;
  for(const level of levels){
@@ -30,8 +31,8 @@ function fixture(reducedMotion=false,roomFocus){
   on:()=>1,off:()=>{},input:{on:()=>2,off:()=>{}}};
  const viewer={scene,camera,metaScene:{metaObjects},cameraControl:{pivotPos:[]},cameraFlight:{cancel(){},jumpTo(frame){flightCalls.push(frame)},flyTo(frame,cb){flightCalls.push(frame);callbacks.push(cb)}}};
  const planes={lower:{active:false,pos:[],dir:FLOOR_CLIP_DIRECTIONS.lower},upper:{active:false,pos:[],dir:FLOOR_CLIP_DIRECTIONS.upper}};
- const controller=createNavigationController(viewer,{navigation,planes,points:registry,roomFocus,heatmap:{update:s=>heatUpdates.push(s),destroy(){}},onState:s=>updates.push(s),reducedMotion});controller.load();if(callbacks.length)callbacks.shift()();flightCalls.length=0;
- return {controller,objects,scene,planes,flightCalls,callbacks,updates,camera,heatUpdates};
+ const controller=createNavigationController(viewer,{navigation,planes,points:registry,roomFocus,heatmap:{setFloorSurfaces:s=>floorSurfaces.push(s),update:s=>heatUpdates.push(s),destroy(){}},onState:s=>updates.push(s),reducedMotion});controller.load();if(callbacks.length)callbacks.shift()();flightCalls.length=0;
+ return {controller,objects,scene,planes,flightCalls,callbacks,updates,camera,heatUpdates,floorSurfaces};
 }
 test('All 18 navigation anchors use actual IFC floors, with elevations enclosing the markers',()=>{
  assert.equal(navigation.levels.length,9);assert.equal(navigation.sensors.length,18);
@@ -106,7 +107,9 @@ test('Sensor colours follow actual values, preserve no-data states, and distingu
  const temp=registry.find(p=>p.sensorType==='temperature'),occupancy=registry.find(p=>p.sensorType==='occupancy'),leak=registry.find(p=>p.sensorType==='water_leakage');
  assert.notEqual(sensorDisplay(temp,{value:20}).colour,sensorDisplay(temp,{value:30}).colour);assert.equal(sensorDisplay(temp).available,false);assert.equal(sensorDisplay(temp,{value:NaN}).value,'No reading');
  assert.equal(sensorDisplay(occupancy,{value:0}).value,'Vacant');assert.equal(sensorDisplay(occupancy,{value:1}).status,'Occupied');assert.equal(sensorDisplay(leak,{value:0}).value,'Dry');assert.equal(sensorDisplay(leak,{value:1}).value,'Leak detected');
- const f=fixture(true),readings={[temp.code]:{value:28}};f.controller.setHeatmap('temperature',readings);f.controller.setMode('heatmap');assert.equal(f.heatUpdates.at(-1).enabled,true);assert.equal(f.heatUpdates.at(-1).readings[temp.code].value,28);f.controller.showFloor('Level_04');assert.equal(f.heatUpdates.at(-1).floor,'Level_04');f.controller.setMode('solid');assert.equal(f.heatUpdates.at(-1).enabled,false);f.controller.destroy();
+ const f=fixture(true),readings={[temp.code]:{value:28}};f.controller.setHeatmap('temperature',readings);f.controller.setMode('heatmap');assert.equal(f.heatUpdates.at(-1).enabled,true);
+ assert.equal(f.objects['building#slab_Level_02'].visible,false,'original IFC floor plates must not compete with heatmap colour meshes');
+ assert.equal(f.objects['building#slab_Level_02'].edges,false,'floor plate edges should not divide the heatmap');assert.equal(f.heatUpdates.at(-1).readings[temp.code].value,28);f.controller.showFloor('Level_04');assert.equal(f.heatUpdates.at(-1).floor,'Level_04');f.controller.setMode('solid');assert.equal(f.heatUpdates.at(-1).enabled,false);f.controller.destroy();
 });
 
 test('X-ray wall slider changes emphasis shading across the full range without an opaque slab blanket',()=>{
@@ -166,4 +169,62 @@ test('IFC footprint meshes contain valid triangles and perimeter edges, with mis
  const temp=registry.find(p=>p.code==='TEMP-L03-MEET-01');
  assert.equal(data.sensors[temp.guid].roomGuid,null,'Do not fabricate a room footprint for the uncontained meeting temperature marker');
  for(const point of registry){const link=data.sensors[point.guid];assert.ok(link);if(link.roomGuid)assert.ok(data.rooms[link.roomGuid]);}
+});
+
+test('BIM dots reflect active abnormal conditions, not acknowledgements or manual test records',()=>{
+ const definitions=JSON.parse(fs.readFileSync('shared/sensorDefinitions.json','utf8'));
+ const humidity=registry.find(p=>p.sensorType==='humidity');
+ const leak=registry.find(p=>p.sensorType==='water_leakage');
+ const co2=registry.find(p=>p.sensorType==='co2');
+ const normal=(value)=>({value,quality:'simulated'});
+ assert.equal(sensorHealth(humidity,normal(55),[],definitions),'normal');
+ assert.equal(sensorHealth(humidity,normal(78),[],definitions),'abnormal');
+ assert.equal(sensorHealth(co2,normal(1250),[],definitions),'abnormal');
+ assert.equal(sensorHealth(leak,normal(1),[],definitions),'abnormal');
+ assert.equal(sensorHealth(leak,normal(0),[],definitions),'normal');
+ assert.equal(sensorHealth(humidity,null,[],definitions),'unavailable');
+ assert.equal(sensorHealth(humidity,normal(55),[],definitions,'stale'),'unavailable');
+ const acknowledged={point_code:humidity.code,automatic:true,synthetic:true,acknowledged:true,resolved_at:null};
+ assert.equal(sensorHealth(humidity,normal(55),[acknowledged],definitions),'abnormal','acknowledgement must not indicate recovery');
+ assert.equal(sensorHealth(humidity,normal(55),[{...acknowledged,resolved_at:'2026-11-23T10:00:00Z'}],definitions),'normal');
+ assert.equal(sensorHealth(humidity,normal(55),[{point_code:humidity.code,synthetic:true,automatic:false,resolved_at:null}],definitions),'normal','manual test records must not trigger BIM health');
+ assert.equal(sensorHealth(humidity,{value:null,quality:'missing'},[{...acknowledged,rule:'missing'}],definitions),'abnormal','unresolved missing-reading alerts stay visible');
+});
+
+test('Heatmap preserves whole-building and floor selection instead of forcing a floor',()=>{
+ const f=fixture(true);
+ assert.equal(f.controller.snapshot().floor,'all');
+ assert.equal(f.controller.snapshot().metric,'status');
+ f.controller.setMode('heatmap');
+ assert.equal(f.controller.snapshot().floor,'all','whole-building heatmap must show sampled levels concurrently');
+ assert.equal(f.controller.snapshot().view,'orbit','do not overwrite the user camera');
+ assert.equal(f.heatUpdates.at(-1).floor,'all');
+ assert.equal(f.heatUpdates.at(-1).enabled,true);
+ f.controller.showFloor('Level_04');
+ assert.equal(f.controller.snapshot().floor,'Level_04');
+ assert.equal(f.heatUpdates.at(-1).floor,'Level_04');
+ f.controller.setHeatmap('humidity',{});
+ assert.equal(f.controller.snapshot().floor,'Level_04');
+ assert.equal(f.heatUpdates.at(-1).metric,'humidity');
+ f.controller.setMode('solid');
+ assert.equal(f.heatUpdates.at(-1).enabled,false);
+ assert.equal(f.objects['building#slab_Level_04'].visible,true,'IFC slabs are restored on leaving heatmap');
+ f.controller.setMode('heatmap');
+ assert.equal(f.controller.snapshot().floor,'Level_04','switching back does not reset floor');
+ f.controller.showFloor('all');
+ assert.equal(f.heatUpdates.at(-1).floor,'all');
+ f.controller.destroy();
+});
+
+test('full-floor heatmap receives actual slab bounds for every building storey',()=>{
+ const f=fixture(true);
+ assert.equal(f.floorSurfaces.length,1);
+ assert.deepEqual(f.floorSurfaces[0].map(p=>p.floor),['Level_01','Level_02','Level_03','Level_04','Level_05']);
+ for(const surface of f.floorSurfaces[0]){
+  assert.equal(surface.source,'clipped-ifc-slab');
+  assert.ok(surface.aabbs.length>=1);
+  assert.ok(surface.aabbs.some(b=>b[3]>b[0]&&b[5]>b[2]));
+  assert.equal(surface.elevation,navigation.levels.find(l=>l.id===surface.floor).elevation);
+ }
+ f.controller.destroy();
 });

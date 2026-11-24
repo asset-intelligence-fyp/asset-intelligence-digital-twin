@@ -1,5 +1,6 @@
 import {Mesh,ReadableGeometry,PhongMaterial,buildSphereGeometry} from '@xeokit/xeokit-sdk';
 import {characterProfileGeometry} from './characterGeometry.js';
+import {CHARACTER_STYLES,CHARACTER_PLACEMENTS,CHARACTER_SCALES,characterMotion,mannequinLimbPose,boundWalkSegment} from './characterDesign.js';
 import {makeTourPlan,TOUR_LEVELS} from './occupantTour.js';
 
 /**
@@ -22,20 +23,14 @@ export function createOccupantLayer(scene,navigation,footprints,points){
  const own=x=>(resources.push(x),x);
  const profiles=characterProfileGeometry();
  const shapes=Object.fromEntries(Object.entries(profiles).map(([name,data])=>[name,own(new ReadableGeometry(scene,data))]));
- shapes.sphere=own(new ReadableGeometry(scene,buildSphereGeometry({radius:1,widthSegments:10,heightSegments:8})));
- const colours=[
-  {shirt:[.22,.55,.74],pants:[.18,.27,.37],skin:[.88,.65,.47],hair:[.16,.17,.22],accessory:[.93,.73,.37]},
-  {shirt:[.79,.48,.42],pants:[.32,.33,.42],skin:[.60,.39,.28],hair:[.12,.15,.19],accessory:[.94,.81,.51]},
-  {shirt:[.50,.46,.72],pants:[.20,.27,.34],skin:[.96,.80,.65],hair:[.32,.20,.17],accessory:[.45,.80,.76]},
-  {shirt:[.45,.63,.48],pants:[.28,.32,.43],skin:[.74,.53,.37],hair:[.19,.19,.21],accessory:[.90,.82,.67]}
- ];
- const mats=colours.map(c=>{
-  const mat=(rgb,glow=.13)=>own(new PhongMaterial(scene,{
-   diffuse:rgb,ambient:rgb.map(v=>v*.48),emissive:rgb.map(v=>v*glow),
-   backfaces:true,shininess:14
-  }));
-  return {shirt:mat(c.shirt,.19),pants:mat(c.pants,.10),skin:mat(c.skin,.21),hair:mat(c.hair,.09),acc:mat(c.accessory,.18),eyes:mat([.10,.14,.19],.02)};
- });
+ shapes.sphere=own(new ReadableGeometry(scene,buildSphereGeometry({radius:1,widthSegments:18,heightSegments:14})));
+ // A single soft blue, teal, coral or violet material covers each mannequin.
+ // Shared geometry and six meshes per figure keep busy-building playback cheap.
+ const materials=CHARACTER_STYLES.map(style=>own(new PhongMaterial(scene,{
+  diffuse:style.colour,ambient:style.colour.map(v=>v*.56),
+  emissive:style.colour.map(v=>v*.065),
+  specular:[.14,.14,.15],shininess:12,backfaces:true
+ })));
  function part(shape,material,name){
   const mesh=new Mesh(scene,{
    geometry:shapes[shape],material,pickable:false,collidable:false,
@@ -44,21 +39,14 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   meshes.push(mesh);return {mesh,name};
  }
  function actor(anchor,i){
-  const c=mats[i%4],variant=i%4;
-  const female=variant===1||variant===3;
-  const shirt=female?'blouse':'jacket';
+  const style=CHARACTER_STYLES[i%CHARACTER_STYLES.length];
+  const material=materials[i%CHARACTER_STYLES.length];
   const items=[
-   part('sphere',c.skin,'head'),part('hair',c.hair,'hair'),
-   part('neck',c.skin,'neck'),part(shirt,c.shirt,'torso'),
-   part('arm',c.shirt,'armL'),part('arm',c.shirt,'armR'),
-   part('sphere',c.skin,'handL'),part('sphere',c.skin,'handR'),
-   part('leg',c.pants,'legL'),part('leg',c.pants,'legR'),
-   part('sphere',c.hair,'shoeL'),part('sphere',c.hair,'shoeR'),
-   part('sphere',c.eyes,'eyeL'),part('sphere',c.eyes,'eyeR'),
-   part('nose',c.skin,'nose'),part('sphere',c.acc,'badge')
+   part('sphere',material,'head'),part('torso',material,'torso'),
+   part('arm',material,'armL'),part('arm',material,'armR'),
+   part('leg',material,'legL'),part('leg',material,'legR')
   ];
-  if(female)items.push(part('skirt',c.pants,'skirt'));
-  return {anchor,items,index:i,angle:(i%4)*Math.PI/2};
+  return {anchor,items,index:i,height:style.height};
  }
  function pointsFromIFC(point){
   const room=footprints.rooms[footprints.sensors[point.guid]?.roomGuid];
@@ -70,9 +58,11 @@ export function createOccupantLayer(scene,navigation,footprints,points){
     const [a,b,c]=triangle;
     const area=Math.abs((b[0]-a[0])*(c[2]-a[2])-(b[2]-a[2])*(c[0]-a[0]))*.5;
     if(area<.14)continue;
-    const start=a.map((v,n)=>(v+b[n]+c[n])/3);
+    // Wider but still strictly convex IFC-triangle paths make the walking
+    // legible, without placing figures outside the room's supplied geometry.
+    const start=a.map((v,n)=>v*.56+b[n]*.22+c[n]*.22);
     const end=a.map((v,n)=>v*.22+b[n]*.39+c[n]*.39);
-    candidates.push({start,end,area});
+    candidates.push({...boundWalkSegment(start,end),area});
    }
    candidates.sort((a,b)=>b.area-a.area);
    const result=[];
@@ -92,38 +82,36 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   const obj={floor,actors:anchors.map((anchor,i)=>actor(anchor,seed+i))};
   groups.set(key,obj);return obj;
  }
- const placements={
-  head:[0,1.73,0],hair:[0,1.94,0],neck:[0,1.42,0],
-  torso:[0,1.16,0],armL:[-.395,1.15,0],armR:[.395,1.15,0],
-  handL:[-.395,.80,0],handR:[.395,.80,0],
-  legL:[-.13,.39,0],legR:[.13,.39,0],
-  shoeL:[-.13,.09,-.10],shoeR:[.13,.09,-.10],
-  eyeL:[-.095,1.78,-.20],eyeR:[.095,1.78,-.20],
-  nose:[0,1.67,-.255],badge:[.15,1.28,-.175],
-  skirt:[0,.84,0]
- };
  const reducedMotion=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
  let enabled=false,moving=false,floor='all',mode='sensor',headcounts={},last=0,tourPlan={};
  function place(character,now){
-  const {start,end}=character.anchor;
-  const t=now*.0016+character.index*.8,animated=moving&&!reducedMotion;
-  const travel=animated?(1-Math.cos(t))*.5:0;
-  const yLift=animated?Math.sin(t*5)*.02:0;
-  const base=[start[0]+(end[0]-start[0])*travel,start[1]+yLift,start[2]+(end[2]-start[2])*travel];
-  const gait=animated?Math.sin(t*5)*18:0,cos=Math.cos(character.angle),sin=Math.sin(character.angle);
-  for(const part of character.items){
-   const local=placements[part.name],dx=local[0],dz=local[2];
-   part.mesh.position=[base[0]+dx*cos-dz*sin,base[1]+local[1],base[2]+dx*sin+dz*cos];
-   const animatedLimb=/^(arm|leg|shoe)/.test(part.name);
-   const direction=part.name.endsWith('L')?1:-1;
-   const swing=animatedLimb?direction*gait*(part.name.startsWith('arm')?-1:1):0;
-   part.mesh.rotation=[swing,character.angle*180/Math.PI,0];
-   if(part.name==='head')part.mesh.scale=[.25,.29,.23];
-   else if(part.name.startsWith('hand'))part.mesh.scale=[.102,.111,.103];
-   else if(part.name.startsWith('shoe'))part.mesh.scale=[.155,.10,.245];
-   else if(part.name.startsWith('eye'))part.mesh.scale=[.024,.031,.018];
-   else if(part.name==='badge')part.mesh.scale=[.068,.075,.024];
-   else part.mesh.scale=[1,1,1];
+  const pose=characterMotion(character.anchor,character.index,now,moving&&!reducedMotion);
+  const {base,heading,legSwing,armSwing,bob}=pose;
+  const radians=heading*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians);
+  const height=character.height;
+  const world=local=>[
+   base[0]+local[0]*cos-local[2]*sin,
+   base[1]+local[1]*height+bob,
+   base[2]+local[0]*sin+local[2]*cos
+  ];
+  for(const item of character.items){
+   const name=item.name;
+   if(name==='head'||name==='torso'){
+    item.mesh.position=world(CHARACTER_PLACEMENTS[name]);
+    item.mesh.rotation=[0,heading,0];
+    const scale=CHARACTER_SCALES[name];
+    item.mesh.scale=[scale[0],scale[1]*height,scale[2]];
+    continue;
+   }
+   const isLeft=name.endsWith('L'),isArm=name.startsWith('arm');
+   const pivot=isArm?
+    [isLeft?-.298:.298,1.390,0]:
+    [isLeft?-.118:.118,.800,0];
+   const pitch=(isLeft?1:-1)*(isArm?armSwing:legSwing);
+   const limb=mannequinLimbPose(pivot,isArm ? .309 : .386,pitch);
+   item.mesh.position=world(limb.center);
+   item.mesh.rotation=[limb.pitch,heading,0];
+   item.mesh.scale=[1,height,1];
   }
  }
  function refresh(now){
@@ -137,7 +125,9 @@ export function createOccupantLayer(scene,navigation,footprints,points){
   if(!isTour&&enabled){
    for(const [id,point] of pointsByRoom){
     if(Math.max(0,Number(headcounts[id])||0)>0&&!groups.has('sensor:'+id)){
-     group('sensor:'+id,point.floor,pointsFromIFC(point),pointsByRoom.size);
+     // Stable room-specific seed yields varied outfits without random flicker.
+     const roomIndex=[...pointsByRoom.keys()].indexOf(id);
+     group('sensor:'+id,point.floor,pointsFromIFC(point),roomIndex*3);
     }
    }
   }
@@ -160,7 +150,7 @@ export function createOccupantLayer(scene,navigation,footprints,points){
    mode=source==='tour'?'tour':'sensor';refresh(performance.now());
   },
   tick(now){
-   if(!enabled||!moving||reducedMotion||now-last<70)return;
+   if(!enabled||!moving||reducedMotion||now-last<40)return;
    last=now;refresh(now);
   },
   destroy(){

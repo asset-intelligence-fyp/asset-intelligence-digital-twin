@@ -1,0 +1,377 @@
+/* Clean TwinLabs dashboard: progressive disclosure, calm BIM canvas, and evidence-first alerts.
+   All view/scene features remain reachable via BIM Options and camera controls. */
+
+.page-container > .overview-clean { max-width:1500px; }
+.overview-clean-heading { display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin:0 0 17px; }
+.overview-clean-heading h1 {font-size:26px;letter-spacing:-.8px;font-weight:630;margin:3px 0 4px;}
+.overview-clean-heading p {font-size:11px;color:var(--muted);line-height:1.55;}
+.overview-clean-heading .small-outline {display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.overview-heading-actions {display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
+.overview-active-alerts {display:flex;align-items:center;gap:7px;background:rgba(191,70,78,.08);border:1px solid rgba(205,100,108,.32);border-radius:9px;padding:8px 12px;color:var(--ink);font-size:11px;min-height:31px;white-space:nowrap;}
+.overview-active-alerts svg {color:#e37d83;}
+.overview-active-alerts:hover {background:rgba(191,70,78,.15);}
+.overview-room-picker {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;min-width:0;}
+.overview-room-picker>span{font:10px var(--mono);color:var(--muted);letter-spacing:.3px;}
+.overview-room-picker label{display:flex;align-items:center;gap:8px;position:relative;border:1px solid var(--border);background:var(--surface);border-radius:9px;color:var(--ink);padding:0 10px 0 2px;min-width:190px;}
+.overview-room-picker select{background:transparent;color:inherit;border:0;appearance:none;padding:9px 28px 9px 10px;font-size:11px;min-width:0;width:100%;cursor:pointer;}
+.overview-room-picker label svg{position:absolute;right:10px;pointer-events:none;color:var(--muted);}
+.overview-clean .overview-workbench {display:grid!important;grid-template-columns:minmax(0,1fr) minmax(275px,310px)!important;align-items:start;gap:14px!important;}
+.overview-clean .model-card{min-height:600px;height:clamp(600px,70vh,800px)!important;}
+.overview-clean .model-card-header{height:49px;}
+.overview-clean .model-card-header .eyebrow{font-size:7.5px;}
+.overview-clean .overview-aside{display:flex!important;flex-direction:column!important;gap:12px!important;grid-column:auto!important;min-width:0;}
+.overview-insights{padding:16px 15px!important;display:flex;flex-direction:column;gap:12px;}
+.overview-insights-head,.overview-alert-summary,.overview-alert-entry,.overview-forecast-teaser>div{display:flex;align-items:center;gap:10px;}
+.overview-insights-head{justify-content:space-between;align-items:flex-start;}
+.overview-insights-head h2{font-size:17px;letter-spacing:-.35px;margin-top:3px;}
+.overview-insights-head .text-link{display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.overview-alert-summary{border:1px solid var(--border);border-radius:11px;padding:13px;}
+.overview-alert-summary.attention{background:rgba(194,74,74,.10);border-color:rgba(204,95,95,.35);}
+.overview-alert-summary.normal{background:rgba(33,178,163,.06);}
+.overview-alert-summary.attention>svg{color:#f07c86;}
+.overview-alert-summary.normal>svg{color:#36bda8;}
+.overview-alert-summary>div{display:flex;flex-direction:column;gap:4px;}
+.overview-alert-summary strong{font-size:13px;}
+.overview-alert-summary small{font-size:10px;color:var(--muted);}
+.overview-alert-list{display:flex;flex-direction:column;gap:6px;}
+.overview-alert-entry{border:1px solid var(--border);background:transparent;color:var(--ink);border-radius:10px;padding:10px 9px;text-align:left;min-height:58px;width:100%;}
+.overview-alert-entry:hover{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 5%,transparent);}
+.overview-alert-entry>span:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;}
+.overview-alert-entry strong{font-size:11px;line-height:1.4;font-weight:600;overflow:hidden;text-overflow:ellipsis;}
+.overview-alert-entry small{font-size:9px;color:var(--muted);line-height:1.4;}
+.overview-alert-entry>svg{color:var(--muted);}
+.overview-alert-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;background:#71849a;box-shadow:0 0 0 3px #71849a14;}
+.overview-alert-dot.severity-critical{background:#f17178;box-shadow:0 0 0 3px #f171781b;}
+.overview-alert-dot.severity-warning{background:#f2b354;box-shadow:0 0 0 3px #f2b35418;}
+.overview-insights-empty{font-size:11px;color:var(--muted);line-height:1.6;padding:6px 0;}
+.overview-forecast-teaser{border-top:1px solid var(--border);padding-top:13px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+.overview-forecast-teaser>div{color:var(--ink);font-size:11px;}
+.overview-forecast-teaser>div svg{color:var(--teal);}
+.overview-forecast-teaser p{font-size:10.5px;color:var(--muted);line-height:1.6;}
+.overview-forecast-teaser button{display:flex;align-items:center;gap:6px;}
+.overview-ask{width:100%;min-height:37px;display:flex;justify-content:center;align-items:center;gap:9px;font-weight:600;}
+.overview-clean .zone-detail{padding:14px!important;}
+.overview-clean .zone-detail-top{margin-bottom:10px;}
+.overview-clean .zone-detail-top h2{font-size:16px;}
+.overview-clean .zone-stat-grid{gap:6px;margin-bottom:9px;}
+.overview-clean .zone-stat{padding:8px;}
+.overview-clean .zone-system-rows{margin-top:8px;}
+.overview-sensor-options{border-top:1px solid var(--border);padding-top:10px;}
+.overview-sensor-options>summary{cursor:pointer;list-style:none;font-size:10.5px;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;}
+.overview-sensor-options>summary::-webkit-details-marker{display:none;}
+.overview-sensor-options[open]>summary svg,.overview-collapsible-section[open]>summary>svg:last-child{transform:rotate(180deg);}
+.overview-sensor-options svg,.overview-collapsible-section svg{transition:transform .15s;}
+.overview-clean .selected-sensor-detail{margin-top:9px;}
+.overview-clean .reporting-note{margin-top:10px;}
+.overview-clean .dashboard-trends{margin-top:22px;}
+.overview-collapsible-section{margin-top:12px;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:0 16px;}
+.overview-collapsible-section>summary{list-style:none;display:flex;align-items:center;gap:10px;padding:16px 0;color:var(--ink);font-size:12px;font-weight:600;cursor:pointer;}
+.overview-collapsible-section>summary::-webkit-details-marker{display:none;}
+.overview-collapsible-section>summary>span{margin-left:auto;font-size:10px;color:var(--muted);font-weight:400;}
+.overview-collapsible-section>summary>svg:last-child{margin-left:8px;color:var(--muted);}
+.overview-collapsible-section[open]{padding-bottom:15px;}
+.overview-collapsible-section .systems-heading{margin:10px 0 12px;}
+.overview-collapsible-section .weather-strip{margin:5px 0 0;}
+.overview-weather-section>.weather-station{max-width:none;}
+/* The five most common pages remain visible; other original pages are in More tools. */
+.sidebar-more{margin-top:10px;border-top:1px solid var(--border);padding-top:10px;}
+.sidebar-more>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:11px;min-height:38px;padding:8px 12px;color:var(--muted);font-size:11px;border-radius:8px;}
+.sidebar-more>summary::-webkit-details-marker{display:none;}
+.sidebar-more>summary:hover,.sidebar-more[open]>summary{background:color-mix(in srgb,var(--teal) 8%,transparent);color:var(--ink);}
+.sidebar-more>summary>svg:last-child{margin-left:auto;opacity:.65;}
+.sidebar-more[open]>summary>svg:last-child{transform:rotate(180deg);}
+.sidebar-more-list{margin:7px 0 0 12px;padding-left:8px;border-left:1px solid var(--border);display:flex;flex-direction:column;gap:4px;}
+.sidebar-more-list .nav-icon{width:100%;min-height:37px;height:37px;font-size:10px;}
+.sidebar-more-list .nav-icon svg{width:15px;height:15px;}
+.sidebar-compact-note{font-size:9px;color:var(--muted);line-height:1.6;padding:0 6px;}
+.sidebar .sidebar-bottom{padding-top:10px;min-height:0;}
+.topbar .appearance-toggle span{display:none;}
+.topbar .appearance-toggle{min-width:31px;width:31px;height:31px;padding:6px;display:flex;justify-content:center;}
+/* The viewer's primary actions remain visible; all advanced scene settings are one click away. */
+.clarity-stage .bim-view-controls{position:absolute!important;top:12px!important;left:12px!important;right:12px!important;display:flex!important;align-items:flex-start!important;justify-content:space-between;flex-wrap:wrap!important;gap:8px!important;z-index:20;pointer-events:none;}
+.clarity-stage .bim-view-controls>*{pointer-events:auto;}
+.bim-view-more{position:relative;flex-shrink:0;margin-left:0;}
+.bim-view-more>summary{display:flex;align-items:center;gap:7px;list-style:none;cursor:pointer;padding:8px 11px;min-height:34px;font-size:10px;color:var(--ink);background:var(--surface);border:1px solid var(--border);border-radius:9px;white-space:nowrap;}
+.bim-view-more>summary::-webkit-details-marker{display:none;}
+.bim-view-more[open]>summary{border-color:var(--teal);}
+.bim-view-more-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(315px,78vw);max-height:min(68vh,480px);overflow-y:auto;padding:12px;border:1px solid var(--border);border-radius:11px;background:var(--surface);box-shadow:0 18px 48px #0008;display:flex;flex-direction:column;gap:10px;z-index:25;}
+.clarity-stage .bim-view-more-panel .bim-secondary-controls{position:static!important;top:auto!important;left:auto!important;right:auto!important;max-width:none!important;display:flex!important;flex-direction:column;align-items:stretch!important;gap:12px!important;padding:4px 0!important;border:0!important;background:transparent!important;box-shadow:none!important;transform:none!important;}
+.bim-view-more-panel .bim-secondary-controls label{display:flex;align-items:center;gap:9px;min-width:0;flex-wrap:wrap;font-size:10px;}
+.bim-view-more-panel .bim-secondary-controls select{max-width:175px;}
+.bim-view-more-panel .bim-secondary-controls .sensor-activity-key{font-size:9px;color:var(--muted);}
+.bim-view-more-panel .bim-tour-shortcut{position:static!important;transform:none!important;width:100%;justify-content:flex-start;padding:9px 10px;min-height:34px;}
+.bim-view-more-panel .bim-opacity input{flex:1;min-width:100px;}
+.bim-camera-more{position:relative;}
+.bim-camera-more>summary{list-style:none;cursor:pointer;display:grid;place-items:center;min-width:30px;min-height:28px;color:var(--ink);}
+.bim-camera-more>summary::-webkit-details-marker{display:none;}
+.bim-camera-more-panel{position:absolute;bottom:calc(100% + 7px);right:0;width:max-content;max-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px;display:flex;gap:3px;box-shadow:0 12px 35px #0008;z-index:20;}
+.bim-camera-more-panel button{min-width:31px!important;}
+.bim-camera-actions{max-width:none!important;flex-wrap:nowrap!important;align-items:center;}
+.bim-sensor-pin:not(.bim-sensor-pin-selected){font-size:0!important;background:radial-gradient(circle at center,#22c8d8 0 3px,#0e344a 4px 8px,transparent 9px)!important;border:0!important;box-shadow:none!important;opacity:.8;}
+.bim-sensor-pin:not(.bim-sensor-pin-selected):hover,.bim-sensor-pin:not(.bim-sensor-pin-selected):focus-visible{opacity:1;filter:brightness(1.5);background:radial-gradient(circle,#7df6fa 0 5px,#10566b 6px 9px,transparent 10px)!important;}
+.bim-sensor-pin-selected{font-size:9px!important;}
+.bim-site-note{display:none!important;}
+.bim-occupant-note{max-width:230px!important;font-size:9px;}
+/* Monitoring page reuses existing alert persistence and evidence API. */
+.monitoring-page{max-width:1370px!important;}
+.monitoring-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px;}
+.monitoring-kpi{padding:17px;display:flex;gap:13px;align-items:flex-start;}
+.monitoring-kpi>svg{color:var(--teal);margin-top:3px;}
+.monitoring-kpi>div{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.monitoring-kpi small,.monitoring-kpi span{font-size:10px;color:var(--muted);}
+.monitoring-kpi strong{font-size:18px;letter-spacing:-.4px;}
+.monitoring-workspace{display:grid;grid-template-columns:minmax(300px,.95fr) minmax(380px,1.25fr);gap:15px;align-items:start;}
+.monitoring-queue,.monitoring-evidence{padding:18px;min-height:390px;}
+.monitoring-panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;}
+.monitoring-panel-head h2,.monitoring-evidence h2{font-size:18px;margin-top:3px;}
+.monitoring-incident{display:flex;align-items:center;gap:11px;border:1px solid var(--border);background:transparent;color:var(--ink);width:100%;text-align:left;border-radius:10px;padding:12px;margin-top:8px;}
+.monitoring-incident.is-selected,.monitoring-incident:hover{background:color-mix(in srgb,var(--teal) 8%,transparent);border-color:color-mix(in srgb,var(--teal) 40%,var(--border));}
+.monitoring-incident-body{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;}
+.monitoring-incident-body strong{font-size:12px;}
+.monitoring-incident-body small,.monitoring-incident-body em{font-size:10px;font-style:normal;color:var(--muted);}
+.monitoring-incident>svg{color:var(--muted);}
+.monitoring-evidence>p{color:var(--muted);line-height:1.6;font-size:11px;margin:9px 0 15px;}
+.monitoring-details{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0;}
+.monitoring-details>div{display:flex;flex-direction:column;gap:5px;border:1px solid var(--border);border-radius:9px;padding:10px;min-width:0;}
+.monitoring-details small{font-size:9px;color:var(--muted);}
+.monitoring-details strong{font-size:11px;overflow-wrap:anywhere;}
+.monitoring-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+.monitoring-actions .dark-button,.monitoring-actions .small-outline{display:flex;align-items:center;gap:6px;}
+.monitoring-empty{padding:35px 15px;text-align:center;display:flex;align-items:center;flex-direction:column;gap:10px;color:var(--muted);}
+.monitoring-empty h3{font-size:14px;}
+.monitoring-empty p{font-size:11px;line-height:1.65;max-width:330px;}
+.monitoring-forecast{padding:22px;margin-top:16px;display:flex;justify-content:space-between;align-items:center;gap:20px;}
+.monitoring-forecast h2{font-size:16px;display:flex;align-items:center;gap:9px;margin:7px 0;}
+.monitoring-forecast h2 svg{color:var(--teal);}
+.monitoring-forecast p{font-size:11px;color:var(--muted);line-height:1.65;max-width:750px;}
+.monitoring-forecast button{flex-shrink:0;display:flex;align-items:center;gap:6px;}
+.monitoring-provenance{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:7px;margin:12px 3px;}
+/* Keep light mode legible, including select popovers and alert backgrounds. */
+:root[data-theme="light"] .bim-view-more-panel,:root[data-theme="light"] .bim-camera-more-panel{background:#fff;box-shadow:0 14px 38px #203b5940;}
+:root[data-theme="light"] .bim-view-more>summary{background:#fff;color:#2b5066;}
+:root[data-theme="light"] .overview-alert-summary.attention{background:#fff5f3;}
+:root[data-theme="light"] .overview-alert-summary.normal{background:#f1fbf9;}
+@media(max-width:1150px){
+ .overview-clean .overview-workbench{grid-template-columns:minmax(0,1fr)!important;}
+ .overview-clean .overview-aside{display:grid!important;grid-template-columns:1.2fr 1fr!important;grid-column:auto!important;}
+ .overview-clean .model-card{min-height:560px;height:620px!important;}
+ .monitoring-workspace{grid-template-columns:1fr;}
+}
+@media(max-width:760px){
+ .overview-clean-heading{align-items:flex-start;flex-wrap:wrap;}
+ .monitoring-kpis{grid-template-columns:1fr;}
+ .overview-clean .overview-aside{display:flex!important;flex-direction:column!important;}
+ .overview-clean .model-card{min-height:500px;height:560px!important;width:100%;}
+ .overview-room-picker{align-items:stretch;flex-direction:column;}
+ .overview-room-picker label{width:100%;}
+ .overview-collapsible-section>summary>span{display:none;}
+ .monitoring-forecast{align-items:flex-start;flex-direction:column;}
+ .monitoring-details{grid-template-columns:1fr;}
+ .clarity-stage .bim-view-controls{left:8px!important;right:8px!important;top:8px!important;}
+ .clarity-stage .bim-view-controls .bim-render-modes button{padding:5px!important;}
+ .bim-view-more>summary{font-size:0;gap:0;padding:8px;}
+ .bim-view-more-panel{right:0;width:min(280px,86vw);}
+ .overview-clean .bim-gesture-help{display:none;}
+}
+
+/* Status-coloured BIM markers are based on simulator rules, not model inference. */
+.bim-health-key {display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:9px;}
+.bim-health-key span {display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.bim-health-key i {display:block;width:8px;height:8px;border-radius:50%;flex:0 0 auto;}
+.bim-health-key-normal {background:#36c58d;box-shadow:0 0 0 2px #36c58d22;}
+.bim-health-key-abnormal {background:#f36a72;box-shadow:0 0 0 2px #f36a7222;}
+.bim-health-key-unavailable {background:#788ba0;box-shadow:0 0 0 2px #788ba022;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-normal:not(.bim-sensor-pin-selected) {background:radial-gradient(circle,#42d89f 0 4px,#15553f 5px 8px,transparent 9px)!important;opacity:1!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-abnormal:not(.bim-sensor-pin-selected) {background:radial-gradient(circle,#fa6e77 0 5px,#702734 6px 9px,transparent 10px)!important;opacity:1!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-unavailable:not(.bim-sensor-pin-selected) {background:radial-gradient(circle,#91a2b4 0 3px,#2b3d4b 4px 8px,transparent 9px)!important;opacity:.78!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-normal.bim-sensor-pin-selected {background:#166b51!important;border-color:#72f0b7!important;color:#edfff9!important;box-shadow:0 0 0 3px #3cca8e33,0 0 16px #3cca8e55!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-abnormal.bim-sensor-pin-selected {background:#9f2638!important;border-color:#ff9a9e!important;color:#fff!important;box-shadow:0 0 0 3px #f36a7244,0 0 17px #f36a7266!important;}
+.clarity-stage .bim-pin-layer .bim-sensor-pin.health-unavailable.bim-sensor-pin-selected {background:#36485c!important;border-color:#c0d0df!important;color:#fff!important;box-shadow:0 0 0 3px #8496ab25!important;}
+.clarity-stage .bim-pin-layer .health-normal .sensor-anchor-core {fill:#40d99d!important;stroke:#b0ffe2!important;filter:drop-shadow(0 0 3px #42d99b77);}
+.clarity-stage .bim-pin-layer .health-abnormal .sensor-anchor-core {fill:#f36a72!important;stroke:#ffc2c5!important;filter:drop-shadow(0 0 4px #f36a72aa);}
+.clarity-stage .bim-pin-layer .health-unavailable .sensor-anchor-core {fill:#8092a4!important;stroke:#b3c2ce!important;filter:none!important;}
+.clarity-stage .bim-pin-layer .health-normal .sensor-arrival-ring {stroke:#40d99d!important;}
+.clarity-stage .bim-pin-layer .health-abnormal .sensor-arrival-ring {stroke:#f36a72!important;}
+.clarity-stage .bim-pin-layer .health-normal line {stroke:#42bb8d!important;}
+.clarity-stage .bim-pin-layer .health-abnormal line {stroke:#ed7278!important;}
+:root[data-theme="light"] .overview-active-alerts {background:#fff5f4;}
+@media(max-width:1040px){.bim-health-key {gap:6px;font-size:8px;}}
+@media(max-width:760px){.overview-heading-actions{width:100%;justify-content:space-between;}.bim-health-key{display:none;}}
+
+/* Sensor-interpolated whole-building and floor heatmap legend.
+   Colour is a demonstration severity/intensity score, never an extra reading. */
+.clarity-stage .bim-colour-key{width:min(250px,calc(100% - 32px));padding:13px 14px;gap:8px;z-index:12;}
+.clarity-stage .bim-colour-key label{font-weight:600;justify-content:space-between;}
+.clarity-stage .bim-colour-key select{width:154px;max-width:66%;font-size:11px;}
+.clarity-stage .bim-colour-scale{
+ height:13px;border-radius:7px;border:1px solid #9aabba50;
+ background:linear-gradient(90deg,
+ #21b35e 0%,#82cc47 25%,#f2d13b 50%,#f78531 75%,#d12e36 100%);
+ box-shadow:inset 0 0 0 1px #fff2;
+}
+.clarity-stage .bim-colour-scale.bim-colour-binary,
+.clarity-stage .bim-colour-scale.bim-colour-leak{
+ background:linear-gradient(90deg,#21b35e 0%,#21b35e 48%,#d12e36 52%,#d12e36 100%);
+}
+.clarity-stage .bim-colour-key span{font-size:10px;line-height:1.4;font-weight:500;}
+.clarity-stage .bim-colour-key small{line-height:1.5;font-size:9px;}
+.clarity-stage .bim-colour-key small:last-child{padding-top:8px;line-height:1.55;}
+@media(max-width:620px){
+ .clarity-stage .bim-colour-key{width:209px;max-width:calc(100% - 22px);padding:10px 11px;}
+ .clarity-stage .bim-colour-key select{width:120px;}
+}
+
+
+/* Overview spacing and theme contrast — Week 12 polish
+   A single consistent outer gutter and a stretched viewer remove the blank
+   region that previously appeared below the 3D canvas when the right column
+   contained more content. The WebGL scene, controls and data are untouched. */
+.overview-clean {
+ --overview-card-gap:16px;
+}
+.overview-clean .overview-clean-heading {
+ margin-bottom:var(--overview-card-gap);
+}
+.overview-clean .overview-room-picker {
+ margin-bottom:var(--overview-card-gap);
+}
+.overview-clean .overview-workbench {
+ align-items:stretch!important;
+ gap:var(--overview-card-gap)!important;
+}
+.overview-clean .model-card {
+ height:100%!important;
+ min-height:clamp(640px,76vh,880px);
+ align-self:stretch;
+}
+.overview-clean .overview-aside {
+ gap:var(--overview-card-gap)!important;
+ align-self:stretch;
+}
+.overview-clean .overview-insights {
+ padding:18px!important;
+ gap:14px;
+}
+.overview-clean .overview-alert-list {gap:8px;}
+.overview-clean .overview-alert-entry {padding:11px;min-height:62px;}
+.overview-clean .overview-forecast-teaser {padding-top:14px;gap:9px;}
+.overview-clean .zone-detail {padding:18px!important;}
+.overview-clean .zone-detail-top {margin-bottom:14px;}
+.overview-clean .zone-stat-grid {gap:10px;margin-bottom:14px;}
+.overview-clean .zone-stat {padding:10px 11px;}
+.overview-clean .dashboard-trends {margin-top:var(--overview-card-gap);}
+.overview-clean .overview-collapsible-section {margin-top:var(--overview-card-gap);}
+
+/* The metric figures had inherited very pale colours from the legacy dark
+   stylesheet even when their cards were light. Make figures readable in
+   BOTH themes, without overriding status/alert severity indicators. */
+:root[data-theme="light"] .overview-clean .zone-stat>span,
+:root[data-theme="light"] .overview-clean .zone-stat>span small {
+ color:#1b394d!important;
+}
+:root[data-theme="light"] .overview-clean .zone-stat .eyebrow {
+ color:#4c687a!important;
+}
+:root[data-theme="light"] .overview-clean .room-floor-label,
+:root[data-theme="light"] .overview-clean .overview-alert-entry small,
+:root[data-theme="light"] .overview-clean .overview-forecast-teaser p {
+ color:#496476!important;
+}
+
+/* Dark mode: keep the dark application shell, but use dark navy/near-black
+   type ON PALE overview cards. Black text directly on a dark panel would
+   be unreadable. Scope these colours to the light card surfaces only. */
+:root[data-theme="dark"] .overview-clean .overview-aside {
+ --ink:#152f42;
+ --muted:#456174;
+ --border:#bfcfdb;
+ --surface:#f5f9fc;
+ --teal:#087d93;
+ color:#152f42;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside>.surface {
+ background:#f5f9fc!important;
+ border-color:#bfcfdb!important;
+ color:#152f42!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside h2,
+:root[data-theme="dark"] .overview-clean .overview-aside h3,
+:root[data-theme="dark"] .overview-clean .overview-aside strong,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-forecast-teaser>div,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-sensor-options>summary {
+ color:#152f42!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .eyebrow,
+:root[data-theme="dark"] .overview-clean .overview-aside small,
+:root[data-theme="dark"] .overview-clean .overview-aside .room-floor-label,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-forecast-teaser p,
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-entry small {
+ color:#426074!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-entry,
+:root[data-theme="dark"] .overview-clean .overview-aside .small-outline {
+ background:#fff!important;
+ border-color:#c8d9e4!important;
+ color:#1f4258!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-entry:hover,
+:root[data-theme="dark"] .overview-clean .overview-aside .small-outline:hover {
+ background:#e8f3f8!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-summary.attention {
+ background:#fff1f0!important;
+ border-color:#e5aba9!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .overview-alert-summary.normal {
+ background:#eaf7f3!important;
+ border-color:#a8d9cc!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat {
+ background:#e9f2f8!important;
+ border-color:#c8d9e4!important;
+ color:#152f42!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat>span,
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat>span small {
+ color:#102c41!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .zone-stat .eyebrow {
+ color:#3c5e73!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .pill-teal,
+:root[data-theme="dark"] .overview-clean .overview-aside .reporting-note {
+ background:#e0f3f5!important;
+ border-color:#9acdd5!important;
+ color:#145d6d!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .twin-zone-sensor {
+ background:transparent!important;
+ color:#24495f!important;
+ border-bottom-color:#cadae5!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .twin-zone-sensor code {
+ color:#154b64!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .twin-zone-sensor[aria-pressed="true"] {
+ background:#d9ecf4!important;
+ color:#153f53!important;
+}
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail,
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail summary,
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail code,
+:root[data-theme="dark"] .overview-clean .overview-aside .selected-sensor-detail p {
+ color:#345568!important;
+}
+
+/* Once the columns stack, the viewer must return to a bounded height and
+   not stretch to the combined height of the monitoring cards. */
+@media(max-width:1150px){
+ .overview-clean .overview-workbench {align-items:start!important;}
+ .overview-clean .model-card {height:620px!important;min-height:560px;}
+ .overview-clean .overview-aside {align-self:auto;}
+}
+@media(max-width:760px){
+ .overview-clean .model-card {height:560px!important;min-height:500px;}
+ .overview-clean .overview-insights,.overview-clean .zone-detail {padding:14px!important;}
+ .overview-clean .zone-stat-grid {gap:8px;}
+}

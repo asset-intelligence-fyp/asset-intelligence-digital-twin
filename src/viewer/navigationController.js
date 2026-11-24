@@ -1,11 +1,12 @@
 import {METRICS} from './sensorPresentation.js';
+import {trimSlabsToEnvelope,limitFloorHeatmapToBuilding} from './heatmapField.js';
 import {GHOST_COLOUR,XRAY_DEFAULT,xrayStyle} from './renderSettings.js';
 import {storeyFor,floorBounds,frameBounds,frameSensor,layoutSensorPins} from './navigationMath.js';
 
 /** One owner for floor visibility, selection and camera movement. No competing React flights. */
 export function createNavigationController(viewer,{navigation,planes,onState=(_state)=>{},onPins=(_pins)=>{},points=[],heatmap={update(){},destroy(){}},floorGuides={update(){},destroy(){}},roomFocus={update(){},destroy(){},bounds(){return null},status(){return 'Room boundary unavailable'}},reducedMotion=false}){
  const scene=viewer.scene;
- const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,floorGuides:true,metric:'humidity',foundMarkers:0,objectsOnFloor:0};
+ const state={ready:false,floor:'all',mode:'solid',view:'orbit',selectedGuid:null,moving:false,cutaway:false,opacity:XRAY_DEFAULT,roomOutline:true,roomBoundary:'',hasRoomBoundary:false,floorGuides:true,metric:'status',foundMarkers:0,objectsOnFloor:0};
  let all=[],markerIds=[],architectureIds=[],floorIndex=new Map(),guidIndex=new Map(),flight=0,destroyed=false,pinSignature='',lastPins=0,slabIds=[],architecturalColours=[],glazingIds=[],heatReadings={};
  const sensors=new Map(navigation.sensors.map(p=>[p.guid,p]));
  const levelFor=id=>navigation.levels.find(p=>p.id===id);
@@ -47,10 +48,23 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    scene.setObjectsColorized(architectureIds,null);
    // Distinct, brighter real IFC slabs read as physical floor plates, while
    // walls remain finely translucent. Never recolour synthetic heat areas.
-   scene.setObjectsXRayed(slabIds,false);
-   scene.setObjectsOpacity(slabIds,style.floorAlpha);
-   scene.setObjectsColorized(slabIds,GHOST_COLOUR);
-   scene.setObjectsEdges(slabIds,true);
+   if(state.mode==='heatmap'){
+    // The heat layer supplies the floor colour. IFC slabs must not remain
+    // opaque grey/black rectangles over (or under) that colour texture.
+    // Keep original geometry pickable; only its presentation is subdued.
+    // Hide the underlying IFC slabs entirely while the heatmap supplies
+    // floor colour. Even 6% X-ray slab opacity was rendering as visible
+    // grey/white rectangles in the user's screenshots.
+    scene.setObjectsVisible(slabIds,false);
+    scene.setObjectsXRayed(slabIds,false);
+    scene.setObjectsColorized(slabIds,null);
+    scene.setObjectsEdges(slabIds,false);
+   }else{
+    scene.setObjectsXRayed(slabIds,false);
+    scene.setObjectsOpacity(slabIds,style.floorAlpha);
+    scene.setObjectsColorized(slabIds,GHOST_COLOUR);
+    scene.setObjectsEdges(slabIds,true);
+   }
   }
   floorGuides.update(state.mode,state.floor,state.floorGuides);
   state.roomBoundary=state.selectedGuid?roomFocus.status(state.selectedGuid):'';
@@ -91,7 +105,7 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
   if(!state.ready||destroyed||now-lastPins<50)return;lastPins=now;
   const canvas=scene.canvas.canvas,width=canvas.clientWidth,height=canvas.clientHeight;
   const eye=viewer.camera.eye,look=viewer.camera.look;
-  const representatives=points.filter(p=>state.mode!=='heatmap'||p.sensorType===state.metric);
+  const representatives=points.filter(p=>state.mode!=='heatmap'||state.metric==='status'||p.sensorType===state.metric);
   const projected=representatives.flatMap(point=>{
    const p=sensors.get(point.guid);if(!p)return [];
    if(!guidIndex.has(p.guid)||(state.floor!=='all'&&p.floor!==state.floor))return [];
@@ -129,18 +143,43 @@ export function createNavigationController(viewer,{navigation,planes,onState=(_s
    }
    slabIds=byType.get('floor')||[];
    glazingIds=byType.get('glazing')||[];
+   // Build colour planes from actual IFC slab coverage for each storey.
+   // For a storey without exported slab meshes, use its model AABB
+   // instead of rendering a tiny circular sensor vicinity.
+   const floorSurfaces=navigation.levels.filter(l=>/^Level_0[1-5]$/.test(l.id)).map(level=>{
+    const ids=floorIndex.get(level.id)||[];
+    const slabs=ids.filter(id=>/IfcSlab/.test(viewer.metaScene.metaObjects[id]?.type||''))
+     .map(id=>Array.from(scene.objects[id]?.aabb||[]))
+     .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]-box[0]>.35&&box[5]-box[2]>.35);
+    // These model objects describe enclosing walls / curtain glazing,
+    // rather than the oversized bounding rectangles of IFC floor slabs.
+    const facadeAabbs=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
+     .map(id=>Array.from(scene.objects[id]?.aabb||[]))
+     .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
+    const buildingEnvelope=ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||''))
+     .map(id=>Array.from(scene.objects[id]?.aabb||[]))
+     .filter(box=>box.length===6&&box.every(Number.isFinite)&&box[3]>box[0]&&box[5]>box[2]);
+    const monitoredSpaces=Object.fromEntries(navigation.sensors.filter(sensor=>{
+     const b=sensor.roomAabb;return Array.isArray(b)&&b.length===6&&b.every(Number.isFinite);
+    }).map(sensor=>{
+     const b=sensor.roomAabb;
+     return [sensor.guid,{positions:[b[0],b[1],b[2],b[3],b[4],b[5]]}];
+    }));
+    const clipped=limitFloorHeatmapToBuilding(trimSlabsToEnvelope(slabs,buildingEnvelope,1.1),monitoredSpaces);
+    if(clipped.length)return {floor:level.id,elevation:level.elevation,aabbs:clipped,facadeAabbs,source:'clipped-ifc-slab'};
+    if(!ids.length)return {floor:level.id,elevation:level.elevation,aabbs:[],facadeAabbs:[],source:'no-model-geometry'};
+    const fallback=buildingEnvelope.length?Array.from(scene.getAABB(ids.filter(id=>/IfcWall|IfcWindow|IfcCurtainWall|IfcColumn|IfcBeam|IfcDoor/.test(viewer.metaScene.metaObjects[id]?.type||'')))):Array.from(scene.getAABB(ids));
+    return {floor:level.id,elevation:level.elevation,aabbs:[fallback],facadeAabbs,source:'storey-architecture-bounds'};
+   });
+   heatmap.setFloorSurfaces?.(floorSurfaces);
    const palette={wall:[.79,.84,.87],glazing:[.41,.65,.74],roof:[.42,.51,.58],floor:[.69,.72,.72],door:[.55,.63,.62],structure:[.69,.76,.80]};
    architecturalColours=Object.entries(palette).map(([type,rgb])=>({ids:byType.get(type)||[],rgb})).filter(group=>group.ids.length);
    scene.setObjectsColorized(markerIds,[.15,.85,.95]);state.foundMarkers=markerIds.length;state.ready=true;scope();fit();emit();
   },focusSensor,showFloor,home,fit,setView,
   setMode(mode){
    const next=['xray','heatmap'].includes(mode)?mode:'solid';
-   if(next==='heatmap'&&state.mode!=='heatmap'&&state.floor==='all'){
-    const countByFloor=new Map();
-    for(const p of points.filter(p=>p.sensorType===state.metric))countByFloor.set(p.floor,(countByFloor.get(p.floor)||0)+1);
-    const best=[...countByFloor].sort((a,b)=>b[1]-a[1])[0]?.[0];
-    if(best){state.floor=best;state.view='plan';state.cutaway=true;}
-   }
+   // Keep the user's existing floor selection. Heatmap supports all floors
+   // concurrently; never redirect whole-building mode to a single storey.
    state.mode=next;pinSignature='';scope();emit();if(next==='heatmap')fit();
   },
   setCutaway(value){state.cutaway=!!value;clipping();emit()},

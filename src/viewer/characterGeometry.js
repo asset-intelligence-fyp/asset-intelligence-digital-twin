@@ -1,77 +1,92 @@
 /**
- * Authored low-poly office-character geometry.
- *
- * Curved tapered surfaces (not box primitives) keep the silhouettes human-readable
- * without downloading models or requiring textures/skinned animation middleware.
- * Material / scene ownership stays with the caller.
+ * Small procedural rounded mannequin geometry for the xeokit BIM viewer.
+ * Silhouette-only: no hair, face, clothes, lapels or external model assets.
+ * Materials and animation are managed by occupantLayer.js.
  */
-export function loftedPart(rings,segments=10){
+export function loftedPart(rings,segments=14){
  if(!Array.isArray(rings)||rings.length<2||!Number.isInteger(segments)||segments<5)throw Error('Bad low-poly profile');
- const v=[],tri=[];
- const point=(ring,step)=>{
-  const angle=step/segments*Math.PI*2;
+ const triangles=[];
+ const position=(ring,i)=>{
+  const angle=i/segments*Math.PI*2;
   return [(ring.x||0)+Math.cos(angle)*ring.rx,ring.y,(ring.z||0)+Math.sin(angle)*ring.rz];
  };
  for(let layer=0;layer<rings.length-1;layer++){
   for(let side=0;side<segments;side++){
-   const a=point(rings[layer],side),b=point(rings[layer],side+1),
-    c=point(rings[layer+1],side),d=point(rings[layer+1],side+1);
-   tri.push([a,c,b],[b,c,d]);
+   const a=position(rings[layer],side),b=position(rings[layer],side+1);
+   const c=position(rings[layer+1],side),d=position(rings[layer+1],side+1);
+   triangles.push([a,c,b],[b,c,d]);
   }
  }
  const cap=(ring,upper)=>{
   const center=[ring.x||0,ring.y,ring.z||0];
   for(let side=0;side<segments;side++){
-   const a=point(ring,side),b=point(ring,side+1);
-   tri.push(upper?[center,b,a]:[center,a,b]);
+   const a=position(ring,side),b=position(ring,side+1);
+   triangles.push(upper?[center,b,a]:[center,a,b]);
   }
  };
  cap(rings[0],false);cap(rings.at(-1),true);
+ // Smooth the authored capsule shading without subdividing the geometry.
+ // Triangle positions are duplicated for the xeokit ReadableGeometry format;
+ // average normals at coincident vertices to remove toy-like faceted seams.
+ const normalAt=new Map();
+ const keyOf=v=>v.map(n=>n.toFixed(5)).join(',');
+ for(const [a,b,c] of triangles){
+  const u=b.map((x,i)=>x-a[i]),v=c.map((x,i)=>x-a[i]);
+  const n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]];
+  for(const point of [a,b,c]){
+   const key=keyOf(point),acc=normalAt.get(key)||[0,0,0];
+   normalAt.set(key,acc.map((x,i)=>x+n[i]));
+  }
+ }
  const positions=[],normals=[],indices=[];
- for(const [a,b,c] of tri){
-  const u=b.map((x,i)=>x-a[i]),w=c.map((x,i)=>x-a[i]);
-  const n=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
-  const len=Math.hypot(...n)||1,normal=n.map(x=>x/len);
+ for(const triangle of triangles){
   const index=positions.length/3;
-  for(const pt of [a,b,c]){positions.push(...pt);normals.push(...normal)}
+  for(const vertex of triangle){
+   const n=normalAt.get(keyOf(vertex)),len=Math.hypot(...n)||1;
+   positions.push(...vertex);
+   normals.push(...n.map(x=>x/len));
+  }
   indices.push(index,index+1,index+2);
  }
  return {primitive:'triangles',positions,normals,indices};
 }
+
+/**
+ * Part geometry is centred on each mesh origin.
+ * Rounded ends eliminate the previous stick/segment look.
+ * Units are metres; proportions intentionally resemble the user's
+ * simple, soft-edged mannequin references rather than office workers.
+ */
 export const CHARACTER_PROFILES={
- jacket:[
-  {y:-.39,rx:.22,rz:.14},{y:-.21,rx:.24,rz:.16},
-  {y:.12,rx:.27,rz:.17},{y:.31,rx:.29,rz:.17},{y:.39,rx:.185,rz:.12}
- ],
- blouse:[
-  {y:-.39,rx:.185,rz:.14},{y:-.17,rx:.22,rz:.16},
-  {y:.13,rx:.25,rz:.17},{y:.31,rx:.265,rz:.16},{y:.39,rx:.17,rz:.11}
+ torso:[
+  {y:-.34,rx:.080,rz:.065},
+  {y:-.318,rx:.153,rz:.117},
+  {y:-.266,rx:.191,rz:.139},
+  {y:-.13,rx:.201,rz:.151},
+  {y:.12,rx:.228,rz:.162},
+  {y:.26,rx:.236,rz:.158},
+  {y:.324,rx:.164,rz:.117},
+  {y:.344,rx:.074,rz:.054}
  ],
  arm:[
-  {y:-.34,rx:.078,rz:.082},{y:-.11,rx:.086,rz:.093},
-  {y:.14,rx:.105,rz:.10},{y:.32,rx:.14,rz:.125}
+  {y:-.305,rx:.018,rz:.018},
+  {y:-.290,rx:.057,rz:.061},
+  {y:-.255,rx:.084,rz:.083},
+  {y:.00,rx:.096,rz:.091},
+  {y:.247,rx:.089,rz:.085},
+  {y:.292,rx:.059,rz:.061},
+  {y:.309,rx:.018,rz:.018}
  ],
  leg:[
-  {y:-.32,rx:.072,rz:.095},{y:-.10,rx:.09,rz:.106},
-  {y:.16,rx:.096,rz:.12},{y:.32,rx:.116,rz:.125}
- ],
- hair:[
-  {y:-.13,rx:.20,rz:.21},{y:0,rx:.26,rz:.24},
-  {y:.10,rx:.235,rz:.225},{y:.18,rx:.11,rz:.13},
-  {y:.20,rx:.015,rz:.020}
- ],
- skirt:[
-  {y:-.32,rx:.34,rz:.285},{y:-.15,rx:.31,rz:.26},
-  {y:.14,rx:.21,rz:.16},{y:.26,rx:.21,rz:.155}
- ],
- nose:[
-  {y:-.06,rx:.06,rz:.065},{y:.04,rx:.032,rz:.06},
-  {y:.10,rx:.003,rz:.008}
- ],
- neck:[
-  {y:-.09,rx:.077,rz:.078},{y:.08,rx:.083,rz:.083}
+  {y:-.379,rx:.017,rz:.017},
+  {y:-.361,rx:.061,rz:.074},
+  {y:-.325,rx:.094,rz:.104},
+  {y:.03,rx:.105,rz:.112},
+  {y:.310,rx:.106,rz:.111},
+  {y:.364,rx:.073,rz:.080},
+  {y:.386,rx:.018,rz:.020}
  ]
 };
 export function characterProfileGeometry(){
- return Object.fromEntries(Object.entries(CHARACTER_PROFILES).map(([k,profile])=>[k,loftedPart(profile,k==='nose'?6:9)]));
+ return Object.fromEntries(Object.entries(CHARACTER_PROFILES).map(([name,profile])=>[name,loftedPart(profile,14)]));
 }

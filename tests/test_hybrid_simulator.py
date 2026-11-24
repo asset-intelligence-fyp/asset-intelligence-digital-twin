@@ -23,6 +23,20 @@ class HybridTests(unittest.TestCase):
      lo,hi=BOUNDS[r['sensor_type']];self.assertTrue(lo<=r['value']<=hi)
    w=b['simulation']['weather'];self.assertTrue(0<=w['outdoor_humidity_pct']<=100)
    if t.hour<6 or t.hour>=18:self.assertEqual(w['solar_radiation_w_m2'],0)
+ def test_busy_attendance_requires_operating_hours(self):
+  # Calibrated workday occupancy near 21:00 is almost zero, even at 1.5x.
+  # A busy *demonstration* must use a working-hours synthetic clock;
+  # the generator itself must not invent nighttime visitors.
+  late=self.sim(seed=42,start='2026-11-23T21:00:00+08:00')
+  busy=self.sim(seed=42,start='2026-11-23T10:00:00+08:00')
+  options={'calendar_mode':'workday','attendance_factor':1.5}
+  at_night,_=late.step(options)
+  at_day,_=busy.step(options)
+  night_count=at_night['simulation']['simulated_headcounts']['L03-OPEN-01']
+  day_count=at_day['simulation']['simulated_headcounts']['L03-OPEN-01']
+  self.assertEqual(night_count,0)
+  self.assertGreater(day_count,0)
+  self.assertTrue(at_day['simulation']['calendar']['is_workday'])
  def test_holiday_names_and_unknown_year_not_silently_repeated(self):
   s=self.sim();c=s.calendar(stamp('2026-06-01T12:00:00+08:00'));self.assertFalse(c['is_workday']);self.assertIn('Gawai',c['holiday_name'])
   c=s.calendar(stamp('2026-06-04T12:00:00+08:00'));self.assertFalse(c['is_workday'])

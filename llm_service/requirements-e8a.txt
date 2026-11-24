@@ -1,0 +1,9 @@
+# Exact E8-A research workflow from llm-test: LangGraph + Ollama + DuckDB.
+# Install once in the same Python environment used to run the website:
+#   python3 -m pip install -r llm_service/requirements-e8a.txt
+# Existing P2 room assistant does not require these optional packages.
+duckdb>=1.2,<3
+numpy>=1.26,<3
+pydantic>=2.6,<3
+ollama>=0.4,<1
+langgraph>=0.5,<2

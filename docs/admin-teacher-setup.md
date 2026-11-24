@@ -1,4 +1,4 @@
-# TwinLabs administrator login — lecturer / demonstration setup
+> **Note for design/clean-dashboard-preserve-features:** This branch uses PostgreSQL-backed administrator accounts instead of the old local .env administrator workflow. Use [One-command LAN hosting](shared-lan-hosting.md) and `npm run admin:db:setup` on this branch. The legacy guide below describes the original integration branch, not this feature.\n\n# TwinLabs administrator login — lecturer / demonstration setup
 
 This guide applies to the **default `main` branch** and the integrated TwinLabs Alpha website. It is intended for a reviewer or student running a local copy. The administrator viewer does not use a cloud-hosted account and the GitHub repository intentionally contains **no reusable admin password or password hash**.
 
@@ -12,7 +12,7 @@ cd asset-intelligence-digital-twin
 git lfs install
 git lfs pull
 npm ci
-npm run admin:setup
+npm run admin:db:setup
 ```
 
 This is the same first-run process in the [main README](../README.md). On another machine, generate a **new local password**; GitHub does not contain a universal administrator password.
@@ -68,7 +68,7 @@ Expected initial database registry: **18 virtual indoor sensors across five virt
 
 | Problem | Check / action |
 | --- | --- |
-| `Admin login is not configured` (HTTP 503) | Run `npm run admin:setup` from the repository root and restart `npm run dev`. |
+| `Admin login is not configured` (HTTP 503) | Run `npm run admin:db:setup` from the repository root and restart `npm run dev`. |
 | `Invalid credentials` (HTTP 401) | The password must match this machine's newly generated hash; don't enter the hash as the password. Repeat `admin:setup` if the password was lost, then restart. |
 | `Too many login attempts` (HTTP 429) | Wait for the local rate-limit window (15 minutes), or restart the development API before testing with newly generated credentials. |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` still ignored | Environment variables exported in the terminal can override `.env`; remove stale shell overrides and restart the API. |
@@ -82,7 +82,7 @@ Expected initial database registry: **18 virtual indoor sensors across five virt
 
 - The GitHub repository contains **setup scripts and instructions, not actual credentials**.
 - The locally generated `.env` is Git-ignored. Do not upload it or screenshots showing credentials.
-- The password should be shared privately with the instructor **only if running the same configured machine**; on another clone, the instructor runs `npm run admin:setup` themselves.
+- The password should be shared privately with the instructor **only if running the same configured machine**; on another clone, the instructor runs `npm run admin:db:setup` themselves.
 - Admin authentication uses a salted scrypt verifier, constant-time comparison, HttpOnly SameSite cookies and local in-memory sessions. It is an academic prototype, not production identity management.
 - Never expose the local prototype's API/DB/Ollama ports to a public network without proper security hardening.
 

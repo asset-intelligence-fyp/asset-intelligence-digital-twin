@@ -69,7 +69,8 @@ CREATE TABLE IF NOT EXISTS digital_twin.users (
  username TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE,
  password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
--- Current local admin hash/session still uses .env; users above are for future integration.
+ALTER TABLE digital_twin.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+-- Admin credentials are verified against digital_twin.users using the stored scrypt hash.
 
 CREATE TABLE IF NOT EXISTS digital_twin.ai_results (
  ai_result_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -112,13 +113,19 @@ CREATE TABLE IF NOT EXISTS digital_twin.alerts (
  alert_type TEXT NOT NULL, message TEXT NOT NULL,
  triggered_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ
 );
+-- Upgrade older v3 databases without replacing existing alert rows.
+ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS replay_id TEXT;
+ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS detector TEXT;
+ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS evidence JSONB NOT NULL DEFAULT '[]'::jsonb;
 CREATE INDEX IF NOT EXISTS v3_alert_status_time ON digital_twin.alerts(alert_status_id,triggered_at DESC);
+CREATE INDEX IF NOT EXISTS auto_alert_point ON digital_twin.alerts(point_code) WHERE resolved_at IS NULL;
 CREATE TABLE IF NOT EXISTS digital_twin.notifications (
  notification_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  alert_id BIGINT NOT NULL REFERENCES digital_twin.alerts(alert_id),
  user_id BIGINT NOT NULL REFERENCES digital_twin.users(user_id),
  message TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE digital_twin.notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ;
 CREATE TABLE IF NOT EXISTS digital_twin.maintenance_events (
  maintenance_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  location_code TEXT NOT NULL REFERENCES digital_twin.monitoring_locations(location_code),
@@ -137,30 +144,51 @@ INSERT INTO digital_twin.alert_severity(severity_name)
 INSERT INTO digital_twin.alert_status(status_name)
  VALUES ('New'),('Review'),('Acknowledged'),('Closed')
  ON CONFLICT(status_name) DO NOTHING;
+-- Approved, one-time invitation codes. Store only SHA-256 digests, never plaintext codes.
+CREATE TABLE IF NOT EXISTS digital_twin.access_invites (
+ invite_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ email TEXT NOT NULL,
+ role_name TEXT NOT NULL DEFAULT 'viewer' CHECK(role_name='viewer'),
+ code_hash TEXT NOT NULL UNIQUE,
+ expires_at TIMESTAMPTZ NOT NULL,
+ used_at TIMESTAMPTZ,
+ created_by TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_status TEXT NOT NULL DEFAULT 'not_configured';
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS email_sent_at TIMESTAMPTZ;
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+ALTER TABLE digital_twin.access_invites ADD COLUMN IF NOT EXISTS revoked_by TEXT;
+-- Editorial announcements are separate from automatic sensor-alert notifications.
+CREATE TABLE IF NOT EXISTS digital_twin.announcements (
+ announcement_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ title TEXT NOT NULL,
+ body TEXT NOT NULL,
+ status TEXT NOT NULL DEFAULT 'draft'
+  CHECK (status IN ('draft','published','archived')),
+ created_by TEXT NOT NULL,
+ updated_by TEXT NOT NULL,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ published_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS announcements_status_published_idx
+ ON digital_twin.announcements(status,published_at DESC);
+CREATE TABLE IF NOT EXISTS digital_twin.admin_audit (
+ audit_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+ actor TEXT NOT NULL,
+ action TEXT NOT NULL,
+ target TEXT NOT NULL,
+ detail JSONB NOT NULL DEFAULT '{}'::jsonb,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO digital_twin.roles(role_name) VALUES ('admin'),('viewer')
+ON CONFLICT(role_name) DO NOTHING;
 COMMIT;
 
--- Timescale conversion is executed by setup-v3.mjs separately, outside transaction.
--- No retention/delete policies are enabled by this schema.
-
-
--- Automatic synthetic rule alerts. Evidence remains after raw-history retention.
-CREATE TABLE IF NOT EXISTS digital_twin.alert_severity (
- alert_severity_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, severity_name TEXT NOT NULL UNIQUE
-);
-CREATE TABLE IF NOT EXISTS digital_twin.alert_status (
- alert_status_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, status_name TEXT NOT NULL UNIQUE
-);
-CREATE TABLE IF NOT EXISTS digital_twin.alerts (
- alert_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
- point_code TEXT REFERENCES digital_twin.sensor_registry(point_code),
- alert_severity_id BIGINT NOT NULL REFERENCES digital_twin.alert_severity(alert_severity_id),
- alert_status_id BIGINT NOT NULL REFERENCES digital_twin.alert_status(alert_status_id),
- alert_type TEXT NOT NULL, message TEXT NOT NULL,
- triggered_at TIMESTAMPTZ NOT NULL DEFAULT now(), resolved_at TIMESTAMPTZ
-);
-ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS replay_id TEXT;
-ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS detector TEXT;
-ALTER TABLE digital_twin.alerts ADD COLUMN IF NOT EXISTS evidence JSONB NOT NULL DEFAULT '[]'::jsonb;
-CREATE INDEX IF NOT EXISTS auto_alert_point ON digital_twin.alerts(point_code) WHERE resolved_at IS NULL;
-INSERT INTO digital_twin.alert_severity(severity_name) VALUES('Medium'),('Critical') ON CONFLICT DO NOTHING;
-INSERT INTO digital_twin.alert_status(status_name) VALUES('New'),('Review'),('Acknowledged'),('Closed') ON CONFLICT DO NOTHING;
+-- Canonical database schema for the active digital_twin Website.
+-- Rerunnable CREATE/ALTER statements retain existing tables and rows.
+-- Sensor metadata is seeded via scripts/setup-v3.mjs with ON CONFLICT DO NOTHING.
+-- Timescale hypertable conversion and PostgreSQL change-notification trigger
+-- are configured by scripts/setup-v3.mjs after running this SQL.
+-- No DROP TABLE, TRUNCATE, or DELETE statements are used.

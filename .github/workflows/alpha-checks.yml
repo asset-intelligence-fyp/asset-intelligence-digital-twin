@@ -37,5 +37,7 @@ jobs:
         run: npm run test:alerts
       - name: Verify BIM asset checkout
         run: npm run model:verify
+      - name: Install E8-A agentic research dependencies
+        run: python3 -m pip install -r llm_service/requirements-e8a.txt
       - name: Python tests
         run: python3 -m unittest discover -s tests -p 'test_*.py'

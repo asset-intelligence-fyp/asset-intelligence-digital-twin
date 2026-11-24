@@ -2,12 +2,14 @@ import {createAlertService,definitions} from './alertService.js';
 import {registerBuildingAssistant} from './buildingAssistant.js';
 import {adminAuth} from './adminAuth.js';
 import {registerAdminDatabase} from './adminDatabase.js';
+import {registerAdminManagement} from './adminManagement.js';
 import express from 'express';
 import {normalizeSimulation,registerSimulationControls} from './hybridContract.js';
 import {createHash,randomUUID} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {createLatencyMetrics} from './latencyMetrics.js';
 import {registerRoomAssistant} from './roomAssistant.js';
+import {registerE8AMonitoring} from './e8aMonitoring.js';
 import cors from 'cors';import dotenv from 'dotenv';import pg from 'pg';
 import path from 'node:path';import fs from 'node:fs';import {fileURLToPath} from 'node:url';
 import {registry,normalizeReadings} from './sensorContract.js';
@@ -19,7 +21,7 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
  const ACTIVE_SCHEMA=schema;
  const alerts=createAlertService(ACTIVE_SCHEMA);
  const app=express();app.use(cors());app.use(express.json({limit:'1mb'}));
- adminAuth(app);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);
+ adminAuth(app,pool,ACTIVE_SCHEMA);registerAdminDatabase(app,pool,ACTIVE_SCHEMA);registerAdminManagement(app,pool,ACTIVE_SCHEMA);
  registerSimulationControls(app);
  const clients=new Map(),received=new Map(),completed=new Map(),ring=[];
  const streamEpoch=randomUUID();let eventSequence=0,memory=[],lastSource=null,activeReplay=pool?undefined:null,ingestion=Promise.resolve();
@@ -135,7 +137,14 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   if(!Number.isSafeInteger(id)||id<1||!['Review','Acknowledged'].includes(status))return res.status(400).json({error:'Invalid alert ID or status'});
   try{const event=await alerts.acknowledge(pool,id,status);if(!event)return res.status(404).json({error:'Alert not found'});control('alert',event);res.json(event)}catch{res.status(503).json({error:'Unable to save acknowledgement'})}
  });
- registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource||{replay_id:activeReplay},getAlerts:()=>alerts.list(pool)});
+ const e8a=registerE8AMonitoring(app,{
+  getHistory:codes=>historyFor(codes),
+  getSource:()=>lastSource||{replay_id:activeReplay}
+ });
+ registerBuildingAssistant(app,{
+  getHistory:()=>historyFor(),getSource:()=>lastSource||{replay_id:activeReplay},
+  getAlerts:()=>alerts.list(pool),getE8A:()=>e8a.state()
+ });
  registerRoomAssistant(app,{getHistory:codes=>historyFor(codes)});
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
  if(fs.existsSync(path.join(root,'dist')))app.use(express.static(path.join(root,'dist')));
