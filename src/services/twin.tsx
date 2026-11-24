@@ -8,7 +8,7 @@ export type PointCode = string;
 export type AssetId = string;
 export const ASSETS: AssetId[] = [...new Set(POINTS.map(p=>p.assetId))];
 export interface Reading { point_code:string; value:number|null; timestamp:string; quality:string; source:'random'|'http'|'stored'; received_at_utc?:string; trace?:{trace_id:string;batch_size:number} }
-export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; synthetic:boolean;automatic?:boolean;resolved_at?:string|null;detector?:string;rule?:string;evidence?:Array<{point_code:string;value:number|null;timestamp:string;quality:string}>;point_code?:string;reading_snapshot?:{value:number|null;timestamp:string;quality:string} }
+export interface EventRecord { id:number; title:string; level:'Critical'|'Warning'|'Info'; description:string; source:string; zone:string; time:string; acknowledged:boolean; status_name?:string; synthetic:boolean;automatic?:boolean;resolved_at?:string|null;detector?:string;rule?:string;evidence?:Array<{point_code:string;value:number|null;timestamp:string;quality:string}>;point_code?:string;reading_snapshot?:{value:number|null;timestamp:string;quality:string} }
 interface Bootstrap {storage?:string;simulation?:{replay_id:string|null};data?:{
   Alerts?:EventRecord[];
   Assets?: Array<{asset_id:string;asset_name:string;asset_type:string;status:string;ifc_global_id?:string;manufacturer?:string;model?:string}>;
@@ -182,7 +182,7 @@ export function TwinProvider({children}:{children:ReactNode}){
   if(demo&&[-10001,-10002].includes(id)){setDemoAcknowledged(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id]);return;}
   const item=events.find(e=>e.id===id);if(!item)return;
   if(item.automatic||!item.synthetic){
-   const response=await fetch(`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:item.acknowledged?'Review':'Acknowledged'})});
+   const response=await fetch(`/api/anomalies/${id}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'Acknowledged'})});
    if(!response.ok)throw new Error(`Unable to update anomaly (${response.status})`);
    const saved=await response.json();setEvents(prev=>prev.map(e=>e.id===id?saved:e));return;
   }
