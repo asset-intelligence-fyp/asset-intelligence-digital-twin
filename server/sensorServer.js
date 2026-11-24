@@ -9,6 +9,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {createLatencyMetrics} from './latencyMetrics.js';
 import {registerRoomAssistant} from './roomAssistant.js';
+import {registerE8AMonitoring} from './e8aMonitoring.js';
 import cors from 'cors';import dotenv from 'dotenv';import pg from 'pg';
 import path from 'node:path';import fs from 'node:fs';import {fileURLToPath} from 'node:url';
 import {registry,normalizeReadings} from './sensorContract.js';
@@ -136,7 +137,14 @@ export function createSensorApp({pool=null,schema=DEFAULT_SCHEMA}={}) {
   if(!Number.isSafeInteger(id)||id<1||!['Review','Acknowledged'].includes(status))return res.status(400).json({error:'Invalid alert ID or status'});
   try{const event=await alerts.acknowledge(pool,id,status);if(!event)return res.status(404).json({error:'Alert not found'});control('alert',event);res.json(event)}catch{res.status(503).json({error:'Unable to save acknowledgement'})}
  });
- registerBuildingAssistant(app,{getHistory:()=>historyFor(),getSource:()=>lastSource||{replay_id:activeReplay},getAlerts:()=>alerts.list(pool)});
+ const e8a=registerE8AMonitoring(app,{
+  getHistory:codes=>historyFor(codes),
+  getSource:()=>lastSource||{replay_id:activeReplay}
+ });
+ registerBuildingAssistant(app,{
+  getHistory:()=>historyFor(),getSource:()=>lastSource||{replay_id:activeReplay},
+  getAlerts:()=>alerts.list(pool),getE8A:()=>e8a.state()
+ });
  registerRoomAssistant(app,{getHistory:codes=>historyFor(codes)});
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
  if(fs.existsSync(path.join(root,'dist')))app.use(express.static(path.join(root,'dist')));
